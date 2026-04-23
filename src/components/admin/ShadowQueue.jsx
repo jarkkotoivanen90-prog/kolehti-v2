@@ -1,0 +1,1 @@
+export default function ShadowQueue({ items=[] }) { return <div className="glass-card p-4"><div className="font-black">Shadow queue</div><div className="mt-3 space-y-2">{items.map((i)=><div key={i.id} className="rounded-xl bg-white/6 p-2">{i.title || i.display_name}</div>)}</div></div>; }

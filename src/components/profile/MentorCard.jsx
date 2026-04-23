@@ -1,0 +1,1 @@
+export default function MentorCard({ text }) { return <div className="glass-card p-4"><div className="font-black">AI Mentor</div><div className="mt-2 text-sm text-white/75">{text || 'Ei palautetta vielä.'}</div></div>; }

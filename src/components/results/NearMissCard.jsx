@@ -1,0 +1,1 @@
+export default function NearMissCard({ message }) { return message ? <div className="glass-card p-4"><div className="font-black">Near miss</div><div className="mt-2 text-sm text-white/75">{message}</div></div> : null; }

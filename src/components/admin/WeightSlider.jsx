@@ -1,0 +1,1 @@
+export default function WeightSlider({ label, value, onChange, min=0, max=1, step=0.01 }) { return <div className="rounded-xl bg-white/6 p-3"><div className="flex justify-between text-sm"><span>{label}</span><span>{value}</span></div><input className="w-full" type="range" min={min} max={max} step={step} value={value} onChange={(e)=>onChange?.(Number(e.target.value))} /></div>; }

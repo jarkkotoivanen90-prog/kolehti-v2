@@ -1,0 +1,2 @@
+import { useEffect, useState } from 'react';
+export default function Countdown({ endsAt }) { const [text,setText]=useState(''); useEffect(()=>{ const iv=setInterval(()=>{ const diff=Math.max(0,new Date(endsAt).getTime()-Date.now()); const s=Math.floor(diff/1000)%60; const m=Math.floor(diff/60000)%60; const h=Math.floor(diff/3600000); setText(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`); },1000); return ()=>clearInterval(iv); },[endsAt]); return <div className="pill">⏱ {text}</div>; }

@@ -1,0 +1,1 @@
+export default function ActivityTicker({ items=[] }) { return <div className="glass-card p-4"><div className="font-black">Live tapahtumat</div><div className="mt-2 space-y-2">{items.slice(0,5).map((i)=><div key={i.id} className="text-sm text-white/75">{i.message}</div>)}</div></div>; }

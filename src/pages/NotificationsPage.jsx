@@ -1,0 +1,1 @@
+export default function NotificationsPage() { return <div className="glass-card p-5"><div className="headline-lg">Ilmoitukset</div><div className="mt-2 text-white/70">Ilmoituskeskus tulossa.</div></div>; }

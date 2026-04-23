@@ -1,0 +1,1 @@
+export default function ProgressBar({ value=0 }) { return <div className="h-3 w-full rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-gradient-to-r from-cyan-300 to-blue-500" style={{width:`${Math.max(0,Math.min(100,Number(value)*100))}%`}} /></div>; }

@@ -1,0 +1,1 @@
+export default function RoundInsightCard({ insight }) { return <div className="glass-card p-4"><div className="font-black">Kierroksen insight</div><div className="mt-2 text-sm text-white/75">{insight || 'Ei insightia'}</div></div>; }

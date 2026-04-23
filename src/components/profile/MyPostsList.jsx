@@ -1,0 +1,1 @@
+export default function MyPostsList({ posts=[] }) { return <div className="space-y-3">{posts.map((p)=><div key={p.id} className="glass-card p-3"><div className="font-bold">{p.title || 'Perustelu'}</div><div className="text-sm text-white/70">{p.text || p.body}</div></div>)}</div>; }

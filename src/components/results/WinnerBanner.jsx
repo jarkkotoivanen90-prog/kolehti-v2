@@ -1,0 +1,1 @@
+export default function WinnerBanner({ result }) { if (!result) return null; return <div className="glass-card-strong p-5"><div className="text-sm text-white/60">Voittaja</div><div className="headline-lg mt-1">{result.profile_name || result.title || 'Voittaja'}</div><div className="mt-2 text-white/75">{result.reason_summary || result.summary}</div></div>; }

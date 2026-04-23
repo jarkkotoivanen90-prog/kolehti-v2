@@ -1,0 +1,1 @@
+export default function BreakdownPanel({ item }) { return <div className="glass-card p-4"><div className="font-black">Breakdown</div><pre className="mt-2 text-xs whitespace-pre-wrap">{item ? JSON.stringify(item, null, 2) : 'Valitse postaus'}</pre></div>; }

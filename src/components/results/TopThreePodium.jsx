@@ -1,0 +1,1 @@
+export default function TopThreePodium({ items=[] }) { return <div className="grid grid-cols-3 gap-3">{items.slice(0,3).map((i,idx)=><div key={i.id||idx} className="glass-card p-3 text-center"><div className="text-xl font-black">#{idx+1}</div><div className="mt-1">{i.display_name || i.title}</div></div>)}</div>; }

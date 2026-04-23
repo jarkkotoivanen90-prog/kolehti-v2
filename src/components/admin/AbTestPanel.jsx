@@ -1,0 +1,1 @@
+export default function AbTestPanel({ config }) { return <div className="glass-card p-4"><div className="font-black">A/B test</div><div className="mt-2 text-sm text-white/70">AI traffic: {config?.traffic_split_ai ?? 50}%</div></div>; }

@@ -1,0 +1,1 @@
+export default function SwipeActionOverlay({ label, side='left' }) { return <div className={`absolute ${side==='left'?'left-4':'right-4'} top-4 z-10 rounded-xl bg-white/10 px-3 py-2 text-sm font-bold`}>{label}</div>; }

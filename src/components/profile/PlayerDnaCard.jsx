@@ -1,0 +1,1 @@
+export default function PlayerDnaCard({ profile }) { return <div className="glass-card p-4"><div className="font-black">Player DNA</div><div className="mt-2">{profile?.player_dna || 'Ei analysoitu'}</div><div className="text-sm text-white/65">{profile?.persuasion_style || 'Tyyli puuttuu'}</div></div>; }
