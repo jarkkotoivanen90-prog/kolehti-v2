@@ -1,70 +1,44 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
-import { useProfile } from "../hooks/useProfile";
-import { useFeed } from "../hooks/useFeed";
-import { useBoost } from "../hooks/useBoost";
-import { useNearMiss } from "../hooks/useNearMiss";
-import ProfileCard from "../components/profile/ProfileCard";
-import ReputationHistory from "../components/profile/ReputationHistory";
-import PremiumButton from "../components/ui/PremiumButton";
+import { useAuth } from "../hooks/useAuth";
 
-export default function ProfilePage({ notifications }) {
-  const profile = useProfile();
-  const { entries, reload } = useFeed("day");
-  const { boost } = useBoost();
-  const nearMiss = useNearMiss();
-  const [mentor, setMentor] = useState([]);
+export default function ProfilePage() {
+  const { user, profile, logout, loading } = useAuth();
 
-  useEffect(() => {
-    async function loadMentor() {
-      if (!supabase) return;
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch("/api/reputation-history", { headers: { Authorization: `Bearer ${session?.access_token || ""}` } });
-      await res.json();
-      const { data } = await supabase.from("mentor_feedback").select("*").order("created_at", { ascending: false }).limit(5);
-      setMentor(data || []);
-    }
-    loadMentor();
-  }, []);
+  if (loading) {
+    return <div className="p-6 text-white">Ladataan profiilia...</div>;
+  }
 
-  const myPosts = entries.filter((p) => profile?.id && p.profile_id === profile.id);
-
-  async function handleBoost(postId) {
-    try {
-      await boost(postId);
-      notifications.success("Boost tallennettu");
-      reload();
-    } catch (e) {
-      notifications.error(e.message);
-    }
+  if (!user) {
+    return <div className="p-6 text-white">Et ole kirjautunut.</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <ProfileCard profile={profile} />
-      <ReputationHistory />
-      {nearMiss ? <div className="glass-card p-4 text-amber-100">{nearMiss.message}</div> : null}
-      <section className="glass-card p-5">
-        <div className="text-xl font-black">AI mentor</div>
-        <div className="mt-4 space-y-3">
-          {mentor.map((m) => <div key={m.id} className="rounded-2xl bg-white/6 p-4 text-sm text-white/80">{m.feedback}</div>)}
-          {!mentor.length ? <div className="text-sm text-white/60">Ei vielä mentoripalautetta.</div> : null}
+    <div className="mx-auto max-w-3xl px-4 py-8 text-white">
+      <div className="rounded-[28px] border border-white/12 bg-white/8 p-6 backdrop-blur-xl">
+        <div className="text-2xl font-black">{profile?.display_name || "Käyttäjä"}</div>
+        <div className="mt-2 text-white/70">{user.email}</div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl bg-white/6 p-4">
+            <div className="text-xs text-white/60">Trust level</div>
+            <div className="mt-1 text-xl font-bold">{profile?.trust_level || "new"}</div>
+          </div>
+          <div className="rounded-2xl bg-white/6 p-4">
+            <div className="text-xs text-white/60">Reputation</div>
+            <div className="mt-1 text-xl font-bold">{profile?.reputation_score ?? 0.5}</div>
+          </div>
+          <div className="rounded-2xl bg-white/6 p-4">
+            <div className="text-xs text-white/60">Invite code</div>
+            <div className="mt-1 text-xl font-bold">{profile?.invite_code || "-"}</div>
+          </div>
         </div>
-      </section>
-      <section className="glass-card p-5">
-        <div className="text-xl font-black">Omat perustelut</div>
-        <div className="mt-4 space-y-4">
-          {myPosts.map((post) => (
-            <div key={post.id} className="rounded-2xl bg-white/6 p-4">
-              <div className="font-bold">{post.title || "Perustelusi"}</div>
-              <div className="mt-2 text-sm text-white/80">{post.text}</div>
-              <div className="mt-3 text-xs text-white/60">Boostit {post.boost_count || 0} • Näkyvyys {Number(post.boost_visibility || 0).toFixed(2)}</div>
-              <PremiumButton variant="gold" className="mt-3" onClick={() => handleBoost(post.id)}>Korosta näkyvyyttä</PremiumButton>
-            </div>
-          ))}
-          {!myPosts.length ? <div className="text-sm text-white/60">Ei aktiivisia perusteluja.</div> : null}
-        </div>
-      </section>
+
+        <button
+          onClick={logout}
+          className="mt-6 rounded-2xl border border-white/12 bg-white/8 px-4 py-3 font-semibold"
+        >
+          Kirjaudu ulos
+        </button>
+      </div>
     </div>
   );
 }
