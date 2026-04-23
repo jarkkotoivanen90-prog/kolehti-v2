@@ -3,6 +3,14 @@ import SectionHeader from "../components/ui/SectionHeader";
 import PremiumButton from "../components/ui/PremiumButton";
 import PremiumStat from "../components/ui/PremiumStat";
 import { useFeed } from "../hooks/useFeed";
+import { Link } from "react-router-dom";
+
+<Link
+  to="/login"
+  className="inline-flex rounded-2xl border border-white/12 bg-white/8 px-4 py-3 font-semibold text-white"
+>
+  Kirjaudu / Luo tili
+</Link>
 
 function Hero() {
   return (
