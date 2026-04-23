@@ -1,30 +1,41 @@
-import { Routes, Route } from "react-router-dom";
-import AppShell from "./components/layout/AppShell";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import FeedPage from "./pages/FeedPage";
 import VotePage from "./pages/VotePage";
 import NewPostPage from "./pages/NewPostPage";
 import ProfilePage from "./pages/ProfilePage";
 import ResultsPage from "./pages/ResultsPage";
-import AdminDashboard from "./pages/AdminDashboard";
-import NotificationStack from "./components/ui/NotificationStack";
-import { useNotifications } from "./hooks/useNotifications";
+import LoginPage from "./pages/LoginPage";
+import AuthGate from "./components/auth/AuthGate";
 
 export default function App() {
-  const notifications = useNotifications();
-
   return (
-    <>
-      <NotificationStack notifications={notifications.notifications} onClose={notifications.remove} />
+    <BrowserRouter>
       <Routes>
-        <Route path="/" element={<AppShell><HomePage notifications={notifications} /></AppShell>} />
-        <Route path="/feed" element={<AppShell><FeedPage notifications={notifications} /></AppShell>} />
-        <Route path="/vote" element={<AppShell><VotePage notifications={notifications} /></AppShell>} />
-        <Route path="/new" element={<AppShell><NewPostPage notifications={notifications} /></AppShell>} />
-        <Route path="/profile" element={<AppShell><ProfilePage notifications={notifications} /></AppShell>} />
-        <Route path="/results" element={<AppShell><ResultsPage notifications={notifications} /></AppShell>} />
-        <Route path="/admin/dashboard" element={<AppShell><AdminDashboard notifications={notifications} /></AppShell>} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/feed" element={<FeedPage />} />
+        <Route path="/vote" element={<VotePage />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route
+          path="/new"
+          element={
+            <AuthGate>
+              <NewPostPage />
+            </AuthGate>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <AuthGate>
+              <ProfilePage />
+            </AuthGate>
+          }
+        />
       </Routes>
-    </>
+    </BrowserRouter>
   );
 }
