@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/round-engine",
+      "schedule": "*/1 * * * *"
+    },
+    {
+      "path": "/api/feed-rank",
+      "schedule": "*/2 * * * *"
+    }
+  ]
+}
