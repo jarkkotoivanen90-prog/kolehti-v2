@@ -1,11 +1,11 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
 import FeedPage from "./pages/FeedPage";
-import VotePage from "./pages/VotePage";
 import NewPostPage from "./pages/NewPostPage";
 import ProfilePage from "./pages/ProfilePage";
-import ResultsPage from "./pages/ResultsPage";
-import LoginPage from "./pages/LoginPage";
+
 import AuthGate from "./components/auth/AuthGate";
 
 export default function App() {
@@ -13,10 +13,16 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/feed" element={<FeedPage />} />
-        <Route path="/vote" element={<VotePage />} />
-        <Route path="/results" element={<ResultsPage />} />
         <Route path="/login" element={<LoginPage />} />
+
+        <Route
+          path="/feed"
+          element={
+            <AuthGate>
+              <FeedPage />
+            </AuthGate>
+          }
+        />
 
         <Route
           path="/new"
