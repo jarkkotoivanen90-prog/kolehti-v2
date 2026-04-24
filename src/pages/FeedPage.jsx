@@ -1,47 +1,29 @@
-import { useFeed } from "../hooks/useFeed";
-import { useProfile } from "../hooks/useProfile";
-import { useVote } from "../hooks/useVote";
-import { useBoost } from "../hooks/useBoost";
-import FeedCard from "../components/feed/FeedCard";
-import SectionHeader from "../components/ui/SectionHeader";
+iimport { useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 
-export default function FeedPage({ notifications }) {
-  const { entries, reload } = useFeed("day");
-  const profile = useProfile();
-  const { vote } = useVote();
-  const { boost } = useBoost();
+export default function FeedPage() {
+  const [posts, setPosts] = useState([]);
 
-  async function onVote(postId) {
-    try {
-      await vote(postId, "day");
-      notifications.success("Ääni tallennettu");
-      reload();
-    } catch (e) {
-      notifications.error(e.message);
-    }
-  }
+  useEffect(() => {
+    load();
+  }, []);
 
-  async function onBoost(postId) {
-    try {
-      await boost(postId);
-      notifications.success("Boost tallennettu");
-      reload();
-    } catch (e) {
-      notifications.error(e.message);
-    }
-  }
+  const load = async () => {
+    const { data } = await supabase
+      .from("posts")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setPosts(data);
+  };
 
   return (
-    <div className="space-y-6">
-      <section className="glass-card p-5">
-        <SectionHeader eyebrow="Feed" title="Perustelut" subtitle="Näe yhteisön vahvimmat perustelut ja AI:n nostamat signaalit." />
-      </section>
-      <div className="grid gap-4">
-        {entries.map((entry) => (
-          <FeedCard key={entry.id} entry={entry} onVote={onVote} mine={profile?.id === entry.profile_id} onBoost={onBoost} />
-        ))}
-        {!entries.length ? <div className="glass-card p-6 text-white/70">Ei aktiivisia perusteluja.</div> : null}
-      </div>
+    <div style={{ padding: 40 }}>
+      <h1>Feed</h1>
+
+      {posts.map((p) => (
+        <div key={p.id}>{p.content}</div>
+      ))}
     </div>
   );
 }
