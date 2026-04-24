@@ -1,35 +1,49 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const login = async (e) => {
-    e.preventDefault();
+  const handleLogin = async () => {
+    setLoading(true);
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
     });
 
-    if (error) setMsg(error.message);
-    else setMsg("Tarkista sähköposti ✉️");
+    if (error) {
+      alert(error.message);
+    } else {
+      alert("Tarkista sähköposti (magic link)");
+    }
+
+    setLoading(false);
   };
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>Login</h1>
+    <div className="min-h-screen flex items-center justify-center text-white">
+      <div className="glass-card p-6 w-full max-w-md">
+        <h1 className="text-2xl mb-4">Kirjaudu</h1>
 
-      <form onSubmit={login}>
         <input
+          type="email"
+          placeholder="Sähköposti"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="email"
+          className="w-full p-3 rounded bg-white/10 mb-4"
         />
-        <button type="submit">Login</button>
-      </form>
 
-      <p>{msg}</p>
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full p-3 bg-cyan-500 rounded"
+        >
+          {loading ? "Ladataan..." : "Lähetä kirjautumislinkki"}
+        </button>
+      </div>
     </div>
   );
 }
