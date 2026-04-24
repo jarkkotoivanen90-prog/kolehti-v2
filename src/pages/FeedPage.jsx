@@ -5,24 +5,29 @@ export default function FeedPage() {
   const [posts, setPosts] = useState([]);
 
   useEffect(() => {
-    load();
+    fetchPosts();
   }, []);
 
-  const load = async () => {
-    const { data } = await supabase
+  const fetchPosts = async () => {
+    const { data, error } = await supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    setPosts(data);
+    if (!error) setPosts(data);
   };
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>Feed</h1>
+    <div className="p-6 text-white">
+      <h1 className="text-2xl mb-4">Feed</h1>
 
-      {posts.map((p) => (
-        <div key={p.id}>{p.content}</div>
+      {posts.map((post) => (
+        <div
+          key={post.id}
+          className="mb-4 p-4 rounded bg-white/10"
+        >
+          {post.content}
+        </div>
       ))}
     </div>
   );
