@@ -1,4 +1,4 @@
-iimport { useState } from "react";
+import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export default function NewPostPage() {
