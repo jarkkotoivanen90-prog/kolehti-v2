@@ -1,32 +1,53 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 export default function NewPostPage() {
-  const [text, setText] = useState("");
+  const [content, setContent] = useState("");
+  const navigate = useNavigate();
 
-  const createPost = async () => {
-    const { data: user } = await supabase.auth.getUser();
+  const handlePost = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    await supabase.from("posts").insert([
+    if (!user) {
+      alert("Et ole kirjautunut");
+      return;
+    }
+
+    const { error } = await supabase.from("posts").insert([
       {
-        content: text,
-        user_id: user.user.id,
+        content,
+        user_id: user.id,
       },
     ]);
 
-    setText("");
+    if (error) {
+      alert(error.message);
+    } else {
+      setContent("");
+      navigate("/feed");
+    }
   };
 
   return (
-    <div style={{ padding: 40 }}>
-      <h1>Uusi postaus</h1>
+    <div className="p-6 text-white">
+      <h1 className="text-2xl mb-4">Uusi postaus</h1>
 
       <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="w-full p-3 rounded bg-white/10 mb-4"
+        placeholder="Kirjoita perustelu..."
       />
 
-      <button onClick={createPost}>Postaa</button>
+      <button
+        onClick={handlePost}
+        className="px-4 py-2 bg-cyan-500 rounded"
+      >
+        Lähetä
+      </button>
     </div>
   );
 }
