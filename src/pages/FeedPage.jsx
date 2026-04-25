@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { Link } from "react-router-dom";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
   const [votes, setVotes] = useState([]);
   const [user, setUser] = useState(null);
+  const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -12,38 +14,50 @@ export default function FeedPage() {
 
     const channel = supabase
       .channel("live-ranking")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "votes" },
-        () => init()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
-        () => init()
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => init())
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => init())
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, []);
 
   async function init() {
+    setLoading(true);
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     setUser(user);
 
-    const { data: postsData, error: postsError } = await supabase
+    const groupId = localStorage.getItem("kolehti_group_id");
+
+    if (groupId) {
+      const { data: groupData } = await supabase
+        .from("groups")
+        .select("*")
+        .eq("id", groupId)
+        .single();
+
+      setGroup(groupData || null);
+    } else {
+      setGroup(null);
+    }
+
+    let postsQuery = supabase
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    const { data: votesData, error: votesError } = await supabase
-      .from("votes")
-      .select("*");
+    if (groupId) postsQuery = postsQuery.eq("group_id", groupId);
+
+    const { data: postsData, error: postsError } = await postsQuery;
+
+    let votesQuery = supabase.from("votes").select("*");
+
+    if (groupId) votesQuery = votesQuery.eq("group_id", groupId);
+
+    const { data: votesData, error: votesError } = await votesQuery;
 
     if (postsError) alert(postsError.message);
     if (votesError) alert(votesError.message);
@@ -69,19 +83,14 @@ export default function FeedPage() {
         vote_count: counts[post.id] || 0,
       }))
       .sort((a, b) => {
-        if (b.vote_count !== a.vote_count) {
-          return b.vote_count - a.vote_count;
-        }
+        if (b.vote_count !== a.vote_count) return b.vote_count - a.vote_count;
         return new Date(b.created_at) - new Date(a.created_at);
       });
   }
 
   function hasVoted(postId) {
     if (!user) return false;
-
-    return votes.some(
-      (vote) => vote.post_id === postId && vote.user_id === user.id
-    );
+    return votes.some((vote) => vote.post_id === postId && vote.user_id === user.id);
   }
 
   async function voteForPost(post) {
@@ -95,17 +104,17 @@ export default function FeedPage() {
       return;
     }
 
+    const groupId = localStorage.getItem("kolehti_group_id");
+
     const { error } = await supabase.from("votes").insert({
       user_id: user.id,
       post_id: post.id,
+      group_id: groupId || null,
     });
 
     if (error) {
-      if (error.code === "23505") {
-        alert("Olet jo äänestänyt tätä perustelua.");
-      } else {
-        alert(error.message);
-      }
+      if (error.code === "23505") alert("Olet jo äänestänyt tätä perustelua.");
+      else alert(error.message);
       return;
     }
 
@@ -120,27 +129,14 @@ export default function FeedPage() {
   }
 
   function cardStyle(index) {
-    if (index === 0) {
-      return "border-yellow-300/40 bg-yellow-300/10 shadow-yellow-300/20";
-    }
-
-    if (index === 1) {
-      return "border-slate-200/30 bg-white/10";
-    }
-
-    if (index === 2) {
-      return "border-orange-300/30 bg-orange-300/10";
-    }
-
+    if (index === 0) return "border-yellow-300/40 bg-yellow-300/10 shadow-yellow-300/20";
+    if (index === 1) return "border-slate-200/30 bg-white/10";
+    if (index === 2) return "border-orange-300/30 bg-orange-300/10";
     return "border-white/10 bg-white/10";
   }
 
   if (loading) {
-    return (
-      <div className="mx-auto max-w-3xl p-6 text-white">
-        Ladataan rankingia...
-      </div>
-    );
+    return <div className="mx-auto max-w-3xl p-6 text-white">Ladataan rankingia...</div>;
   }
 
   return (
@@ -149,21 +145,39 @@ export default function FeedPage() {
         <div>
           <h1 className="text-3xl font-black">Ranking Feed</h1>
           <p className="mt-1 text-sm text-white/60">
-            Live-ranking päivittyy automaattisesti, kun ääniä annetaan.
+            {group ? `Porukka: ${group.name}` : "Ei valittua porukkaa"}
           </p>
         </div>
 
-        <button
-          onClick={init}
-          className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
-        >
-          Päivitä
-        </button>
+        <div className="flex gap-2">
+          <Link
+            to="/groups"
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
+          >
+            Porukat
+          </Link>
+
+          <button
+            onClick={init}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
+          >
+            Päivitä
+          </button>
+        </div>
       </div>
+
+      {!group && (
+        <div className="mb-5 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
+          Valitse ensin porukka.
+          <Link to="/groups" className="ml-2 font-bold text-cyan-200">
+            Mene porukkiin →
+          </Link>
+        </div>
+      )}
 
       {posts.length === 0 ? (
         <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
-          Ei vielä postauksia.
+          Ei vielä postauksia tässä porukassa.
         </div>
       ) : (
         <div className="space-y-4">
@@ -199,7 +213,7 @@ export default function FeedPage() {
                   <button
                     onClick={() => voteForPost(post)}
                     disabled={voted}
-                    className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                    className={`rounded-full px-4 py-2 text-sm font-bold ${
                       voted
                         ? "bg-white/10 text-white/50"
                         : "bg-pink-500/90 text-white hover:bg-pink-500"
