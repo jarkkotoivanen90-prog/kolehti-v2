@@ -45,19 +45,19 @@ export default function App() {
         />
 
         <Route
-          path="/profile"
+          path="/groups"
           element={
             <AuthGate>
-              <ProfilePage />
+              <GroupPage />
             </AuthGate>
           }
         />
 
         <Route
-          path="/groups"
+          path="/profile"
           element={
             <AuthGate>
-              <GroupPage />
+              <ProfilePage />
             </AuthGate>
           }
         />
