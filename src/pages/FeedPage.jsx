@@ -13,111 +13,270 @@ export default function FeedPage() {
     init();
 
     const channel = supabase
-      .channel("live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, init)
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, init)
+      .channel("live-ranking-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        () => init()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        () => init()
+      )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function init() {
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    setUser(user || null);
 
     const groupId = localStorage.getItem("kolehti_group_id");
 
     if (groupId) {
-      const { data } = await supabase.from("groups").select("*").eq("id", groupId).single();
-      setGroup(data);
+      const { data: groupData } = await supabase
+        .from("groups")
+        .select("*")
+        .eq("id", groupId)
+        .single();
+
+      setGroup(groupData || null);
+    } else {
+      setGroup(null);
     }
 
-    let postsQuery = supabase.from("posts").select("*");
-    let votesQuery = supabase.from("votes").select("*");
+    let postsQuery = supabase
+      .from("posts")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (groupId) {
       postsQuery = postsQuery.eq("group_id", groupId);
+    }
+
+    const { data: postsData, error: postsError } = await postsQuery;
+
+    let votesQuery = supabase.from("votes").select("*");
+
+    if (groupId) {
       votesQuery = votesQuery.eq("group_id", groupId);
     }
 
-    const { data: postsData } = await postsQuery;
-    const { data: votesData } = await votesQuery;
+    const { data: votesData, error: votesError } = await votesQuery;
 
-    const ranked = rank(postsData || [], votesData || []);
+    if (postsError) alert(postsError.message);
+    if (votesError) alert(votesError.message);
 
-    setPosts(ranked);
-    setVotes(votesData || []);
+    const safePosts = postsData || [];
+    const safeVotes = votesData || [];
+
+    setVotes(safeVotes);
+    setPosts(rankPosts(safePosts, safeVotes));
     setLoading(false);
   }
 
-  function rank(posts, votes) {
+  function rankPosts(postsList, votesList) {
     const counts = {};
 
-    votes.forEach(v => {
-      counts[v.post_id] = (counts[v.post_id] || 0) + 1;
+    votesList.forEach((vote) => {
+      counts[vote.post_id] = (counts[vote.post_id] || 0) + 1;
     });
 
-    return posts
-      .map(p => ({
-        ...p,
-        vote_count: counts[p.id] || 0
+    return postsList
+      .map((post) => ({
+        ...post,
+        vote_count: counts[post.id] || 0,
       }))
-      .sort((a, b) => score(b) - score(a));
-  }
+      .sort((a, b) => {
+        if (b.vote_count !== a.vote_count) {
+          return b.vote_count - a.vote_count;
+        }
 
-  function score(post) {
-    const age = (Date.now() - new Date(post.created_at)) / 3600000;
-    return post.vote_count - age * 0.1;
+        return new Date(b.created_at) - new Date(a.created_at);
+      });
   }
 
   function hasVoted(postId) {
-    return votes.some(v => v.post_id === postId && v.user_id === user?.id);
+    if (!user) return false;
+
+    return votes.some(
+      (vote) => vote.post_id === postId && vote.user_id === user.id
+    );
   }
 
-  async function vote(post) {
-    if (!user) return alert("Kirjaudu");
+  async function voteForPost(post) {
+    if (!user) {
+      alert("Kirjaudu ensin.");
+      return;
+    }
 
-    if (hasVoted(post.id)) return;
+    if (hasVoted(post.id)) {
+      alert("Olet jo äänestänyt tätä perustelua.");
+      return;
+    }
 
     const groupId = localStorage.getItem("kolehti_group_id");
 
-    await supabase.from("votes").insert({
+    const { error } = await supabase.from("votes").insert({
       user_id: user.id,
       post_id: post.id,
-      group_id: groupId
+      group_id: groupId || null,
     });
 
-    init();
+    if (error) {
+      if (error.code === "23505") {
+        alert("Olet jo äänestänyt tätä perustelua.");
+      } else {
+        alert(error.message);
+      }
+      return;
+    }
+
+    await init();
   }
 
-  if (loading) return <div className="p-6 text-white">Loading...</div>;
+  function rankLabel(index) {
+    if (index === 0) return "🏆 Päivän kärki";
+    if (index === 1) return "🥈 Hopeasija";
+    if (index === 2) return "🥉 Pronssisija";
+    return `#${index + 1}`;
+  }
+
+  function cardStyle(index) {
+    if (index === 0) {
+      return "border-yellow-300/40 bg-yellow-300/10 shadow-yellow-300/20";
+    }
+
+    if (index === 1) {
+      return "border-slate-200/30 bg-white/10";
+    }
+
+    if (index === 2) {
+      return "border-orange-300/30 bg-orange-300/10";
+    }
+
+    return "border-white/10 bg-white/10";
+  }
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl p-6 text-white">
+        Ladataan rankingia...
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 text-white">
-      <div className="flex justify-between mb-6">
+    <div className="mx-auto max-w-3xl p-6 text-white">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-black">Feed</h1>
-          <p>{group ? group.name : "Valitse porukka"}</p>
+          <h1 className="text-3xl font-black">Ranking Feed</h1>
+
+          <p className="mt-1 text-sm text-white/60">
+            {group ? `Porukka: ${group.name}` : "Ei valittua porukkaa"}
+          </p>
         </div>
 
         <div className="flex gap-2">
-          <Link to="/new" className="bg-cyan-500 px-4 py-2 rounded">Uusi</Link>
-          <Link to="/groups" className="border px-4 py-2 rounded">Porukat</Link>
+          <Link
+            to="/new"
+            className="rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-bold"
+          >
+            Uusi
+          </Link>
+
+          <Link
+            to="/groups"
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
+          >
+            Porukat
+          </Link>
+
+          <button
+            onClick={init}
+            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
+          >
+            Päivitä
+          </button>
         </div>
       </div>
 
-      {posts.map((p, i) => (
-        <div key={p.id} className="mb-4 p-4 bg-white/10 rounded">
-          <div>{i + 1}</div>
-          <p>{p.content}</p>
-
-          <button onClick={() => vote(p)} disabled={hasVoted(p.id)}>
-            ❤️ {p.vote_count}
-          </button>
+      {!group && (
+        <div className="mb-5 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
+          Valitse ensin porukka.
+          <Link to="/groups" className="ml-2 font-bold text-cyan-200">
+            Mene porukkiin →
+          </Link>
         </div>
-      ))}
+      )}
+
+      {posts.length === 0 ? (
+        <div className="rounded-3xl border border-white/10 bg-white/10 p-5">
+          Ei vielä postauksia tässä porukassa.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {posts.map((post, index) => {
+            const voted = hasVoted(post.id);
+
+            return (
+              <div
+                key={post.id}
+                className={`rounded-3xl border p-5 shadow-xl ${cardStyle(
+                  index
+                )}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-black text-cyan-200">
+                    {rankLabel(index)}
+                  </div>
+
+                  {index < 3 && (
+                    <div className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold">
+                      TOP {index + 1}
+                    </div>
+                  )}
+                </div>
+
+                <h2 className="mt-3 text-xl font-black">
+                  {post.title || "Perustelu"}
+                </h2>
+
+                <p className="mt-2 text-white/80">
+                  {post.content || post.body || ""}
+                </p>
+
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => voteForPost(post)}
+                    disabled={voted}
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                      voted
+                        ? "bg-white/10 text-white/50"
+                        : "bg-pink-500/90 text-white hover:bg-pink-500"
+                    }`}
+                  >
+                    {voted ? "Äänestetty" : "❤️ Äänestä"}
+                  </button>
+
+                  <div className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold">
+                    ❤️ {post.vote_count || 0} ääntä
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
