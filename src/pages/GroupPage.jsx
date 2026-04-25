@@ -44,7 +44,7 @@ export default function GroupPage() {
     }
 
     if (!name.trim()) {
-      alert("Anna porukalle nimi.");
+      alert("Anna porukan nimi.");
       return;
     }
 
@@ -60,8 +60,9 @@ export default function GroupPage() {
     }
 
     await joinGroup(data.id);
+    localStorage.setItem("kolehti_group_id", data.id);
     setName("");
-    await init();
+    navigate("/feed");
   }
 
   async function joinGroup(groupId) {
@@ -80,6 +81,7 @@ export default function GroupPage() {
       return;
     }
 
+    localStorage.setItem("kolehti_group_id", groupId);
     await init();
   }
 
@@ -92,7 +94,7 @@ export default function GroupPage() {
     <div className="mx-auto max-w-3xl p-6 text-white">
       <h1 className="text-3xl font-black">Porukat</h1>
       <p className="mt-1 text-white/60">
-        Luo porukka tai liity olemassa olevaan. Feed ja ranking suodattuvat porukan mukaan.
+        Luo porukka tai liity olemassa olevaan. Feed ja ranking toimivat porukkakohtaisesti.
       </p>
 
       <div className="mt-6 rounded-3xl border border-white/10 bg-white/10 p-5">
@@ -103,7 +105,7 @@ export default function GroupPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Porukan nimi"
-            className="flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3"
+            className="flex-1 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-white outline-none"
           />
 
           <button
