@@ -5,8 +5,9 @@ import { useNavigate } from "react-router-dom";
 export default function GroupPage() {
   const [user, setUser] = useState(null);
   const [groups, setGroups] = useState([]);
-  const [myGroupIds, setMyGroupIds] = useState([]);
+  const [memberships, setMemberships] = useState([]);
   const [name, setName] = useState("");
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,6 +15,8 @@ export default function GroupPage() {
   }, []);
 
   async function init() {
+    setLoading(true);
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -30,59 +33,60 @@ export default function GroupPage() {
     if (user) {
       const { data: memberData } = await supabase
         .from("group_members")
-        .select("group_id")
-        .eq("user_id", user.id);
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("active", true);
 
-      setMyGroupIds((memberData || []).map((m) => m.group_id));
+      setMemberships(memberData || []);
     }
+
+    setLoading(false);
+  }
+
+  function isJoined(groupId) {
+    return memberships.some((m) => m.group_id === groupId);
   }
 
   async function createGroup() {
-    if (!user) {
-      alert("Kirjaudu ensin.");
-      return;
-    }
+    if (!user) return alert("Kirjaudu ensin.");
+    if (!name.trim()) return alert("Anna porukan nimi.");
 
-    if (!name.trim()) {
-      alert("Anna porukan nimi.");
-      return;
-    }
-
-    const { data, error } = await supabase
+    const { data: group, error } = await supabase
       .from("groups")
       .insert({ name: name.trim() })
       .select()
       .single();
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    if (error) return alert(error.message);
 
-    await joinGroup(data.id);
-    localStorage.setItem("kolehti_group_id", data.id);
-    setName("");
+    await supabase.from("group_members").insert({
+      group_id: group.id,
+      user_id: user.id,
+      role: "owner",
+      active: true,
+    });
+
+    localStorage.setItem("kolehti_group_id", group.id);
     navigate("/feed");
   }
 
   async function joinGroup(groupId) {
-    if (!user) {
-      alert("Kirjaudu ensin.");
-      return;
-    }
+    if (!user) return alert("Kirjaudu ensin.");
 
-    const { error } = await supabase.from("group_members").insert({
-      group_id: groupId,
-      user_id: user.id,
-    });
+    const { error } = await supabase.from("group_members").upsert(
+      {
+        group_id: groupId,
+        user_id: user.id,
+        role: "member",
+        active: true,
+      },
+      { onConflict: "group_id,user_id" }
+    );
 
-    if (error && error.code !== "23505") {
-      alert(error.message);
-      return;
-    }
+    if (error) return alert(error.message);
 
     localStorage.setItem("kolehti_group_id", groupId);
-    await init();
+    navigate("/feed");
   }
 
   function openGroup(groupId) {
@@ -90,12 +94,48 @@ export default function GroupPage() {
     navigate("/feed");
   }
 
+  async function leaveGroup(groupId) {
+    if (!user) return;
+
+    const ok = confirm("Haluatko poistua porukasta?");
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("group_members")
+      .update({ active: false })
+      .eq("group_id", groupId)
+      .eq("user_id", user.id);
+
+    if (error) return alert(error.message);
+
+    if (localStorage.getItem("kolehti_group_id") === groupId) {
+      localStorage.removeItem("kolehti_group_id");
+    }
+
+    await init();
+  }
+
+  if (loading) {
+    return <div className="p-6 text-white">Ladataan porukoita...</div>;
+  }
+
   return (
-    <div className="mx-auto max-w-3xl p-6 text-white">
-      <h1 className="text-3xl font-black">Porukat</h1>
-      <p className="mt-1 text-white/60">
-        Luo porukka tai liity olemassa olevaan. Feed ja ranking toimivat porukkakohtaisesti.
-      </p>
+    <div className="mx-auto max-w-4xl p-6 text-white">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-black">Porukat</h1>
+          <p className="mt-1 text-white/60">
+            Luo porukka, liity porukkaan ja avaa oma ranking-feed.
+          </p>
+        </div>
+
+        <button
+          onClick={() => navigate("/feed")}
+          className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 font-bold"
+        >
+          Feed
+        </button>
+      </div>
 
       <div className="mt-6 rounded-3xl border border-white/10 bg-white/10 p-5">
         <h2 className="text-xl font-black">Luo uusi porukka</h2>
@@ -117,33 +157,49 @@ export default function GroupPage() {
         </div>
       </div>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-6 grid gap-4">
         {groups.map((group) => {
-          const joined = myGroupIds.includes(group.id);
+          const joined = isJoined(group.id);
 
           return (
             <div
               key={group.id}
               className="rounded-3xl border border-white/10 bg-white/10 p-5"
             >
-              <h3 className="text-xl font-black">{group.name}</h3>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-black">{group.name}</h3>
+                  <p className="mt-1 text-sm text-white/50">
+                    {joined ? "Olet mukana tässä porukassa." : "Voit liittyä tähän porukkaan."}
+                  </p>
+                </div>
 
-              <div className="mt-4 flex gap-3">
-                {joined ? (
-                  <button
-                    onClick={() => openGroup(group.id)}
-                    className="rounded-2xl bg-pink-500 px-4 py-2 font-bold"
-                  >
-                    Avaa porukka
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => joinGroup(group.id)}
-                    className="rounded-2xl bg-cyan-500 px-4 py-2 font-bold"
-                  >
-                    Liity
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {joined ? (
+                    <>
+                      <button
+                        onClick={() => openGroup(group.id)}
+                        className="rounded-2xl bg-pink-500 px-4 py-2 font-bold"
+                      >
+                        Avaa
+                      </button>
+
+                      <button
+                        onClick={() => leaveGroup(group.id)}
+                        className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 font-bold"
+                      >
+                        Poistu
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => joinGroup(group.id)}
+                      className="rounded-2xl bg-cyan-500 px-4 py-2 font-bold"
+                    >
+                      Liity
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );
