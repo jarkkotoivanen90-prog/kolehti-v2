@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
 import { Link } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
@@ -13,12 +13,22 @@ export default function FeedPage() {
     init();
 
     const channel = supabase
-      .channel("live-ranking")
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => init())
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => init())
+      .channel("live-ranking-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        () => init()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        () => init()
+      )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function init() {
@@ -28,7 +38,7 @@ export default function FeedPage() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    setUser(user);
+    setUser(user || null);
 
     const groupId = localStorage.getItem("kolehti_group_id");
 
@@ -49,13 +59,17 @@ export default function FeedPage() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (groupId) postsQuery = postsQuery.eq("group_id", groupId);
+    if (groupId) {
+      postsQuery = postsQuery.eq("group_id", groupId);
+    }
 
     const { data: postsData, error: postsError } = await postsQuery;
 
     let votesQuery = supabase.from("votes").select("*");
 
-    if (groupId) votesQuery = votesQuery.eq("group_id", groupId);
+    if (groupId) {
+      votesQuery = votesQuery.eq("group_id", groupId);
+    }
 
     const { data: votesData, error: votesError } = await votesQuery;
 
@@ -83,14 +97,20 @@ export default function FeedPage() {
         vote_count: counts[post.id] || 0,
       }))
       .sort((a, b) => {
-        if (b.vote_count !== a.vote_count) return b.vote_count - a.vote_count;
+        if (b.vote_count !== a.vote_count) {
+          return b.vote_count - a.vote_count;
+        }
+
         return new Date(b.created_at) - new Date(a.created_at);
       });
   }
 
   function hasVoted(postId) {
     if (!user) return false;
-    return votes.some((vote) => vote.post_id === postId && vote.user_id === user.id);
+
+    return votes.some(
+      (vote) => vote.post_id === postId && vote.user_id === user.id
+    );
   }
 
   async function voteForPost(post) {
@@ -113,8 +133,11 @@ export default function FeedPage() {
     });
 
     if (error) {
-      if (error.code === "23505") alert("Olet jo äänestänyt tätä perustelua.");
-      else alert(error.message);
+      if (error.code === "23505") {
+        alert("Olet jo äänestänyt tätä perustelua.");
+      } else {
+        alert(error.message);
+      }
       return;
     }
 
@@ -129,14 +152,27 @@ export default function FeedPage() {
   }
 
   function cardStyle(index) {
-    if (index === 0) return "border-yellow-300/40 bg-yellow-300/10 shadow-yellow-300/20";
-    if (index === 1) return "border-slate-200/30 bg-white/10";
-    if (index === 2) return "border-orange-300/30 bg-orange-300/10";
+    if (index === 0) {
+      return "border-yellow-300/40 bg-yellow-300/10 shadow-yellow-300/20";
+    }
+
+    if (index === 1) {
+      return "border-slate-200/30 bg-white/10";
+    }
+
+    if (index === 2) {
+      return "border-orange-300/30 bg-orange-300/10";
+    }
+
     return "border-white/10 bg-white/10";
   }
 
   if (loading) {
-    return <div className="mx-auto max-w-3xl p-6 text-white">Ladataan rankingia...</div>;
+    return (
+      <div className="mx-auto max-w-3xl p-6 text-white">
+        Ladataan rankingia...
+      </div>
+    );
   }
 
   return (
@@ -144,12 +180,20 @@ export default function FeedPage() {
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-black">Ranking Feed</h1>
+
           <p className="mt-1 text-sm text-white/60">
             {group ? `Porukka: ${group.name}` : "Ei valittua porukkaa"}
           </p>
         </div>
 
         <div className="flex gap-2">
+          <Link
+            to="/new"
+            className="rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-bold"
+          >
+            Uusi
+          </Link>
+
           <Link
             to="/groups"
             className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
@@ -187,7 +231,9 @@ export default function FeedPage() {
             return (
               <div
                 key={post.id}
-                className={`rounded-3xl border p-5 shadow-xl ${cardStyle(index)}`}
+                className={`rounded-3xl border p-5 shadow-xl ${cardStyle(
+                  index
+                )}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-black text-cyan-200">
@@ -213,7 +259,7 @@ export default function FeedPage() {
                   <button
                     onClick={() => voteForPost(post)}
                     disabled={voted}
-                    className={`rounded-full px-4 py-2 text-sm font-bold ${
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition ${
                       voted
                         ? "bg-white/10 text-white/50"
                         : "bg-pink-500/90 text-white hover:bg-pink-500"
