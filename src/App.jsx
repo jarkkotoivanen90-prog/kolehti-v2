@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -9,10 +9,16 @@ import ProfilePage from "./pages/ProfilePage";
 import GroupPage from "./pages/GroupPage";
 
 import AuthGate from "./components/auth/AuthGate";
+import Navbar from "./components/Navbar";
 
-export default function App() {
+function AppShell() {
+  const location = useLocation();
+  const hideNavbar = location.pathname === "/login";
+
   return (
-    <BrowserRouter>
+    <>
+      {!hideNavbar && <Navbar />}
+
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -62,6 +68,14 @@ export default function App() {
           }
         />
       </Routes>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppShell />
     </BrowserRouter>
   );
 }
