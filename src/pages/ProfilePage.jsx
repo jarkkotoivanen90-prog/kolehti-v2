@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
 export default function ProfilePage() {
@@ -8,7 +8,6 @@ export default function ProfilePage() {
   const [myPosts, setMyPosts] = useState([]);
   const [myVotes, setMyVotes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   useEffect(() => {
     init();
@@ -38,6 +37,8 @@ export default function ProfilePage() {
         .single();
 
       setGroup(groupData || null);
+    } else {
+      setGroup(null);
     }
 
     const { data: postsData } = await supabase
@@ -54,18 +55,13 @@ export default function ProfilePage() {
 
     setMyPosts(postsData || []);
     setMyVotes(votesData || []);
-    setLoading(false);
-  }
 
-  async function logout() {
-    await supabase.auth.signOut();
-    localStorage.removeItem("kolehti_group_id");
-    navigate("/login");
+    setLoading(false);
   }
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl p-6 text-white">
+      <div className="mx-auto max-w-5xl p-6 text-white">
         Ladataan profiilia...
       </div>
     );
@@ -73,8 +69,8 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-4xl p-6 text-white">
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-6">
+      <div className="mx-auto max-w-5xl p-6 text-white">
+        <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-xl">
           <h1 className="text-3xl font-black">Profiili</h1>
           <p className="mt-2 text-white/60">Et ole kirjautunut sisään.</p>
 
@@ -90,52 +86,33 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6 text-white">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-black">Profiili</h1>
-          <p className="mt-1 text-sm text-white/60">{user.email}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Link
-            to="/feed"
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
-          >
-            Feed
-          </Link>
-
-          <Link
-            to="/groups"
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
-          >
-            Porukat
-          </Link>
-
-          <button
-            onClick={logout}
-            className="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-bold"
-          >
-            Kirjaudu ulos
-          </button>
-        </div>
+    <div className="mx-auto max-w-5xl p-6 text-white">
+      <div className="mb-6">
+        <h1 className="text-3xl font-black">Profiili</h1>
+        <p className="mt-1 text-sm text-white/60">{user.email}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl">
-          <div className="text-sm font-bold text-cyan-200">Aktiivinen porukka</div>
+          <div className="text-sm font-bold text-cyan-200">
+            Aktiivinen porukka
+          </div>
           <div className="mt-2 text-2xl font-black">
             {group ? group.name : "Ei valittu"}
           </div>
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl">
-          <div className="text-sm font-bold text-cyan-200">Omat perustelut</div>
+          <div className="text-sm font-bold text-cyan-200">
+            Omat perustelut
+          </div>
           <div className="mt-2 text-2xl font-black">{myPosts.length}</div>
         </div>
 
         <div className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl">
-          <div className="text-sm font-bold text-cyan-200">Annetut äänet</div>
+          <div className="text-sm font-bold text-cyan-200">
+            Annetut äänet
+          </div>
           <div className="mt-2 text-2xl font-black">{myVotes.length}</div>
         </div>
       </div>
@@ -161,7 +138,10 @@ export default function ProfilePage() {
                 key={post.id}
                 className="rounded-2xl border border-white/10 bg-black/20 p-4"
               >
-                <p className="text-white/90">{post.content || post.body || ""}</p>
+                <p className="text-white/90">
+                  {post.content || post.body || ""}
+                </p>
+
                 <p className="mt-2 text-xs text-white/40">
                   {post.created_at
                     ? new Date(post.created_at).toLocaleString("fi-FI")
