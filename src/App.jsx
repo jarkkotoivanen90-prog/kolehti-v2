@@ -3,8 +3,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import FeedPage from "./pages/FeedPage";
+import VotePage from "./pages/VotePage";
 import NewPostPage from "./pages/NewPostPage";
 import ProfilePage from "./pages/ProfilePage";
+import GroupPage from "./pages/GroupPage";
 
 import AuthGate from "./components/auth/AuthGate";
 
@@ -25,6 +27,15 @@ export default function App() {
         />
 
         <Route
+          path="/vote"
+          element={
+            <AuthGate>
+              <VotePage />
+            </AuthGate>
+          }
+        />
+
+        <Route
           path="/new"
           element={
             <AuthGate>
@@ -38,6 +49,15 @@ export default function App() {
           element={
             <AuthGate>
               <ProfilePage />
+            </AuthGate>
+          }
+        />
+
+        <Route
+          path="/groups"
+          element={
+            <AuthGate>
+              <GroupPage />
             </AuthGate>
           }
         />
