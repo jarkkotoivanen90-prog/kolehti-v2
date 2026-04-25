@@ -1,17 +1,41 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function NewPostPage() {
   const [content, setContent] = useState("");
+  const [group, setGroup] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    loadGroup();
+  }, []);
+
+  async function loadGroup() {
+    const groupId = localStorage.getItem("kolehti_group_id");
+
+    if (!groupId) return;
+
+    const { data } = await supabase
+      .from("groups")
+      .select("*")
+      .eq("id", groupId)
+      .single();
+
+    setGroup(data || null);
+  }
 
   async function handlePost(e) {
     e.preventDefault();
 
-    if (!content.trim()) {
-      alert("Kirjoita perustelu ensin.");
+    if (!content.trim()) return alert("Kirjoita perustelu ensin.");
+
+    const groupId = localStorage.getItem("kolehti_group_id");
+
+    if (!groupId) {
+      alert("Valitse ensin porukka.");
+      navigate("/groups");
       return;
     }
 
@@ -22,27 +46,19 @@ export default function NewPostPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      alert("Kirjaudu ensin.");
       setLoading(false);
-      return;
+      return alert("Kirjaudu ensin.");
     }
 
-    const groupId = localStorage.getItem("kolehti_group_id");
-
-    const { error } = await supabase.from("posts").insert([
-      {
-        content: content.trim(),
-        user_id: user.id,
-        group_id: groupId || null,
-      },
-    ]);
+    const { error } = await supabase.from("posts").insert({
+      content: content.trim(),
+      user_id: user.id,
+      group_id: groupId,
+    });
 
     setLoading(false);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    if (error) return alert(error.message);
 
     setContent("");
     navigate("/feed");
@@ -50,14 +66,31 @@ export default function NewPostPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-6 text-white">
-      <h1 className="text-3xl font-black">Uusi perustelu</h1>
-      <p className="mt-1 text-white/60">
-        Kirjoita perustelu, joka voi nousta porukan rankingissa.
-      </p>
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-black">Uusi perustelu</h1>
+          <p className="mt-1 text-white/60">
+            {group ? `Porukka: ${group.name}` : "Porukkaa ei ole valittu."}
+          </p>
+        </div>
+
+        <Link
+          to="/groups"
+          className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 font-bold"
+        >
+          Porukat
+        </Link>
+      </div>
+
+      {!group && (
+        <div className="mb-5 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
+          Valitse ensin porukka ennen postaamista.
+        </div>
+      )}
 
       <form
         onSubmit={handlePost}
-        className="mt-6 rounded-3xl border border-white/10 bg-white/10 p-5"
+        className="rounded-3xl border border-white/10 bg-white/10 p-5"
       >
         <textarea
           value={content}
