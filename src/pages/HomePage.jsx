@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-
-const avatars = [
-  { name: "Laura", city: "Tampere", img: "https://api.dicebear.com/7.x/adventurer/svg?seed=Laura" },
-  { name: "Mikko", city: "Oulu", img: "https://api.dicebear.com/7.x/adventurer/svg?seed=Mikko" },
-  { name: "Sara", city: "Helsinki", img: "https://api.dicebear.com/7.x/adventurer/svg?seed=Sara" },
-  { name: "Kari", city: "Turku", img: "https://api.dicebear.com/7.x/adventurer/svg?seed=Kari" },
-];
+import CharacterAvatar from "../components/CharacterAvatar";
+import { characters, kaiCharacter } from "../data/characters";
 
 function StatCard({ title, value, text, icon, color }) {
   return (
@@ -26,7 +21,7 @@ function StatCard({ title, value, text, icon, color }) {
 function PotCard({ title, amount, text, icon, color }) {
   return (
     <div className={`group relative overflow-hidden rounded-[34px] border p-6 shadow-2xl transition duration-300 hover:-translate-y-2 hover:scale-[1.02] ${color}`}>
-      <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_35%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_35%)] opacity-0 transition group-hover:opacity-100" />
       <div className="relative">
         <div className="flex items-start justify-between">
           <div>
@@ -107,10 +102,22 @@ export default function HomePage() {
         }
         @keyframes pulseGlow {
           0%, 100% { box-shadow: 0 0 30px rgba(34,211,238,.18); }
-          50% { box-shadow: 0 0 70px rgba(34,211,238,.38); }
+          50% { box-shadow: 0 0 80px rgba(34,211,238,.42); }
+        }
+        @keyframes shine {
+          0% { transform: translateX(-120%); }
+          100% { transform: translateX(120%); }
         }
         .floaty { animation: floaty 4s ease-in-out infinite; }
         .pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
+        .shine:before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          transform: translateX(-120%);
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+          animation: shine 4s infinite;
+        }
       `}</style>
 
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -121,7 +128,7 @@ export default function HomePage() {
       </div>
 
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <section className="relative overflow-hidden rounded-[46px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-2xl md:p-10">
+        <section className="shine relative overflow-hidden rounded-[46px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-2xl md:p-10">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_35%)]" />
 
           <div className="relative grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
@@ -170,25 +177,26 @@ export default function HomePage() {
 
             <div className="relative">
               <div className="grid grid-cols-2 gap-4">
-                {avatars.map((avatar, index) => (
+                {characters.slice(0, 4).map((character, index) => (
                   <div
-                    key={avatar.name}
-                    className="floaty rounded-[30px] border border-white/10 bg-white/10 p-4 shadow-2xl backdrop-blur-xl"
+                    key={character.id}
+                    className="floaty rounded-[34px] border border-white/10 bg-white/10 p-4 shadow-2xl backdrop-blur-xl"
                     style={{ animationDelay: `${index * 0.35}s` }}
                   >
-                    <div className="rounded-[24px] bg-gradient-to-br from-white/30 to-white/5 p-3">
-                      <img src={avatar.img} alt={avatar.name} className="h-28 w-full object-contain" />
-                    </div>
-                    <div className="mt-3 font-black">{avatar.name}</div>
-                    <div className="text-sm text-white/55">{avatar.city}</div>
+                    <CharacterAvatar character={character} size="lg" />
                   </div>
                 ))}
               </div>
 
-              <div className="absolute -bottom-5 left-1/2 hidden -translate-x-1/2 rounded-[28px] border border-white/10 bg-black/40 p-4 shadow-2xl backdrop-blur-xl md:block">
-                <div className="text-sm font-bold text-cyan-200">KAI-avustaja</div>
-                <div className="mt-1 text-sm text-white/70">
-                  “Autan nostamaan parhaat perustelut näkyviin.”
+              <div className="absolute -bottom-5 left-1/2 hidden -translate-x-1/2 rounded-[28px] border border-white/10 bg-black/50 p-4 shadow-2xl backdrop-blur-xl md:block">
+                <div className="flex items-center gap-3">
+                  <CharacterAvatar character={kaiCharacter} size="sm" showInfo={false} />
+                  <div>
+                    <div className="text-sm font-bold text-cyan-200">KAI-avustaja</div>
+                    <div className="mt-1 text-sm text-white/70">
+                      “Autan nostamaan parhaat perustelut näkyviin.”
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -267,8 +275,12 @@ export default function HomePage() {
                 topPosts.map((post, index) => (
                   <div key={post.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
                     <div className="flex items-center gap-3">
-                      <div className="text-2xl font-black text-cyan-200">{index + 1}.</div>
-                      <img src={avatars[index]?.img} className="h-12 w-12 rounded-2xl bg-white/10" />
+                      <CharacterAvatar
+                        character={characters[index] || characters[0]}
+                        size="sm"
+                        showInfo={false}
+                        rank={index + 1}
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-black">{post.content || "Perustelu"}</div>
                         <div className="text-sm text-pink-200">♥ {post.vote_count || 0}</div>
