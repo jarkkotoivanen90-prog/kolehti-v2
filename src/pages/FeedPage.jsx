@@ -6,6 +6,11 @@ import { getSmartFeed } from "../lib/smartFeed";
 import { updateStreak } from "../lib/streak";
 import { createNotification } from "../lib/notifications";
 import { trackRetentionEvent } from "../lib/retention";
+import {
+  calculateRankInfo,
+  updatePostRankStats,
+  notifyAlmostWin,
+} from "../lib/almostWin";
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
 import JackpotBanner from "../components/JackpotBanner";
@@ -23,7 +28,7 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-next-level-feed")
+      .channel("kolehti-almost-win-feed")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
@@ -103,6 +108,10 @@ export default function FeedPage() {
     const ranked = rankForYou(prepared, eventsData || []);
     const smartFeed = getSmartFeed(ranked);
 
+    for (let i = 0; i < smartFeed.length; i++) {
+      await updatePostRankStats(smartFeed[i], i + 1);
+    }
+
     setPosts(smartFeed);
     setVoted(votedMap);
     setLoading(false);
@@ -115,6 +124,7 @@ export default function FeedPage() {
       return;
     }
 
+    const rankInfoBeforeVote = calculateRankInfo(posts, post.id);
     const groupId = localStorage.getItem("kolehti_group_id");
 
     const { error } = await supabase.from("votes").insert({
@@ -140,6 +150,12 @@ export default function FeedPage() {
       .eq("id", post.id);
 
     await trackRetentionEvent(user.id, "vote", { post_id: post.id });
+
+    await notifyAlmostWin({
+      post,
+      rankInfo: rankInfoBeforeVote,
+      userId: user.id,
+    });
 
     if (post.user_id && post.user_id !== user.id) {
       await createNotification({
@@ -181,7 +197,12 @@ export default function FeedPage() {
       return posts.filter((p) => {
         const votes = Number(p.vote_count || p.votes || 0);
         const aiScore = Number(p.ai_score || 0);
-        return votes >= 3 || aiScore >= 70 || p.status_label?.includes("Nousemassa");
+        return (
+          votes >= 3 ||
+          aiScore >= 70 ||
+          p.status_label?.includes("Nousemassa") ||
+          p.status_label?.includes("TOP")
+        );
       });
     }
 
@@ -289,6 +310,7 @@ export default function FeedPage() {
               index={index}
               user={user}
               voted={voted[post.id]}
+              rankInfo={calculateRankInfo(posts, post.id)}
               onVote={vote}
             />
           ))
