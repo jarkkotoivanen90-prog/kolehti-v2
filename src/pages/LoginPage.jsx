@@ -12,26 +12,28 @@ export default function LoginPage() {
   async function handleAuth(e) {
     e.preventDefault();
 
-    if (!email || !password) {
-      alert("Täytä sähköposti ja salasana.");
+    if (!email.trim()) {
+      alert("Syötä sähköposti.");
+      return;
+    }
+
+    if (!password.trim()) {
+      alert("Syötä salasana.");
       return;
     }
 
     setLoading(true);
 
-    let result;
-
-    if (mode === "login") {
-      result = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-    } else {
-      result = await supabase.auth.signUp({
-        email,
-        password,
-      });
-    }
+    const result =
+      mode === "login"
+        ? await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          })
+        : await supabase.auth.signUp({
+            email: email.trim(),
+            password,
+          });
 
     setLoading(false);
 
@@ -44,14 +46,14 @@ export default function LoginPage() {
   }
 
   async function sendResetLink() {
-    if (!email) {
+    if (!email.trim()) {
       alert("Syötä sähköposti ensin.");
       return;
     }
 
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/reset`,
     });
 
@@ -62,7 +64,7 @@ export default function LoginPage() {
       return;
     }
 
-    alert("Salasanan vaihtolinkki lähetetty sähköpostiin.");
+    alert("Salasanan vaihtolinkki lähetetty sähköpostiisi.");
   }
 
   return (
@@ -71,13 +73,13 @@ export default function LoginPage() {
 
       <div className="mx-auto max-w-md">
         <div className="mb-8 text-center">
-          <div className="mx-auto grid h-20 w-20 place-items-center rounded-[28px] bg-cyan-500 text-5xl shadow-2xl shadow-cyan-500/30">
+          <div className="mx-auto grid h-24 w-24 place-items-center rounded-[32px] bg-cyan-500 text-6xl shadow-2xl shadow-cyan-500/30">
             🤝
           </div>
 
-          <h1 className="mt-5 text-5xl font-black">KOLEHTI</h1>
+          <h1 className="mt-6 text-6xl font-black tracking-tight">KOLEHTI</h1>
 
-          <p className="mt-2 text-sm font-bold uppercase tracking-wide text-white/60">
+          <p className="mt-3 text-sm font-bold uppercase tracking-wide text-white/55">
             Me pidämme huolta – yhdessä voitamme.
           </p>
         </div>
@@ -86,11 +88,11 @@ export default function LoginPage() {
           onSubmit={handleAuth}
           className="rounded-[34px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-xl"
         >
-          <h2 className="text-4xl font-black">
+          <h2 className="text-5xl font-black">
             {mode === "login" ? "Kirjaudu" : "Luo tili"}
           </h2>
 
-          <label className="mt-6 block text-sm font-black text-cyan-200">
+          <label className="mt-7 block text-sm font-black text-cyan-200">
             Sähköposti
           </label>
 
@@ -99,6 +101,7 @@ export default function LoginPage() {
             placeholder="sinun@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
             className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-4 text-white outline-none placeholder:text-white/35"
           />
 
@@ -111,6 +114,7 @@ export default function LoginPage() {
             placeholder="Salasana"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
             className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-4 text-white outline-none placeholder:text-white/35"
           />
 
@@ -126,19 +130,22 @@ export default function LoginPage() {
               : "Luo tili"}
           </button>
 
-          <button
-            type="button"
-            onClick={sendResetLink}
-            disabled={loading}
-            className="mt-5 block w-full text-left text-sm font-bold text-cyan-200 disabled:opacity-50"
-          >
-            Unohditko salasanan?
-          </button>
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={sendResetLink}
+              disabled={loading}
+              className="mt-5 block w-full text-left text-sm font-black text-cyan-200 disabled:opacity-50"
+            >
+              Unohditko salasanan?
+            </button>
+          )}
 
           <button
             type="button"
             onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="mt-4 block text-sm font-bold text-white/70"
+            disabled={loading}
+            className="mt-4 block text-sm font-black text-white/60 disabled:opacity-50"
           >
             {mode === "login"
               ? "Ei tiliä? Luo uusi"
