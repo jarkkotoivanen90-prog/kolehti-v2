@@ -1,97 +1,56 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "../lib/supabase";
 
 export default function VotePage() {
   const [posts, setPosts] = useState([]);
-  const [current, setCurrent] = useState(0);
-  const [message, setMessage] = useState("");
+  const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    loadPosts();
+    load();
   }, []);
 
-  async function loadPosts() {
-    const { data, error } = await supabase
+  async function load() {
+    const { data } = await supabase
       .from("posts")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(20);
 
-    if (!error) setPosts(data || []);
+    setPosts(data || []);
   }
 
-  async function vote(postId) {
-    setMessage("");
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setMessage("Kirjaudu ensin.");
-      return;
-    }
-
-    const { error } = await supabase.from("votes").insert({
-      user_id: user.id,
-      post_id: postId,
+  async function vote(post, value) {
+    await supabase.from("votes").insert({
+      post_id: post.id,
+      value,
     });
 
-    if (error) {
-      if (error.code === "23505") {
-        setMessage("Olet jo äänestänyt tätä perustelua.");
-      } else {
-        setMessage(error.message);
-      }
-      return;
-    }
-
-    setMessage("Ääni tallennettu ✅");
-    setCurrent((prev) => Math.min(prev + 1, posts.length - 1));
+    setIndex((i) => i + 1);
   }
 
-  const post = posts[current];
-
-  if (!post) {
-    return (
-      <div className="p-6 text-white">
-        <h1 className="text-2xl font-bold">Äänestä</h1>
-        <p className="mt-4 text-white/70">Ei vielä äänestettäviä postauksia.</p>
-      </div>
-    );
-  }
+  const post = posts[index];
+  if (!post) return <div className="text-white p-6">Ei lisää</div>;
 
   return (
-    <div className="mx-auto max-w-2xl p-6 text-white">
-      <h1 className="text-2xl font-bold">Äänestä</h1>
+    <div className="flex flex-col items-center justify-center h-screen text-white">
+      <div className="bg-white/10 p-6 rounded-2xl w-[90%]">
+        <h2 className="text-xl font-bold">{post.title}</h2>
 
-      <div className="mt-6 rounded-3xl border border-white/10 bg-white/10 p-6">
-        <div className="text-sm text-white/50">
-          {current + 1} / {posts.length}
+        <div className="flex gap-6 mt-6 justify-center">
+          <button
+            onClick={() => vote(post, -1)}
+            className="text-red-400 text-3xl"
+          >
+            ❌
+          </button>
+
+          <button
+            onClick={() => vote(post, 1)}
+            className="text-green-400 text-3xl"
+          >
+            ❤️
+          </button>
         </div>
-
-        <h2 className="mt-3 text-xl font-bold">
-          {post.title || "Perustelu"}
-        </h2>
-
-        <p className="mt-3 text-white/80">
-          {post.content || post.body}
-        </p>
-
-        <button
-          onClick={() => vote(post.id)}
-          className="mt-6 w-full rounded-2xl bg-cyan-500 px-4 py-3 font-bold text-white"
-        >
-          Anna ääni
-        </button>
-
-        <button
-          onClick={() => setCurrent((prev) => Math.min(prev + 1, posts.length - 1))}
-          className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-white"
-        >
-          Ohita
-        </button>
-
-        {message && <p className="mt-4 text-sm text-white/70">{message}</p>}
       </div>
     </div>
   );
