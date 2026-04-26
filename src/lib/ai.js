@@ -22,7 +22,8 @@ export async function analyzePostWithAI(text) {
       return {
         ai_score: 50,
         score: 50,
-        feedback: data.error || "AI-analyysi epäonnistui, käytetään varapisteytystä.",
+        feedback:
+          data.error || "AI-analyysi epäonnistui, käytetään varapisteytystä.",
       };
     }
 
