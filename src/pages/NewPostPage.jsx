@@ -1,159 +1,123 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export default function NewPostPage() {
-  const [content, setContent] = useState("");
-  const [group, setGroup] = useState(null);
-  const [user, setUser] = useState(null);
+  const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    init();
-  }, []);
+  const analysis = analyzeText(text);
 
-  async function init() {
-    setPageLoading(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    setUser(user || null);
-
-    const groupId = localStorage.getItem("kolehti_group_id");
-
-    if (groupId) {
-      const { data, error } = await supabase
-        .from("groups")
-        .select("*")
-        .eq("id", groupId)
-        .single();
-
-      if (!error) {
-        setGroup(data);
-      }
-    }
-
-    setPageLoading(false);
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    if (!user) {
-      alert("Kirjaudu ensin.");
-      navigate("/login");
-      return;
-    }
-
-    const groupId = localStorage.getItem("kolehti_group_id");
-
-    if (!groupId) {
-      alert("Valitse ensin porukka.");
-      navigate("/groups");
-      return;
-    }
-
-    if (!content.trim()) {
-      alert("Kirjoita perustelu ensin.");
-      return;
-    }
+  async function handleSubmit() {
+    if (!text) return;
 
     setLoading(true);
 
-    const { error } = await supabase.from("posts").insert({
-      content: content.trim(),
-      user_id: user.id,
-      group_id: groupId,
+    const user = await supabase.auth.getUser();
+
+    await supabase.from("posts").insert({
+      content: text,
+      user_id: user.data.user.id,
     });
 
+    setText("");
     setLoading(false);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setContent("");
-    navigate("/feed");
-  }
-
-  if (pageLoading) {
-    return (
-      <div className="mx-auto max-w-3xl p-6 text-white">
-        Ladataan...
-      </div>
-    );
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6 text-white">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-black">Uusi perustelu</h1>
-          <p className="mt-1 text-sm text-white/60">
-            {group ? `Porukka: ${group.name}` : "Porukkaa ei ole valittu"}
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#050816] text-white p-4">
+      <h1 className="text-2xl font-black mb-4">Kirjoita perustelu</h1>
 
-        <div className="flex gap-2">
-          <Link
-            to="/feed"
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
-          >
-            Feed
-          </Link>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Kerro miksi juuri sinä tarvitset tukea..."
+        className="w-full h-40 p-4 rounded-xl bg-white/10 border border-white/20 outline-none"
+      />
 
-          <Link
-            to="/groups"
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
-          >
-            Porukat
-          </Link>
-        </div>
+      {/* 🔥 AI ANALYSIS */}
+      <div className="mt-4 space-y-3">
+
+        <AIBox title="Selkeys" value={analysis.clarity} />
+
+        <AIBox title="Tunne" value={analysis.emotion} />
+
+        <AIBox title="Uskottavuus" value={analysis.trust} />
+
+        <AIBox title="Vahvuus" value={analysis.score} big />
+
       </div>
 
-      {!group && (
-        <div className="mb-5 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
-          Valitse ensin porukka ennen postaamista.
-          <Link to="/groups" className="ml-2 font-bold text-cyan-200">
-            Mene porukkiin →
-          </Link>
-        </div>
-      )}
+      {/* 🔥 AI SUGGESTIONS */}
+      <div className="mt-4 bg-white/10 p-4 rounded-xl">
+        <h3 className="font-black mb-2">🤖 AI ehdottaa</h3>
+        <ul className="text-sm text-white/80 space-y-1">
+          {analysis.tips.map((tip, i) => (
+            <li key={i}>• {tip}</li>
+          ))}
+        </ul>
+      </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl"
+      <button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="mt-6 w-full bg-blue-500 py-3 rounded-xl font-black"
       >
-        <label className="text-sm font-bold text-cyan-200">
-          Kirjoita perustelu
-        </label>
+        {loading ? "Lähetetään..." : "Lähetä perustelu"}
+      </button>
+    </div>
+  );
+}
 
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Esim. Tarvitsen apua vuokraan..."
-          className="mt-3 min-h-44 w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-white outline-none placeholder:text-white/40"
-        />
+/* =========================
+   AI ANALYSIS LOGIC
+========================= */
 
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="text-sm text-white/50">
-            {content.length}/500 merkkiä
-          </p>
+function analyzeText(text) {
+  const length = text.length;
 
-          <button
-            type="submit"
-            disabled={loading || !group}
-            className="rounded-2xl bg-cyan-500 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
-          >
-            {loading ? "Lähetetään..." : "Postaa"}
-          </button>
-        </div>
-      </form>
+  const clarity = length > 120 ? "Hyvä" : "Heikko";
+
+  const emotion =
+    text.includes("tarvitsen") ||
+    text.includes("vaikeaa") ||
+    text.includes("perhe")
+      ? "Vahva"
+      : "Heikko";
+
+  const trust =
+    text.includes("€") ||
+    text.includes("lasku") ||
+    text.includes("vuokra")
+      ? "Korkea"
+      : "Matala";
+
+  const score =
+    (length > 120 ? 40 : 20) +
+    (emotion === "Vahva" ? 30 : 10) +
+    (trust === "Korkea" ? 30 : 10);
+
+  const tips = [];
+
+  if (length < 120) tips.push("Kirjoita pidempi ja tarkempi perustelu");
+  if (emotion !== "Vahva") tips.push("Lisää tunnetta ja henkilökohtaisuutta");
+  if (trust !== "Korkea") tips.push("Lisää konkreettisia esimerkkejä (summa, tilanne)");
+
+  return {
+    clarity,
+    emotion,
+    trust,
+    score,
+    tips,
+  };
+}
+
+function AIBox({ title, value, big }) {
+  return (
+    <div className="bg-white/10 p-3 rounded-xl flex justify-between items-center">
+      <span className="font-bold">{title}</span>
+      <span className={`font-black ${big ? "text-xl text-green-400" : ""}`}>
+        {value}
+      </span>
     </div>
   );
 }
