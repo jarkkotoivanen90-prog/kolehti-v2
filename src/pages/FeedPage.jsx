@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { rankForYou } from "../lib/tiktokAI";
+import { getSmartFeed } from "../lib/smartFeed";
 import { updateStreak } from "../lib/streak";
 import { createNotification } from "../lib/notifications";
 import { trackRetentionEvent } from "../lib/retention";
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
+import JackpotBanner from "../components/JackpotBanner";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
@@ -21,7 +23,7 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-retention-feed")
+      .channel("kolehti-next-level-feed")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
@@ -98,7 +100,10 @@ export default function FeedPage() {
       vote_count: voteCounts[post.id] || 0,
     }));
 
-    setPosts(rankForYou(prepared, eventsData || []));
+    const ranked = rankForYou(prepared, eventsData || []);
+    const smartFeed = getSmartFeed(ranked);
+
+    setPosts(smartFeed);
     setVoted(votedMap);
     setLoading(false);
   }
@@ -125,6 +130,15 @@ export default function FeedPage() {
       return;
     }
 
+    await supabase
+      .from("posts")
+      .update({
+        votes: Number(post.votes || post.vote_count || 0) + 1,
+        boost_score: Number(post.boost_score || 0) + 5,
+        last_engaged_at: new Date().toISOString(),
+      })
+      .eq("id", post.id);
+
     await trackRetentionEvent(user.id, "vote", { post_id: post.id });
 
     if (post.user_id && post.user_id !== user.id) {
@@ -137,7 +151,7 @@ export default function FeedPage() {
     }
 
     navigator.vibrate?.(45);
-    setToast("💗 Ääni annettu");
+    setToast("💗 Ääni annettu — ranking päivittyy");
     setTimeout(() => setToast(""), 1600);
 
     await loadFeed();
@@ -161,6 +175,14 @@ export default function FeedPage() {
       return [...posts].sort(
         (a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0)
       );
+    }
+
+    if (mode === "rising") {
+      return posts.filter((p) => {
+        const votes = Number(p.vote_count || p.votes || 0);
+        const aiScore = Number(p.ai_score || 0);
+        return votes >= 3 || aiScore >= 70 || p.status_label?.includes("Nousemassa");
+      });
     }
 
     return posts;
@@ -188,7 +210,7 @@ export default function FeedPage() {
           <div className="flex gap-2">
             <Link
               to="/new"
-              className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black"
+              className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black shadow-lg shadow-cyan-500/20"
             >
               Uusi
             </Link>
@@ -202,9 +224,13 @@ export default function FeedPage() {
           </div>
         </div>
 
-        <div className="mx-auto mt-4 flex max-w-md gap-2 overflow-x-auto">
+        <div className="mx-auto mt-4 flex max-w-md gap-2 overflow-x-auto pb-1">
           <Filter active={mode === "foryou"} onClick={() => changeMode("foryou")}>
             🔥 For You
+          </Filter>
+
+          <Filter active={mode === "rising"} onClick={() => changeMode("rising")}>
+            🚀 Nousevat
           </Filter>
 
           <Filter active={mode === "unvoted"} onClick={() => changeMode("unvoted")}>
@@ -224,23 +250,36 @@ export default function FeedPage() {
       <main className="mx-auto max-w-md snap-y snap-mandatory space-y-5 overflow-y-auto px-4 py-5 pb-28">
         <ComebackBanner />
 
+        <JackpotBanner topPost={posts[0]} />
+
         {loading ? (
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-6">
-            Ladataan...
+          <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-center shadow-2xl">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" />
+            <p className="font-black text-white/70">Ladataan feediä...</p>
           </div>
         ) : visiblePosts.length === 0 ? (
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-center">
+          <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-center shadow-2xl">
             <div className="text-6xl">✨</div>
             <h2 className="mt-4 text-2xl font-black">Ei lisää perusteluja</h2>
-            <p className="mt-2 text-sm text-white/55">
+            <p className="mt-2 text-sm font-bold text-white/55">
               Luo oma perustelu tai vaihda näkymää.
             </p>
-            <Link
-              to="/new"
-              className="mt-5 block rounded-2xl bg-cyan-500 px-5 py-4 font-black"
-            >
-              Luo uusi
-            </Link>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <Link
+                to="/new"
+                className="rounded-2xl bg-cyan-500 px-5 py-4 font-black"
+              >
+                Luo uusi
+              </Link>
+
+              <button
+                onClick={() => changeMode("foryou")}
+                className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 font-black"
+              >
+                For You
+              </button>
+            </div>
           </div>
         ) : (
           visiblePosts.map((post, index) => (
@@ -265,9 +304,9 @@ function Filter({ active, onClick, children }) {
   return (
     <button
       onClick={onClick}
-      className={`shrink-0 rounded-full px-4 py-2 text-sm font-black ${
+      className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition active:scale-95 ${
         active
-          ? "bg-white text-black"
+          ? "bg-white text-black shadow-xl shadow-white/10"
           : "border border-white/10 bg-white/10 text-white/70"
       }`}
     >
@@ -280,16 +319,32 @@ function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[30px] border border-white/10 bg-[#061126]/95 px-4 pb-4 pt-3 text-white shadow-2xl backdrop-blur-xl">
       <div className="grid grid-cols-5 items-end text-center text-xs font-black">
-        <Link to="/">🏠<div>Koti</div></Link>
-        <Link to="/feed" className="text-cyan-300">🔥<div>Feed</div></Link>
+        <Link to="/">
+          🏠
+          <div>Koti</div>
+        </Link>
+
+        <Link to="/feed" className="text-cyan-300">
+          🔥
+          <div>Feed</div>
+        </Link>
+
         <Link to="/new" className="-mt-8">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">
             +
           </div>
           <div>Uusi</div>
         </Link>
-        <Link to="/vote">💗<div>Äänestä</div></Link>
-        <Link to="/profile">👤<div>Profiili</div></Link>
+
+        <Link to="/vote">
+          💗
+          <div>Äänestä</div>
+        </Link>
+
+        <Link to="/profile">
+          👤
+          <div>Profiili</div>
+        </Link>
       </div>
     </nav>
   );
