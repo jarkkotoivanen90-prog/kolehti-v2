@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { analyzePostWithAI } from "../lib/ai";
+import { rewardPost } from "../lib/progression";
 
 export default function NewPostPage() {
   const [content, setContent] = useState("");
@@ -72,10 +73,19 @@ export default function NewPostPage() {
         user_id: user.id,
         group_id: groupId,
         ai_score: aiResult.ai_score || aiResult.score || 0,
+        ai_quality: aiResult.ai_quality || 50,
+        ai_need: aiResult.ai_need || 50,
+        ai_clarity: aiResult.ai_clarity || 50,
+        ai_risk: aiResult.ai_risk || 0,
         ai_feedback: aiResult,
+        votes: 0,
+        views: 0,
+        boost_score: 0,
       });
 
       if (error) throw error;
+
+      await rewardPost(user.id);
 
       setContent("");
       navigate("/feed");
@@ -87,7 +97,11 @@ export default function NewPostPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-[#050816] p-6 text-white">Ladataan...</div>;
+    return (
+      <div className="min-h-screen bg-[#050816] p-6 text-white">
+        Ladataan...
+      </div>
+    );
   }
 
   return (
@@ -128,7 +142,7 @@ export default function NewPostPage() {
 
           <div className="mt-3 flex items-center justify-between text-xs font-black text-white/45">
             <span>{content.length}/1000 merkkiä</span>
-            <span>AI arvioi ennen julkaisua</span>
+            <span>+10 XP postauksesta</span>
           </div>
 
           <button
@@ -149,6 +163,27 @@ export default function NewPostPage() {
           </div>
         )}
       </main>
+
+      <BottomNav />
     </div>
+  );
+}
+
+function BottomNav() {
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[30px] border border-white/10 bg-[#061126]/95 px-4 pb-4 pt-3 text-white shadow-2xl backdrop-blur-xl">
+      <div className="grid grid-cols-5 items-end text-center text-xs font-black">
+        <Link to="/">🏠<div>Koti</div></Link>
+        <Link to="/feed">🔥<div>Feed</div></Link>
+        <Link to="/new" className="-mt-8 text-cyan-300">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">
+            +
+          </div>
+          <div>Uusi</div>
+        </Link>
+        <Link to="/vote">💗<div>Äänestä</div></Link>
+        <Link to="/profile">👤<div>Profiili</div></Link>
+      </div>
+    </nav>
   );
 }
