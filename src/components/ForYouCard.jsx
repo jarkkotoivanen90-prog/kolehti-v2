@@ -9,7 +9,6 @@ export default function ForYouCard({ post, index, user, voted, onVote }) {
 
   useEffect(() => {
     increaseView(post.id);
-
     trackEvent({
       userId: user?.id,
       postId: post.id,
@@ -30,7 +29,6 @@ export default function ForYouCard({ post, index, user, voted, onVote }) {
     });
 
     onVote(post);
-
     setTimeout(() => setShowHeart(false), 800);
   }
 
@@ -44,7 +42,7 @@ export default function ForYouCard({ post, index, user, voted, onVote }) {
 
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#2563eb55,transparent_45%)]" />
 
-      <div className="relative z-10 flex h-full flex-col">
+      <div className="relative z-10 flex min-h-[68vh] flex-col">
         <div className="flex items-center justify-between">
           <CharacterAvatar
             character={character}
@@ -54,29 +52,31 @@ export default function ForYouCard({ post, index, user, voted, onVote }) {
           />
 
           <div className="rounded-2xl bg-black/30 px-4 py-2 text-right">
-            <div className="text-xs font-black text-white/50">FOR YOU</div>
+            <div className="text-xs font-black text-white/50">VIRAL</div>
             <div className="text-lg font-black text-cyan-200">
-              {Math.round(post.for_you_score || 0)}
+              {Math.round(post.viral_score || post.for_you_score || 0)}
             </div>
           </div>
         </div>
 
         <div className="mt-auto">
           <div className="mb-3 flex flex-wrap gap-2">
-            {index === 0 && (
-              <span className="rounded-full bg-yellow-400 px-3 py-1 text-xs font-black text-black">
-                🏆 Kärjessä
-              </span>
-            )}
+            <span className="rounded-full bg-yellow-400/90 px-3 py-1 text-xs font-black text-black">
+              {post.status_label || "✨ Uusi"}
+            </span>
 
             {post.ai_score > 70 && (
               <span className="rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-black text-cyan-100">
-                🤖 AI vahva
+                🤖 AI {Math.round(post.ai_score)}
               </span>
             )}
 
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70">
-              💗 {post.vote_count || 0}
+              💗 {post.vote_count || post.votes || 0}
+            </span>
+
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70">
+              👀 {post.view_count || post.views || 0}
             </span>
           </div>
 
