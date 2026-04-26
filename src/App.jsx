@@ -13,7 +13,7 @@ import Navbar from "./components/Navbar";
 
 function AppShell() {
   const location = useLocation();
-  const hideNavbar = location.pathname === "/login";
+  const hideNavbar = location.pathname === "/" || location.pathname === "/login";
 
   return (
     <>
@@ -23,50 +23,11 @@ function AppShell() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
 
-        <Route
-          path="/feed"
-          element={
-            <AuthGate>
-              <FeedPage />
-            </AuthGate>
-          }
-        />
-
-        <Route
-          path="/vote"
-          element={
-            <AuthGate>
-              <VotePage />
-            </AuthGate>
-          }
-        />
-
-        <Route
-          path="/new"
-          element={
-            <AuthGate>
-              <NewPostPage />
-            </AuthGate>
-          }
-        />
-
-        <Route
-          path="/groups"
-          element={
-            <AuthGate>
-              <GroupPage />
-            </AuthGate>
-          }
-        />
-
-        <Route
-          path="/profile"
-          element={
-            <AuthGate>
-              <ProfilePage />
-            </AuthGate>
-          }
-        />
+        <Route path="/feed" element={<AuthGate><FeedPage /></AuthGate>} />
+        <Route path="/vote" element={<AuthGate><VotePage /></AuthGate>} />
+        <Route path="/new" element={<AuthGate><NewPostPage /></AuthGate>} />
+        <Route path="/groups" element={<AuthGate><GroupPage /></AuthGate>} />
+        <Route path="/profile" element={<AuthGate><ProfilePage /></AuthGate>} />
       </Routes>
     </>
   );
