@@ -6,6 +6,7 @@ import { getSmartFeed } from "../lib/smartFeed";
 import { updateStreak } from "../lib/streak";
 import { createNotification } from "../lib/notifications";
 import { trackRetentionEvent } from "../lib/retention";
+import { rewardVote, rewardTopRank } from "../lib/progression";
 import {
   calculateRankInfo,
   updatePostRankStats,
@@ -29,17 +30,9 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-live-leaderboard-feed")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
-        loadFeed
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "votes" },
-        loadFeed
-      )
+      .channel("kolehti-progression-feed")
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -152,7 +145,11 @@ export default function FeedPage() {
       })
       .eq("id", post.id);
 
+    await rewardVote(user.id);
+
     if (post.user_id) {
+      await rewardTopRank(post.user_id, post.last_rank || rankInfoBeforeVote?.rank);
+
       await supabase
         .from("profiles")
         .update({
@@ -180,7 +177,7 @@ export default function FeedPage() {
     }
 
     navigator.vibrate?.(45);
-    setToast("💗 Ääni annettu — ranking päivittyy");
+    setToast("💗 +5 XP · Ääni annettu");
     setTimeout(() => setToast(""), 1600);
 
     await loadFeed();
@@ -237,7 +234,9 @@ export default function FeedPage() {
           <div>
             <h1 className="text-3xl font-black">KOLEHTI</h1>
             <p className="text-xs font-bold text-white/50">
-              {profile ? `🔥 ${profile.user_streak || 1} päivän streak` : "For You"}
+              {profile
+                ? `LVL ${profile.level || 1} · 🔥 ${profile.user_streak || 1} päivän streak`
+                : "For You"}
             </p>
           </div>
 
@@ -262,19 +261,15 @@ export default function FeedPage() {
           <Filter active={mode === "foryou"} onClick={() => changeMode("foryou")}>
             🔥 For You
           </Filter>
-
           <Filter active={mode === "rising"} onClick={() => changeMode("rising")}>
             🚀 Nousevat
           </Filter>
-
           <Filter active={mode === "unvoted"} onClick={() => changeMode("unvoted")}>
             💗 Äänestämättä
           </Filter>
-
           <Filter active={mode === "ai"} onClick={() => changeMode("ai")}>
             🤖 AI
           </Filter>
-
           <Filter active={mode === "new"} onClick={() => changeMode("new")}>
             🆕 Uusimmat
           </Filter>
@@ -283,9 +278,7 @@ export default function FeedPage() {
 
       <main className="mx-auto max-w-md snap-y snap-mandatory space-y-5 overflow-y-auto px-4 py-5 pb-28">
         <ComebackBanner />
-
         <JackpotBanner topPost={posts[0]} />
-
         <LiveLeaderboard posts={posts} />
 
         {loading ? (
@@ -356,32 +349,16 @@ function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[30px] border border-white/10 bg-[#061126]/95 px-4 pb-4 pt-3 text-white shadow-2xl backdrop-blur-xl">
       <div className="grid grid-cols-5 items-end text-center text-xs font-black">
-        <Link to="/">
-          🏠
-          <div>Koti</div>
-        </Link>
-
-        <Link to="/feed" className="text-cyan-300">
-          🔥
-          <div>Feed</div>
-        </Link>
-
+        <Link to="/">🏠<div>Koti</div></Link>
+        <Link to="/feed" className="text-cyan-300">🔥<div>Feed</div></Link>
         <Link to="/new" className="-mt-8">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">
             +
           </div>
           <div>Uusi</div>
         </Link>
-
-        <Link to="/vote">
-          💗
-          <div>Äänestä</div>
-        </Link>
-
-        <Link to="/profile">
-          👤
-          <div>Profiili</div>
-        </Link>
+        <Link to="/vote">💗<div>Äänestä</div></Link>
+        <Link to="/profile">👤<div>Profiili</div></Link>
       </div>
     </nav>
   );
