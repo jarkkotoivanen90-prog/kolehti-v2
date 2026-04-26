@@ -14,6 +14,7 @@ import {
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
 import JackpotBanner from "../components/JackpotBanner";
+import LiveLeaderboard from "../components/LiveLeaderboard";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
@@ -28,7 +29,7 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-almost-win-feed")
+      .channel("kolehti-live-leaderboard-feed")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
@@ -140,14 +141,26 @@ export default function FeedPage() {
       return;
     }
 
+    const newVoteCount = Number(post.votes || post.vote_count || 0) + 1;
+
     await supabase
       .from("posts")
       .update({
-        votes: Number(post.votes || post.vote_count || 0) + 1,
+        votes: newVoteCount,
         boost_score: Number(post.boost_score || 0) + 5,
         last_engaged_at: new Date().toISOString(),
       })
       .eq("id", post.id);
+
+    if (post.user_id) {
+      await supabase
+        .from("profiles")
+        .update({
+          leaderboard_points: newVoteCount,
+          leaderboard_best_rank: post.last_rank || null,
+        })
+        .eq("id", post.user_id);
+    }
 
     await trackRetentionEvent(user.id, "vote", { post_id: post.id });
 
@@ -272,6 +285,8 @@ export default function FeedPage() {
         <ComebackBanner />
 
         <JackpotBanner topPost={posts[0]} />
+
+        <LiveLeaderboard posts={posts} />
 
         {loading ? (
           <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-center shadow-2xl">
