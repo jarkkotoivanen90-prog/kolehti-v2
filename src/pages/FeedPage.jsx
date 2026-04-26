@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { rankForYou } from "../lib/tiktokAI";
 import { updateStreak } from "../lib/streak";
+import { createNotification } from "../lib/notifications";
 import ForYouCard from "../components/ForYouCard";
 
 export default function FeedPage() {
@@ -18,7 +19,7 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("tiktok-feed-live")
+      .channel("kolehti-tiktok-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
       .subscribe();
@@ -107,6 +108,16 @@ export default function FeedPage() {
       return;
     }
 
+    if (post.user_id && post.user_id !== user.id) {
+      await createNotification({
+        userId: post.user_id,
+        type: "vote",
+        title: "Sait uuden äänen 💗",
+        body: "Perustelusi sai uuden äänen ja voi nousta rankingissa.",
+      });
+    }
+
+    navigator.vibrate?.(45);
     setToast("💗 Ääni annettu");
     setTimeout(() => setToast(""), 1600);
 
@@ -115,9 +126,16 @@ export default function FeedPage() {
 
   const visiblePosts = useMemo(() => {
     if (mode === "unvoted") return posts.filter((p) => !voted[p.id]);
+
     if (mode === "new") {
       return [...posts].sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      );
+    }
+
+    if (mode === "ai") {
+      return [...posts].sort(
+        (a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0)
       );
     }
 
@@ -144,17 +162,11 @@ export default function FeedPage() {
           </div>
 
           <div className="flex gap-2">
-            <Link
-              to="/new"
-              className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black"
-            >
+            <Link to="/new" className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black">
               Uusi
             </Link>
 
-            <Link
-              to="/profile"
-              className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black"
-            >
+            <Link to="/profile" className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black">
               Profiili
             </Link>
           </div>
@@ -167,6 +179,10 @@ export default function FeedPage() {
 
           <Filter active={mode === "unvoted"} onClick={() => setMode("unvoted")}>
             💗 Äänestämättä
+          </Filter>
+
+          <Filter active={mode === "ai"} onClick={() => setMode("ai")}>
+            🤖 AI
           </Filter>
 
           <Filter active={mode === "new"} onClick={() => setMode("new")}>
@@ -184,10 +200,7 @@ export default function FeedPage() {
           <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-center">
             <div className="text-6xl">✨</div>
             <h2 className="mt-4 text-2xl font-black">Ei lisää perusteluja</h2>
-            <Link
-              to="/new"
-              className="mt-5 block rounded-2xl bg-cyan-500 px-5 py-4 font-black"
-            >
+            <Link to="/new" className="mt-5 block rounded-2xl bg-cyan-500 px-5 py-4 font-black">
               Luo uusi
             </Link>
           </div>
