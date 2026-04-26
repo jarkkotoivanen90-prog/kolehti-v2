@@ -4,7 +4,9 @@ import { supabase } from "../lib/supabaseClient";
 import { rankForYou } from "../lib/tiktokAI";
 import { updateStreak } from "../lib/streak";
 import { createNotification } from "../lib/notifications";
+import { trackRetentionEvent } from "../lib/retention";
 import ForYouCard from "../components/ForYouCard";
+import ComebackBanner from "../components/ComebackBanner";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
@@ -19,9 +21,17 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-tiktok-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
+      .channel("kolehti-retention-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        loadFeed
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        loadFeed
+      )
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -39,6 +49,7 @@ export default function FeedPage() {
     if (user) {
       const profileData = await updateStreak(user, supabase);
       setProfile(profileData || null);
+      await trackRetentionEvent(user.id, "feed_open");
     }
 
     const groupId = localStorage.getItem("kolehti_group_id");
@@ -61,9 +72,15 @@ export default function FeedPage() {
       eventsQuery = eventsQuery.eq("user_id", user.id);
     }
 
-    const { data: postsData } = await postsQuery;
-    const { data: votesData } = await votesQuery;
+    const { data: postsData, error: postsError } = await postsQuery;
+    const { data: votesData, error: votesError } = await votesQuery;
     const { data: eventsData } = await eventsQuery;
+
+    if (postsError || votesError) {
+      setToast(postsError?.message || votesError?.message || "Virhe ladatessa.");
+      setLoading(false);
+      return;
+    }
 
     const voteCounts = {};
     const votedMap = {};
@@ -108,6 +125,8 @@ export default function FeedPage() {
       return;
     }
 
+    await trackRetentionEvent(user.id, "vote", { post_id: post.id });
+
     if (post.user_id && post.user_id !== user.id) {
       await createNotification({
         userId: post.user_id,
@@ -122,6 +141,11 @@ export default function FeedPage() {
     setTimeout(() => setToast(""), 1600);
 
     await loadFeed();
+  }
+
+  function changeMode(nextMode) {
+    setMode(nextMode);
+    trackRetentionEvent(user?.id, `filter_${nextMode}`);
   }
 
   const visiblePosts = useMemo(() => {
@@ -162,36 +186,44 @@ export default function FeedPage() {
           </div>
 
           <div className="flex gap-2">
-            <Link to="/new" className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black">
+            <Link
+              to="/new"
+              className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black"
+            >
               Uusi
             </Link>
 
-            <Link to="/profile" className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black">
+            <Link
+              to="/profile"
+              className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black"
+            >
               Profiili
             </Link>
           </div>
         </div>
 
         <div className="mx-auto mt-4 flex max-w-md gap-2 overflow-x-auto">
-          <Filter active={mode === "foryou"} onClick={() => setMode("foryou")}>
+          <Filter active={mode === "foryou"} onClick={() => changeMode("foryou")}>
             🔥 For You
           </Filter>
 
-          <Filter active={mode === "unvoted"} onClick={() => setMode("unvoted")}>
+          <Filter active={mode === "unvoted"} onClick={() => changeMode("unvoted")}>
             💗 Äänestämättä
           </Filter>
 
-          <Filter active={mode === "ai"} onClick={() => setMode("ai")}>
+          <Filter active={mode === "ai"} onClick={() => changeMode("ai")}>
             🤖 AI
           </Filter>
 
-          <Filter active={mode === "new"} onClick={() => setMode("new")}>
+          <Filter active={mode === "new"} onClick={() => changeMode("new")}>
             🆕 Uusimmat
           </Filter>
         </div>
       </header>
 
       <main className="mx-auto max-w-md snap-y snap-mandatory space-y-5 overflow-y-auto px-4 py-5 pb-28">
+        <ComebackBanner />
+
         {loading ? (
           <div className="rounded-3xl border border-white/10 bg-white/10 p-6">
             Ladataan...
@@ -200,7 +232,13 @@ export default function FeedPage() {
           <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-center">
             <div className="text-6xl">✨</div>
             <h2 className="mt-4 text-2xl font-black">Ei lisää perusteluja</h2>
-            <Link to="/new" className="mt-5 block rounded-2xl bg-cyan-500 px-5 py-4 font-black">
+            <p className="mt-2 text-sm text-white/55">
+              Luo oma perustelu tai vaihda näkymää.
+            </p>
+            <Link
+              to="/new"
+              className="mt-5 block rounded-2xl bg-cyan-500 px-5 py-4 font-black"
+            >
               Luo uusi
             </Link>
           </div>
