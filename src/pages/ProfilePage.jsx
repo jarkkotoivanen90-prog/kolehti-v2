@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import CharacterAvatar from "../components/CharacterAvatar";
 import NotificationBell from "../components/NotificationBell";
+import ProgressCard from "../components/ProgressCard";
 import { characters } from "../data/characters";
 import { updateLastSeen, trackRetentionEvent } from "../lib/retention";
 
@@ -128,13 +129,19 @@ export default function ProfilePage() {
             />
           </div>
 
+          <Stat title="Level" value={`LVL ${profile?.level || 1}`} />
+          <Stat title="XP" value={profile?.xp || 0} />
           <Stat title="Omat perustelut" value={posts.length} />
           <Stat title="Annetut äänet" value={votes.length} />
           <Stat title="Streak" value={`🔥 ${profile?.user_streak || 1}`} />
-          <Stat title="Paluu-score" value={Math.round(profile?.retention_score || 0)} />
           <Stat title="Paras sijoitus" value={bestRankFromPosts ? `#${bestRankFromPosts}` : "-"} />
+          <Stat title="Paluu-score" value={Math.round(profile?.retention_score || 0)} />
           <Stat title="Lähellä voittoa" value={profile?.almost_win_count || 0} />
         </section>
+
+        <div className="mt-5">
+          <ProgressCard profile={profile} />
+        </div>
 
         {bestPost && (
           <section className="mt-5 rounded-[34px] border border-yellow-300/20 bg-yellow-500/10 p-5 shadow-2xl">
