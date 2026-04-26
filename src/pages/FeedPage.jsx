@@ -10,10 +10,35 @@ export default function FeedPage() {
   const [voted, setVoted] = useState({});
   const [group, setGroup] = useState(null);
   const [user, setUser] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(nextDrawLabel());
+  const [lastVoteId, setLastVoteId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadFeed();
+
+    const timer = setInterval(() => {
+      setTimeLeft(nextDrawLabel());
+    }, 1000);
+
+    const channel = supabase
+      .channel("addictive-feed-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        () => loadFeed()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        () => loadFeed()
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(timer);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function loadFeed() {
@@ -84,7 +109,10 @@ export default function FeedPage() {
   }
 
   async function vote(post) {
-    if (!user) return;
+    if (!user) {
+      alert("Kirjaudu ensin.");
+      return;
+    }
 
     const groupId = localStorage.getItem("kolehti_group_id");
 
@@ -99,11 +127,44 @@ export default function FeedPage() {
       return;
     }
 
+    navigator.vibrate?.(40);
+    setLastVoteId(post.id);
+
+    setTimeout(() => {
+      setLastVoteId(null);
+    }, 900);
+
     await loadFeed();
   }
 
+  const totalVotes = posts.reduce((sum, post) => sum + (post.vote_count || 0), 0);
+  const myVotes = Object.keys(voted).length;
+  const topPost = posts[0];
+  const myNearMiss = posts.find((post, index) => index >= 3 && index <= 5);
+
   return (
     <div className="min-h-screen bg-[#050816] pb-28 text-white">
+      <style>{`
+        @keyframes popVote {
+          0% { transform: scale(.7); opacity: 0; }
+          40% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(1); opacity: 0; }
+        }
+
+        @keyframes winnerGlow {
+          0%, 100% { box-shadow: 0 0 28px rgba(250,204,21,.20); }
+          50% { box-shadow: 0 0 70px rgba(250,204,21,.45); }
+        }
+
+        .winner-glow {
+          animation: winnerGlow 2.4s ease-in-out infinite;
+        }
+
+        .vote-pop {
+          animation: popVote .8s ease-out forwards;
+        }
+      `}</style>
+
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#153b92_0%,#050816_45%,#02030a_100%)]" />
 
       <main className="mx-auto max-w-5xl px-4 py-6">
@@ -132,11 +193,23 @@ export default function FeedPage() {
           </div>
         </div>
 
-        <section className="mb-5 grid gap-3 md:grid-cols-3">
-          <MoneyCard title="Päiväpotti" amount="1000 €" time={nextDrawLabel()} color="emerald" />
-          <MoneyCard title="Viikkopotti" amount="3000 €" time="Viikonloppuna" color="cyan" />
-          <MoneyCard title="Kuukausipotti" amount="5000 €" time="Kuukauden lopussa" color="pink" />
+        <section className="mb-5 grid gap-3 md:grid-cols-4">
+          <PulseCard label="Päiväpotti" value="1000 €" sub={`⏳ ${timeLeft}`} tone="emerald" />
+          <PulseCard label="Ääniä yhteensä" value={totalVotes} sub="Tässä porukassa" tone="cyan" />
+          <PulseCard label="Sinun äänet" value={myVotes} sub="Tänään annettu" tone="pink" />
+          <PulseCard label="Kärjessä" value={topPost ? "TOP 1" : "-"} sub={topPost ? "Voittajaehdokas" : "Ei vielä"} tone="yellow" />
         </section>
+
+        {myNearMiss && (
+          <div className="mb-5 rounded-[28px] border border-yellow-300/30 bg-yellow-500/10 p-4 shadow-2xl">
+            <div className="text-sm font-black text-yellow-200">
+              🔥 Lähellä kärkeä
+            </div>
+            <p className="mt-1 text-sm text-white/75">
+              Sijat 4–6 ovat vielä täysin auki. Yksi ääni voi muuttaa rankingin.
+            </p>
+          </div>
+        )}
 
         {loading ? (
           <div className="rounded-3xl border border-white/10 bg-white/10 p-6">
@@ -154,6 +227,7 @@ export default function FeedPage() {
                 post={post}
                 index={index}
                 voted={voted[post.id]}
+                isPop={lastVoteId === post.id}
                 onVote={() => vote(post)}
               />
             ))}
@@ -166,23 +240,24 @@ export default function FeedPage() {
   );
 }
 
-function MoneyCard({ title, amount, time, color }) {
-  const colors = {
+function PulseCard({ label, value, sub, tone }) {
+  const tones = {
     emerald: "border-emerald-300/30 bg-emerald-500/15 text-emerald-200",
     cyan: "border-cyan-300/30 bg-cyan-500/15 text-cyan-200",
     pink: "border-pink-300/30 bg-pink-500/15 text-pink-200",
+    yellow: "border-yellow-300/30 bg-yellow-500/15 text-yellow-200",
   };
 
   return (
-    <div className={`rounded-[28px] border p-5 shadow-2xl ${colors[color]}`}>
-      <div className="text-xs font-black uppercase tracking-wide">{title}</div>
-      <div className="mt-2 text-4xl font-black">{amount}</div>
-      <div className="mt-2 text-sm font-bold text-white/65">{time}</div>
+    <div className={`rounded-[28px] border p-5 shadow-2xl ${tones[tone]}`}>
+      <div className="text-xs font-black uppercase tracking-wide">{label}</div>
+      <div className="mt-2 text-3xl font-black">{value}</div>
+      <div className="mt-2 text-sm font-bold text-white/65">{sub}</div>
     </div>
   );
 }
 
-function PostCard({ post, index, voted, onVote }) {
+function PostCard({ post, index, voted, isPop, onVote }) {
   const isTop = index === 0;
   const character = characters[index % characters.length];
 
@@ -190,10 +265,20 @@ function PostCard({ post, index, voted, onVote }) {
     <div
       className={`relative overflow-hidden rounded-[34px] border p-5 shadow-2xl ${
         isTop
-          ? "border-yellow-300/50 bg-yellow-500/10 shadow-yellow-500/20"
+          ? "winner-glow border-yellow-300/50 bg-yellow-500/10 shadow-yellow-500/20"
           : "border-white/10 bg-white/10"
       }`}
     >
+      {isTop && (
+        <div className="pointer-events-none absolute inset-0 rounded-[34px] ring-2 ring-yellow-400/40" />
+      )}
+
+      {isPop && (
+        <div className="vote-pop pointer-events-none absolute right-8 top-8 z-30 text-5xl">
+          💗
+        </div>
+      )}
+
       <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-cyan-400/20 blur-3xl" />
 
       <div className="relative flex gap-4">
@@ -224,6 +309,12 @@ function PostCard({ post, index, voted, onVote }) {
               </span>
             )}
 
+            {index >= 3 && index <= 5 && (
+              <span className="rounded-full bg-yellow-400/15 px-3 py-1 text-xs font-black text-yellow-200">
+                🔥 Lähellä TOP 3
+              </span>
+            )}
+
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/60">
               Score {Math.round(post.rank_score || 0)}
             </span>
@@ -235,11 +326,17 @@ function PostCard({ post, index, voted, onVote }) {
             {post.content}
           </p>
 
+          {post.ai_score > 70 && (
+            <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-500/10 px-4 py-3 text-sm font-black text-cyan-200">
+              🤖 AI: Vahva perustelu
+            </div>
+          )}
+
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               onClick={onVote}
               disabled={voted}
-              className={`rounded-2xl px-5 py-3 text-sm font-black shadow-xl transition ${
+              className={`rounded-2xl px-5 py-3 text-sm font-black shadow-xl transition active:scale-95 ${
                 voted
                   ? "bg-white/15 text-white/60"
                   : "bg-pink-500 text-white shadow-pink-500/20 hover:scale-105"
@@ -252,11 +349,11 @@ function PostCard({ post, index, voted, onVote }) {
               💗 {post.vote_count || 0} ääntä
             </div>
 
-            {post.ai_score ? (
-              <div className="rounded-2xl bg-cyan-500/15 px-5 py-3 text-sm font-black text-cyan-200">
-                🤖 AI {Math.round(post.ai_score)}
+            {post.vote_count > 0 && index > 0 && (
+              <div className="rounded-2xl bg-yellow-500/10 px-5 py-3 text-sm font-black text-yellow-200">
+                {index <= 5 ? "Lähellä nousua" : "Voi vielä nousta"}
               </div>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
