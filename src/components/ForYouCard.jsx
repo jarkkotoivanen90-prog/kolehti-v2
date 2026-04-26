@@ -1,5 +1,8 @@
-import React from "react";
+import { useEffect, useState } from "react";
+import CharacterAvatar from "./CharacterAvatar";
 import AlmostWinBadge from "./AlmostWinBadge";
+import { characters } from "../data/characters";
+import { increaseView, trackEvent } from "../lib/tiktokAI";
 
 export default function ForYouCard({
   post,
@@ -9,39 +12,137 @@ export default function ForYouCard({
   onVote,
   rankInfo,
 }) {
+  const [showHeart, setShowHeart] = useState(false);
+  const character = characters[index % characters.length];
+
+  useEffect(() => {
+    increaseView(post.id);
+
+    trackEvent({
+      userId: user?.id,
+      postId: post.id,
+      type: "view",
+      weight: 1,
+    });
+  }, [post.id, user?.id]);
+
+  async function handleVote() {
+    if (voted) return;
+
+    setShowHeart(true);
+    navigator.vibrate?.(45);
+
+    await trackEvent({
+      userId: user?.id,
+      postId: post.id,
+      type: "vote_click",
+      weight: 5,
+    });
+
+    await onVote(post);
+
+    setTimeout(() => setShowHeart(false), 800);
+  }
+
+  async function handleShare() {
+    await navigator.clipboard.writeText(window.location.href);
+
+    await trackEvent({
+      userId: user?.id,
+      postId: post.id,
+      type: "share",
+      weight: 8,
+    });
+
+    navigator.vibrate?.(25);
+  }
+
   return (
-    <div className="bg-zinc-900 rounded-2xl p-4 mb-4 shadow-md">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm text-zinc-400">#{index}</span>
-        <span className="text-xs text-zinc-500">
-          {post.createdAt || "just now"}
-        </span>
+    <article className="relative min-h-[72vh] snap-start overflow-hidden rounded-[38px] border border-white/10 bg-white/10 p-5 shadow-2xl backdrop-blur-xl">
+      {showHeart && (
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 animate-ping text-8xl">
+          💗
+        </div>
+      )}
+
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#2563eb55,transparent_45%)]" />
+      <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-pink-500/20 blur-3xl" />
+      <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-cyan-500/20 blur-3xl" />
+
+      <div className="relative z-10 flex min-h-[68vh] flex-col">
+        <div className="flex items-center justify-between">
+          <CharacterAvatar
+            character={character}
+            size="lg"
+            showInfo={false}
+            rank={index + 1}
+          />
+
+          <div className="rounded-2xl bg-black/30 px-4 py-2 text-right">
+            <div className="text-xs font-black text-white/50">VIRAL</div>
+            <div className="text-lg font-black text-cyan-200">
+              {Math.round(post.viral_score || post.for_you_score || 0)}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-auto">
+          <div className="mb-3 flex flex-wrap gap-2">
+            <span className="rounded-full bg-yellow-400/90 px-3 py-1 text-xs font-black text-black">
+              {post.status_label || "✨ Uusi"}
+            </span>
+
+            {post.ai_score > 70 && (
+              <span className="rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-black text-cyan-100">
+                🤖 AI {Math.round(post.ai_score)}
+              </span>
+            )}
+
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70">
+              💗 {post.vote_count || post.votes || 0}
+            </span>
+
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70">
+              👀 {post.view_count || post.views || 0}
+            </span>
+          </div>
+
+          <h2 className="text-3xl font-black">Perustelu</h2>
+
+          <p className="mt-3 whitespace-pre-wrap text-xl font-bold leading-relaxed text-white/85">
+            {post.content}
+          </p>
+
+          <AlmostWinBadge rankInfo={rankInfo} />
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button
+              onClick={handleVote}
+              disabled={voted}
+              className={`rounded-3xl px-5 py-5 text-xl font-black shadow-2xl transition active:scale-95 ${
+                voted
+                  ? "bg-white/15 text-white/50"
+                  : "bg-pink-500 text-white shadow-pink-500/30"
+              }`}
+            >
+              {voted ? "Äänestetty" : "💗 Äänestä"}
+            </button>
+
+            <button
+              onClick={handleShare}
+              className="rounded-3xl border border-white/10 bg-white/10 px-5 py-5 text-xl font-black transition active:scale-95"
+            >
+              🚀 Jaa
+            </button>
+          </div>
+
+          {!voted && index > 0 && (
+            <div className="mt-4 rounded-2xl border border-yellow-300/20 bg-yellow-500/10 p-3 text-sm font-black text-yellow-100">
+              ⚡ Tämä voi nousta. Yksi ääni voi muuttaa rankingin.
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* Content */}
-      <p className="text-white text-base mb-3">{post.text}</p>
-
-      {/* 🔥 Almost Win Badge */}
-      {rankInfo && <AlmostWinBadge rankInfo={rankInfo} />}
-
-      {/* Actions */}
-      <div className="flex items-center justify-between mt-3">
-        <button
-          onClick={() => onVote(post)}
-          className={`px-3 py-1 rounded-xl text-sm ${
-            voted
-              ? "bg-green-500 text-black"
-              : "bg-zinc-800 text-white hover:bg-zinc-700"
-          }`}
-        >
-          {voted ? "Voted" : "Vote"}
-        </button>
-
-        <span className="text-zinc-400 text-sm">
-          {post.votes || 0} votes
-        </span>
-      </div>
-    </div>
+    </article>
   );
 }
