@@ -78,9 +78,20 @@ export default function ProfilePage() {
 
   const bestPost = useMemo(() => {
     if (!posts.length) return null;
+
     return [...posts].sort(
       (a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0)
     )[0];
+  }, [posts]);
+
+  const bestRankFromPosts = useMemo(() => {
+    const ranks = posts
+      .map((post) => Number(post.best_rank || 0))
+      .filter((rank) => rank > 0);
+
+    if (!ranks.length) return null;
+
+    return Math.min(...ranks);
   }, [posts]);
 
   return (
@@ -108,8 +119,8 @@ export default function ProfilePage() {
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-5">
-          <div className="rounded-[30px] border border-white/10 bg-white/10 p-5 shadow-2xl">
+        <section className="grid gap-3 md:grid-cols-6">
+          <div className="rounded-[30px] border border-white/10 bg-white/10 p-5 shadow-2xl md:col-span-1">
             <CharacterAvatar
               character={characters[0]}
               size="xl"
@@ -121,6 +132,8 @@ export default function ProfilePage() {
           <Stat title="Annetut äänet" value={votes.length} />
           <Stat title="Streak" value={`🔥 ${profile?.user_streak || 1}`} />
           <Stat title="Paluu-score" value={Math.round(profile?.retention_score || 0)} />
+          <Stat title="Paras sijoitus" value={bestRankFromPosts ? `#${bestRankFromPosts}` : "-"} />
+          <Stat title="Lähellä voittoa" value={profile?.almost_win_count || 0} />
         </section>
 
         {bestPost && (
@@ -128,11 +141,21 @@ export default function ProfilePage() {
             <h2 className="text-2xl font-black text-yellow-200">
               🏆 Paras perustelusi
             </h2>
+
             <p className="mt-3 text-lg font-black text-white">
               {bestPost.content}
             </p>
-            <div className="mt-3 rounded-2xl bg-black/25 px-4 py-3 text-sm font-black text-yellow-100">
-              🤖 AI-score {Math.round(bestPost.ai_score || 0)}
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <div className="rounded-2xl bg-black/25 px-4 py-3 text-sm font-black text-yellow-100">
+                🤖 AI-score {Math.round(bestPost.ai_score || 0)}
+              </div>
+
+              {bestPost.best_rank && (
+                <div className="rounded-2xl bg-black/25 px-4 py-3 text-sm font-black text-cyan-100">
+                  Paras sijoitus #{bestPost.best_rank}
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -182,8 +205,12 @@ export default function ProfilePage() {
                   <div className="font-black">{post.content}</div>
 
                   <div className="mt-2 flex flex-wrap gap-2 text-xs font-black text-white/55">
-                    <span>{new Date(post.created_at).toLocaleString("fi-FI")}</span>
+                    <span>
+                      {new Date(post.created_at).toLocaleString("fi-FI")}
+                    </span>
                     <span>🤖 AI {Math.round(post.ai_score || 0)}</span>
+                    {post.best_rank && <span>🏆 Paras #{post.best_rank}</span>}
+                    {post.last_rank && <span>Live #{post.last_rank}</span>}
                   </div>
                 </div>
               ))}
