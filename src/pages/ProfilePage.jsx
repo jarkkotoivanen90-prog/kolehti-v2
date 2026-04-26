@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import CharacterAvatar from "../components/CharacterAvatar";
 import NotificationBell from "../components/NotificationBell";
 import { characters } from "../data/characters";
+import { updateLastSeen, trackRetentionEvent } from "../lib/retention";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -29,13 +30,17 @@ export default function ProfilePage() {
 
     setUser(user);
 
+    await trackRetentionEvent(user.id, "profile_open");
+
+    const updatedProfile = await updateLastSeen(user.id);
+
     const { data: profileData } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", user.id)
       .single();
 
-    setProfile(profileData || null);
+    setProfile(updatedProfile || profileData || null);
 
     const { data: postsData } = await supabase
       .from("posts")
@@ -54,6 +59,7 @@ export default function ProfilePage() {
   }
 
   async function logout() {
+    await trackRetentionEvent(user?.id, "logout");
     await supabase.auth.signOut();
     navigate("/login");
   }
@@ -65,9 +71,17 @@ export default function ProfilePage() {
 
   async function copyInvite() {
     await navigator.clipboard.writeText(inviteLink);
+    await trackRetentionEvent(user?.id, "invite_copy");
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
   }
+
+  const bestPost = useMemo(() => {
+    if (!posts.length) return null;
+    return [...posts].sort(
+      (a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0)
+    )[0];
+  }, [posts]);
 
   return (
     <div className="min-h-screen bg-[#050816] px-4 py-6 pb-32 text-white">
@@ -94,7 +108,7 @@ export default function ProfilePage() {
           </div>
         </header>
 
-        <section className="grid gap-3 md:grid-cols-4">
+        <section className="grid gap-3 md:grid-cols-5">
           <div className="rounded-[30px] border border-white/10 bg-white/10 p-5 shadow-2xl">
             <CharacterAvatar
               character={characters[0]}
@@ -106,7 +120,22 @@ export default function ProfilePage() {
           <Stat title="Omat perustelut" value={posts.length} />
           <Stat title="Annetut äänet" value={votes.length} />
           <Stat title="Streak" value={`🔥 ${profile?.user_streak || 1}`} />
+          <Stat title="Paluu-score" value={Math.round(profile?.retention_score || 0)} />
         </section>
+
+        {bestPost && (
+          <section className="mt-5 rounded-[34px] border border-yellow-300/20 bg-yellow-500/10 p-5 shadow-2xl">
+            <h2 className="text-2xl font-black text-yellow-200">
+              🏆 Paras perustelusi
+            </h2>
+            <p className="mt-3 text-lg font-black text-white">
+              {bestPost.content}
+            </p>
+            <div className="mt-3 rounded-2xl bg-black/25 px-4 py-3 text-sm font-black text-yellow-100">
+              🤖 AI-score {Math.round(bestPost.ai_score || 0)}
+            </div>
+          </section>
+        )}
 
         <section className="mt-5 rounded-[34px] border border-cyan-300/20 bg-cyan-500/10 p-5 shadow-2xl">
           <h2 className="text-2xl font-black">🚀 Kutsu kavereita</h2>
