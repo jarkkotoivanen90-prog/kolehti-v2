@@ -1,337 +1,289 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient";
-import CharacterAvatar from "../components/CharacterAvatar";
-import { characters, kaiCharacter } from "../data/characters";
 
-function StatCard({ title, value, text, icon, color }) {
+function Person({ type = "woman", delay = 0 }) {
+  const hair =
+    type === "blonde"
+      ? "bg-yellow-300"
+      : type === "worker"
+      ? "bg-stone-800"
+      : type === "man"
+      ? "bg-stone-900"
+      : "bg-amber-700";
+
+  const outfit =
+    type === "worker"
+      ? "bg-lime-600"
+      : type === "blonde"
+      ? "bg-purple-600"
+      : type === "man"
+      ? "bg-blue-900"
+      : "bg-emerald-700";
+
   return (
-    <div className={`group relative overflow-hidden rounded-[30px] border p-5 shadow-2xl transition duration-300 hover:-translate-y-2 hover:scale-[1.02] ${color}`}>
-      <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/20 blur-3xl transition group-hover:scale-150" />
-      <div className="relative">
-        <div className="text-4xl">{icon}</div>
-        <div className="mt-3 text-xs font-black uppercase tracking-widest text-white/70">{title}</div>
-        <div className="mt-1 text-3xl font-black">{value}</div>
-        <p className="mt-2 text-sm text-white/65">{text}</p>
-      </div>
+    <div
+      className="relative h-32 w-24 shrink-0 animate-[float_4s_ease-in-out_infinite]"
+      style={{ animationDelay: `${delay}s` }}
+    >
+      <div className={`absolute bottom-0 left-3 h-20 w-18 rounded-t-[2rem] ${outfit} shadow-xl`} />
+      <div className="absolute bottom-14 left-5 h-16 w-16 rounded-[1.5rem] bg-[#f1c3a1]" />
+      <div className={`absolute bottom-[6.4rem] left-3 h-9 w-20 rounded-t-full ${hair}`} />
+      <div className="absolute bottom-[4.65rem] left-9 h-2 w-2 rounded-full bg-slate-950" />
+      <div className="absolute bottom-[4.65rem] right-9 h-2 w-2 rounded-full bg-slate-950" />
+      <div className="absolute bottom-[3.7rem] left-1/2 h-2 w-7 -translate-x-1/2 rounded-full bg-rose-500" />
+      {type === "worker" && (
+        <div className="absolute bottom-20 left-2 h-3 w-20 rounded-full bg-yellow-300" />
+      )}
     </div>
   );
 }
 
-function PotCard({ title, amount, text, icon, color }) {
+function Robot() {
   return (
-    <div className={`group relative overflow-hidden rounded-[34px] border p-6 shadow-2xl transition duration-300 hover:-translate-y-2 hover:scale-[1.02] ${color}`}>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_35%)] opacity-0 transition group-hover:opacity-100" />
-      <div className="relative">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-sm font-black uppercase tracking-widest text-white/70">{title}</div>
-            <div className="mt-2 text-5xl font-black">{amount}</div>
+    <div className="relative h-32 w-28 animate-[float_3s_ease-in-out_infinite]">
+      <div className="absolute bottom-2 left-3 h-20 w-22 rounded-[2rem] bg-white shadow-xl" />
+      <div className="absolute bottom-17 left-3 h-16 w-22 rounded-[2rem] border-4 border-white bg-slate-950 shadow-xl">
+        <div className="mt-5 flex justify-center gap-4">
+          <div className="h-3 w-3 rounded-full bg-cyan-300 shadow-cyan-300/80 shadow-lg" />
+          <div className="h-3 w-3 rounded-full bg-cyan-300 shadow-cyan-300/80 shadow-lg" />
+        </div>
+        <div className="mx-auto mt-3 h-2 w-8 rounded-full bg-cyan-300" />
+      </div>
+      <div className="absolute bottom-24 left-12 h-5 w-2 rounded-full bg-white" />
+      <div className="absolute bottom-[7.1rem] left-10 h-3 w-7 rounded-full bg-cyan-300" />
+    </div>
+  );
+}
+
+function GlassCard({ children, className = "" }) {
+  return (
+    <div className={`relative overflow-hidden rounded-[26px] border border-white/15 bg-white/8 shadow-2xl backdrop-blur-xl ${className}`}>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,.16),transparent_35%)]" />
+      <div className="relative">{children}</div>
+    </div>
+  );
+}
+
+function InfoCard({ icon, title, children, color }) {
+  return (
+    <GlassCard className={`p-4 ${color}`}>
+      <div className="flex gap-3">
+        <div className="text-4xl">{icon}</div>
+        <div>
+          <div className="text-xs font-black uppercase tracking-wide text-cyan-200">
+            {title}
           </div>
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 text-3xl shadow-xl">
-            {icon}
+          <div className="mt-1 text-sm font-semibold text-white/85">
+            {children}
           </div>
         </div>
-        <p className="mt-4 text-sm font-semibold text-white/70">{text}</p>
       </div>
+      <div className="mt-2 text-right text-2xl text-white/60">›</div>
+    </GlassCard>
+  );
+}
+
+function PotCard({ title, amount, icon, color, children }) {
+  return (
+    <GlassCard className={`p-5 ${color}`}>
+      <div className="flex justify-between gap-3">
+        <div>
+          <div className="text-sm font-black uppercase tracking-wide">{title}</div>
+          <div className="mt-2 text-4xl font-black">{amount}</div>
+        </div>
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 text-3xl">
+          {icon}
+        </div>
+      </div>
+      <p className="mt-3 text-sm font-semibold text-white/80">{children}</p>
+    </GlassCard>
+  );
+}
+
+function Step({ n, title, text, children }) {
+  return (
+    <div className="min-w-[135px] flex-1">
+      <GlassCard className="h-24 p-2">
+        <div className="flex h-full items-center justify-center">{children}</div>
+        <div className="absolute bottom-1 left-1 grid h-7 w-7 place-items-center rounded-full bg-blue-500 text-xs font-black">
+          {n}
+        </div>
+      </GlassCard>
+      <div className="mt-2 text-xs font-black uppercase text-cyan-300">{title}</div>
+      <div className="mt-1 text-xs font-medium text-white/70">{text}</div>
     </div>
   );
 }
 
-function StepCard({ number, title, text, icon }) {
+function BottomNav() {
   return (
-    <div className="group rounded-[28px] border border-white/10 bg-white/10 p-5 shadow-xl transition duration-300 hover:-translate-y-2 hover:bg-white/15">
-      <div className="flex items-center justify-between">
-        <div className="text-xs font-black tracking-[0.25em] text-cyan-200">{number}</div>
-        <div className="text-4xl transition duration-300 group-hover:scale-125">{icon}</div>
+    <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[28px] border border-white/10 bg-[#081226]/95 px-4 py-2 text-white shadow-2xl backdrop-blur-xl">
+      <div className="grid grid-cols-5 items-end text-center text-xs font-bold">
+        <Link to="/" className="text-blue-400">🏠<div>Koti</div></Link>
+        <Link to="/feed">📋<div>Perustelut</div></Link>
+        <Link to="/new" className="-mt-6">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-500 text-4xl shadow-xl shadow-blue-500/40">+</div>
+          <div>Uusi perustelu</div>
+        </Link>
+        <Link to="/vote">👥<div>Äänestä</div></Link>
+        <Link to="/profile">👤<div>Profiili</div></Link>
       </div>
-      <h3 className="mt-4 text-lg font-black">{title}</h3>
-      <p className="mt-2 text-sm text-white/65">{text}</p>
     </div>
   );
 }
 
 export default function HomePage() {
-  const [topPosts, setTopPosts] = useState([]);
-
-  useEffect(() => {
-    loadTopPosts();
-  }, []);
-
-  async function loadTopPosts() {
-    const groupId = localStorage.getItem("kolehti_group_id");
-
-    let postsQuery = supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(20);
-
-    let votesQuery = supabase.from("votes").select("*");
-
-    if (groupId) {
-      postsQuery = postsQuery.eq("group_id", groupId);
-      votesQuery = votesQuery.eq("group_id", groupId);
-    }
-
-    const { data: postsData } = await postsQuery;
-    const { data: votesData } = await votesQuery;
-
-    const counts = {};
-    (votesData || []).forEach((vote) => {
-      counts[vote.post_id] = (counts[vote.post_id] || 0) + 1;
-    });
-
-    const ranked = (postsData || [])
-      .map((post) => ({
-        ...post,
-        vote_count: counts[post.id] || 0,
-      }))
-      .sort((a, b) => b.vote_count - a.vote_count)
-      .slice(0, 3);
-
-    setTopPosts(ranked);
-  }
-
   return (
-    <div className="min-h-screen overflow-hidden bg-[#050816] text-white">
+    <div className="min-h-screen bg-[#050816] pb-28 text-white">
       <style>{`
-        @keyframes floaty {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-14px); }
-        }
-        @keyframes pulseGlow {
-          0%, 100% { box-shadow: 0 0 30px rgba(34,211,238,.18); }
-          50% { box-shadow: 0 0 80px rgba(34,211,238,.42); }
-        }
-        @keyframes shine {
-          0% { transform: translateX(-120%); }
-          100% { transform: translateX(120%); }
-        }
-        .floaty { animation: floaty 4s ease-in-out infinite; }
-        .pulse-glow { animation: pulseGlow 3s ease-in-out infinite; }
-        .shine:before {
-          content: "";
-          position: absolute;
-          inset: 0;
-          transform: translateX(-120%);
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
-          animation: shine 4s infinite;
+        @keyframes float {
+          0%,100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
         }
       `}</style>
 
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[#050816]" />
-        <div className="absolute left-[-10%] top-[-10%] h-[520px] w-[520px] rounded-full bg-cyan-500/30 blur-[150px]" />
-        <div className="absolute right-[-10%] top-[10%] h-[520px] w-[520px] rounded-full bg-fuchsia-500/25 blur-[150px]" />
-        <div className="absolute bottom-[-15%] left-[20%] h-[560px] w-[560px] rounded-full bg-emerald-500/20 blur-[170px]" />
-      </div>
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#153b92_0%,#050816_42%,#02030a_100%)]" />
 
-      <main className="mx-auto max-w-7xl px-4 py-8">
-        <section className="shine relative overflow-hidden rounded-[46px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-2xl md:p-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.18),transparent_35%)]" />
+      <main className="mx-auto max-w-md px-4 py-4">
+        <header className="flex items-center justify-between">
+          <button className="grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/8 text-4xl">
+            ☰
+          </button>
 
-          <div className="relative grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-            <div>
-              <div className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm font-black text-cyan-100">
-                AI-powered persuasion arena
-              </div>
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2">
+              <div className="text-4xl">🤝</div>
+              <h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1>
+            </div>
+            <p className="text-[10px] font-black uppercase text-white/70">
+              Me pidämme huolta – yhdessä voitamme.
+            </p>
+          </div>
 
-              <div className="mt-6 flex items-center gap-4">
-                <div className="pulse-glow grid h-20 w-20 place-items-center rounded-[28px] bg-cyan-500 text-5xl shadow-2xl">
-                  🤝
-                </div>
+          <Link to="/profile" className="relative">
+            <div className="grid h-14 w-14 place-items-center rounded-full border border-cyan-300/40 bg-blue-500/30">
+              <Person type="man" />
+            </div>
+            <span className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-blue-500 text-xs font-black">
+              3
+            </span>
+          </Link>
+        </header>
 
-                <div>
-                  <h1 className="text-5xl font-black tracking-tight md:text-7xl">
-                    KOLEHTI
-                  </h1>
-                  <p className="mt-1 font-bold text-white/70">
-                    Yhdessä voimme. Porukka pitää huolta.
-                  </p>
-                </div>
-              </div>
-
-              <h2 className="mt-8 max-w-3xl text-4xl font-black leading-tight md:text-6xl">
-                Kirjoita perustelu. Vaikuta ihmisiin. Nouse kärkeen.
+        <section className="mt-5 overflow-hidden rounded-[26px] border border-fuchsia-400/40 bg-gradient-to-br from-purple-700/50 to-blue-950 shadow-2xl">
+          <div className="relative h-64">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,166,77,.45),transparent_38%)]" />
+            <div className="absolute inset-x-0 bottom-4 flex items-end justify-center gap-[-10px]">
+              <Person type="man" delay={0} />
+              <Person type="woman" delay={0.2} />
+              <Person type="man" delay={0.4} />
+              <Person type="blonde" delay={0.6} />
+              <Person type="worker" delay={0.8} />
+              <Person type="blonde" delay={1} />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050816] via-transparent to-transparent" />
+            <div className="absolute bottom-5 left-0 right-0 text-center">
+              <h2 className="text-2xl font-black">
+                Porukka pitää huolta.
+                <br />
+                <span className="text-pink-400">Yhdessä voimme.</span>
               </h2>
-
-              <p className="mt-5 max-w-2xl text-lg font-semibold text-white/70">
-                Yhteisöllinen peli, jossa porukka, tekoäly ja äänestys nostavat tärkeimmät perustelut näkyviin.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/groups" className="rounded-2xl bg-cyan-500 px-6 py-4 font-black shadow-xl shadow-cyan-500/25 transition hover:-translate-y-1 hover:scale-105">
-                  Aloita porukasta
-                </Link>
-
-                <Link to="/new" className="rounded-2xl bg-pink-500 px-6 py-4 font-black shadow-xl shadow-pink-500/25 transition hover:-translate-y-1 hover:scale-105">
-                  Kirjoita perustelu
-                </Link>
-
-                <Link to="/feed" className="rounded-2xl border border-white/15 bg-white/10 px-6 py-4 font-black transition hover:-translate-y-1 hover:bg-white/20">
-                  Avaa ranking
-                </Link>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="grid grid-cols-2 gap-4">
-                {characters.slice(0, 4).map((character, index) => (
-                  <div
-                    key={character.id}
-                    className="floaty rounded-[34px] border border-white/10 bg-white/10 p-4 shadow-2xl backdrop-blur-xl"
-                    style={{ animationDelay: `${index * 0.35}s` }}
-                  >
-                    <CharacterAvatar character={character} size="lg" />
-                  </div>
-                ))}
-              </div>
-
-              <div className="absolute -bottom-5 left-1/2 hidden -translate-x-1/2 rounded-[28px] border border-white/10 bg-black/50 p-4 shadow-2xl backdrop-blur-xl md:block">
-                <div className="flex items-center gap-3">
-                  <CharacterAvatar character={kaiCharacter} size="sm" showInfo={false} />
-                  <div>
-                    <div className="text-sm font-bold text-cyan-200">KAI-avustaja</div>
-                    <div className="mt-1 text-sm text-white/70">
-                      “Autan nostamaan parhaat perustelut näkyviin.”
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
 
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
-          <StatCard
-            icon="👥"
-            title="Porukan koko"
-            value="~1400"
-            text="Porukoita tulee lisää jäsenmäärien kasvaessa."
-            color="border-cyan-300/30 bg-cyan-500/15"
-          />
-
-          <StatCard
-            icon="🇫🇮"
-            title="Jäsenet ympäri Suomea"
-            value="FI"
-            text="Porukoiden nimet ovat oikeita, jäsenet sekoitetaan."
-            color="border-purple-300/30 bg-purple-500/15"
-          />
-
-          <StatCard
-            icon="💙"
-            title="Tavoite"
-            value="Huolenpito"
-            text="Pidämme huolta huonoiten menevistä jäsenistä."
-            color="border-emerald-300/30 bg-emerald-500/15"
-          />
+        <section className="mt-4 grid grid-cols-3 gap-2">
+          <InfoCard icon="👥" title="Porukan koko" color="border-blue-400/50">
+            <b className="text-xl">~1400</b><br />jäsentä
+          </InfoCard>
+          <InfoCard icon="🇫🇮" title="Jäsenet ympäri Suomea" color="border-purple-400/50">
+            Porukoiden nimet ovat oikeita, jäsenet sekoitetaan.
+          </InfoCard>
+          <InfoCard icon="💚" title="Tavoitteemme" color="border-green-400/50">
+            Yhteisöllisyys ja huolenpito.
+          </InfoCard>
         </section>
 
-        <section className="mt-8 grid gap-4 lg:grid-cols-[1fr_330px]">
-          <div>
-            <h2 className="mb-4 text-2xl font-black">RAHAPOTIT</h2>
+        <section className="mt-6">
+          <h2 className="mb-3 text-xl font-black">RAHAPOTIT <span className="rounded-full bg-white/10 px-2 text-sm">?</span></h2>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <PotCard
-                title="Päivittäin"
-                amount="1000 €"
-                icon="📅"
-                text="Tekoäly analysoi ja nostaa vahvimman perustelun."
-                color="border-emerald-300/30 bg-emerald-500/20"
-              />
-              <PotCard
-                title="Viikoittain"
-                amount="3000 €"
-                icon="👥"
-                text="Äänestys porukan kesken viikonlopun lopussa."
-                color="border-cyan-300/30 bg-cyan-500/20"
-              />
-              <PotCard
-                title="Kuukausittain"
-                amount="5000 €"
-                icon="👑"
-                text="Kuukauden vahvin perustelu nousee kärkeen."
-                color="border-fuchsia-300/30 bg-fuchsia-500/20"
-              />
-            </div>
+          <div className="grid grid-cols-3 gap-2">
+            <PotCard title="Päivittäin" amount="1000 €" icon="📅" color="border-green-400/50 text-green-300">
+              Tekoälyn suorittama jako perustelujen perusteella.
+            </PotCard>
+            <PotCard title="Viikottain" amount="3000 €" icon="📅" color="border-blue-400/50 text-blue-300">
+              Äänestys porukan kesken joka viikonloppu.
+            </PotCard>
+            <PotCard title="Kuukausittain" amount="5000 €" icon="📅" color="border-pink-400/50 text-pink-300">
+              Äänestys kuukauden lopussa.
+            </PotCard>
           </div>
 
-          <aside className="rounded-[34px] border border-white/10 bg-white/10 p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-black">🔥 Tänään TOP 3</h3>
-              <Link to="/feed" className="text-sm font-bold text-cyan-200">
-                Avaa
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {topPosts.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/60">
-                  Ei vielä postauksia näkyvissä.
-                </div>
-              ) : (
-                topPosts.map((post, index) => (
-                  <div key={post.id} className="rounded-2xl border border-white/10 bg-black/25 p-4">
-                    <div className="flex items-center gap-3">
-                      <CharacterAvatar
-                        character={characters[index] || characters[0]}
-                        size="sm"
-                        showInfo={false}
-                        rank={index + 1}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-black">{post.content || "Perustelu"}</div>
-                        <div className="text-sm text-pink-200">♥ {post.vote_count || 0}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </aside>
-        </section>
-
-        <section className="mt-8 rounded-[42px] border border-white/10 bg-white/10 p-6 shadow-2xl">
-          <h2 className="text-3xl font-black">NÄIN PELI TOIMII</h2>
-          <p className="mt-1 text-white/60">Selkeä matka perustelusta porukan päätökseen.</p>
-
-          <div className="mt-6 grid gap-4 md:grid-cols-5">
-            <StepCard number="01" icon="📱" title="Kirjoita" text="Kerro miksi tarvitset tukea." />
-            <StepCard number="02" icon="💚" title="Äänestä" text="Anna ääni parhaalle perustelulle." />
-            <StepCard number="03" icon="🤖" title="AI analysoi" text="Selkeys ja uskottavuus korostuvat." />
-            <StepCard number="04" icon="👥" title="Yhteisö reagoi" text="Porukka nostaa parhaat esiin." />
-            <StepCard number="05" icon="🏆" title="Voittaja" text="Vahvin perustelu palkitaan." />
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {[
+              ["🪙", "1 € / päivä", "Kuukauden kesto 30 €"],
+              ["🎟️", "Osallistu", "Päiväpottiin 5 €"],
+              ["🎥", "Video", "Perustelu 2 €"],
+              ["🚀", "Boostit", "Korosta perusteluasi"],
+            ].map(([icon, title, text]) => (
+              <GlassCard key={title} className="p-3">
+                <div className="text-3xl">{icon}</div>
+                <div className="mt-1 text-xs font-black uppercase">{title}</div>
+                <div className="mt-1 text-[11px] text-white/70">{text}</div>
+              </GlassCard>
+            ))}
           </div>
         </section>
 
-        <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <div className="rounded-[30px] border border-purple-300/30 bg-purple-500/20 p-6 shadow-2xl transition hover:-translate-y-2">
-            <div className="text-4xl">📣</div>
-            <h3 className="mt-3 text-xl font-black">Jaa peliä</h3>
-            <p className="mt-2 text-sm text-white/65">Yhteisö kasvaa, kun kutsut kavereita mukaan.</p>
-          </div>
+        <section className="mt-6">
+          <h2 className="mb-3 text-xl font-black">NÄIN PELI TOIMII <span className="rounded-full bg-white/10 px-2 text-sm">?</span></h2>
 
-          <div className="rounded-[30px] border border-emerald-300/30 bg-emerald-500/20 p-6 shadow-2xl transition hover:-translate-y-2">
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            <Step n="1" title="Kirjoita perustelu" text="Kerro miksi tarvitset rahaa."><Person type="blonde" /></Step>
+            <Step n="2" title="Anna äänesi" text="Sinun ääni vaikuttaa."><Person type="woman" /></Step>
+            <Step n="3" title="Tekoäly analysoi" text="AI valitsee parhaat."><Robot /></Step>
+            <Step n="4" title="Yhteisö äänestää" text="Porukka ratkaisee."><div className="flex"><Person type="woman" /><Person type="man" /></div></Step>
+            <Step n="5" title="Voittaja palkitaan" text="Voittaja saa rahapotin."><Person type="blonde" /></Step>
+          </div>
+        </section>
+
+        <section className="mt-5 grid grid-cols-2 gap-3">
+          <GlassCard className="border-purple-400/40 p-4">
+            <div className="text-4xl">👥</div>
+            <h3 className="mt-2 text-sm font-black uppercase text-purple-300">Jaa peliä kavereillesi</h3>
+            <p className="mt-2 text-xs text-white/70">Jokaisesta uudesta jäsenestä yhteisö kasvaa.</p>
+          </GlassCard>
+
+          <GlassCard className="border-green-400/40 p-4">
             <div className="text-4xl">📈</div>
-            <h3 className="mt-3 text-xl font-black">Todennäköisyys</h3>
-            <p className="mt-2 text-sm text-white/65">Ranking elää äänten ja ajankohdan mukana.</p>
-          </div>
+            <h3 className="mt-2 text-sm font-black uppercase text-green-300">Älykäs todennäköisyys</h3>
+            <p className="mt-2 text-xs text-white/70">Ranking elää äänten ja ajan mukana.</p>
+            <div className="mt-2 text-4xl font-black text-green-300">3,2%</div>
+          </GlassCard>
 
-          <div className="rounded-[30px] border border-cyan-300/30 bg-cyan-500/20 p-6 shadow-2xl transition hover:-translate-y-2">
+          <GlassCard className="border-blue-400/40 p-4">
             <div className="text-4xl">🛡️</div>
-            <h3 className="mt-3 text-xl font-black">Reiluus</h3>
-            <p className="mt-2 text-sm text-white/65">Yksi ääni per käyttäjä pitää kilpailun selkeänä.</p>
-          </div>
+            <h3 className="mt-2 text-sm font-black uppercase text-blue-300">Reilut säännöt</h3>
+            <p className="mt-2 text-xs text-white/70">Yksi ääni per käyttäjä.</p>
+          </GlassCard>
 
-          <div className="rounded-[30px] border border-pink-300/30 bg-pink-500/20 p-6 shadow-2xl transition hover:-translate-y-2">
+          <GlassCard className="border-pink-400/40 p-4">
             <div className="text-4xl">💗</div>
-            <h3 className="mt-3 text-xl font-black">Yhteisö</h3>
-            <p className="mt-2 text-sm text-white/65">Tämä on enemmän kuin peli — tämä on porukka.</p>
-          </div>
+            <h3 className="mt-2 text-sm font-black uppercase text-pink-300">Yhdessä rakennamme</h3>
+            <p className="mt-2 text-xs text-white/70">Tämä on enemmän kuin peli.</p>
+          </GlassCard>
         </section>
+
+        <Link to="/feed" className="mt-5 flex items-center gap-4 rounded-[24px] border border-purple-400/40 bg-purple-500/20 p-4 shadow-2xl">
+          <div className="grid h-20 w-28 place-items-center rounded-2xl bg-black/30 text-5xl">▶</div>
+          <div className="flex-1">
+            <h3 className="font-black">PUOLIVUOSITTAIN – SUURI POTTIJAKO!</h3>
+            <p className="mt-1 text-sm text-white/70">Suuremman potin jako parhaiden perustelujen kesken.</p>
+          </div>
+          <div className="text-3xl">›</div>
+        </Link>
       </main>
+
+      <BottomNav />
     </div>
   );
 }
