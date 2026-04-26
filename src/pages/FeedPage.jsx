@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { getRankScore, nextDrawLabel } from "../lib/ranking";
+import { rankPosts, nextDrawLabel } from "../lib/feedAlgorithm";
+import { updateStreak } from "../lib/streak";
 import CharacterAvatar from "../components/CharacterAvatar";
 import { characters } from "../data/characters";
+import Countdown from "../components/Countdown";
+import TopThree from "../components/TopThree";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
   const [voted, setVoted] = useState({});
   const [group, setGroup] = useState(null);
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [timeLeft, setTimeLeft] = useState(nextDrawLabel());
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
@@ -23,9 +27,17 @@ export default function FeedPage() {
     }, 1000);
 
     const channel = supabase
-      .channel("feed-pro-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
+      .channel("feed-next-level")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        () => loadFeed()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        () => loadFeed()
+      )
       .subscribe();
 
     return () => {
@@ -41,7 +53,12 @@ export default function FeedPage() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    setUser(user);
+    setUser(user || null);
+
+    if (user) {
+      const profileData = await updateStreak(user, supabase);
+      setProfile(profileData || null);
+    }
 
     const groupId = localStorage.getItem("kolehti_group_id");
 
@@ -82,21 +99,12 @@ export default function FeedPage() {
       }
     });
 
-    const ranked = (postsData || [])
-      .map((post) => {
-        const withVotes = {
-          ...post,
-          vote_count: voteCounts[post.id] || 0,
-        };
+    const prepared = (postsData || []).map((post) => ({
+      ...post,
+      vote_count: voteCounts[post.id] || 0,
+    }));
 
-        return {
-          ...withVotes,
-          rank_score: getRankScore(withVotes),
-        };
-      })
-      .sort((a, b) => b.rank_score - a.rank_score);
-
-    setPosts(ranked);
+    setPosts(rankPosts(prepared));
     setVoted(votedMap);
     setLoading(false);
   }
@@ -113,6 +121,7 @@ export default function FeedPage() {
       post_id: post.id,
       user_id: user.id,
       group_id: groupId || post.group_id || null,
+      value: 1,
     });
 
     if (error) {
@@ -136,7 +145,9 @@ export default function FeedPage() {
     }
 
     if (filter === "ai") {
-      return [...posts].sort((a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0));
+      return [...posts].sort(
+        (a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0)
+      );
     }
 
     if (filter === "unvoted") {
@@ -163,21 +174,14 @@ export default function FeedPage() {
           50% { box-shadow: 0 0 80px rgba(250,204,21,.55); }
         }
 
-        @keyframes pop {
-          0% { transform: scale(.8); opacity: 0; }
-          35% { transform: scale(1.1); opacity: 1; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-
         .gold-glow { animation: goldGlow 2.5s ease-in-out infinite; }
         .cyan-glow { animation: glowPulse 3s ease-in-out infinite; }
-        .pop-in { animation: pop .35s ease-out; }
       `}</style>
 
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#153b92_0%,#050816_45%,#02030a_100%)]" />
 
       {toast && (
-        <div className="fixed left-1/2 top-5 z-[999] w-[90%] max-w-sm -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-4 py-3 text-center text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl pop-in">
+        <div className="fixed left-1/2 top-5 z-[999] w-[90%] max-w-sm -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-4 py-3 text-center text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">
           {toast}
         </div>
       )}
@@ -189,6 +193,12 @@ export default function FeedPage() {
             <p className="mt-1 text-sm font-bold text-white/60">
               {group ? `Porukka: ${group.name}` : "Kaikki perustelut"}
             </p>
+
+            {profile && (
+              <div className="mt-2 inline-flex rounded-full border border-orange-300/20 bg-orange-500/10 px-3 py-1 text-xs font-black text-orange-200">
+                🔥 {profile.user_streak || 1} päivän streak
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">
@@ -200,10 +210,10 @@ export default function FeedPage() {
             </Link>
 
             <Link
-              to="/groups"
-              className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 font-black active:scale-95"
+              to="/vote"
+              className="rounded-2xl border border-pink-300/20 bg-pink-500/15 px-5 py-3 font-black text-pink-100 active:scale-95"
             >
-              Porukat
+              Äänestä
             </Link>
           </div>
         </header>
@@ -215,32 +225,13 @@ export default function FeedPage() {
           <StatCard label="Kärjessä" value={topPost ? "TOP 1" : "-"} sub="Live-ranking" tone="yellow" />
         </section>
 
-        {topPost && (
-          <section className="mb-5 overflow-hidden rounded-[34px] border border-yellow-300/40 bg-yellow-500/10 p-5 shadow-2xl gold-glow">
-            <div className="flex items-center gap-4">
-              <CharacterAvatar
-                character={characters[0]}
-                size="md"
-                showInfo={false}
-                rank={1}
-              />
+        <div className="mb-5">
+          <Countdown />
+        </div>
 
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-black uppercase tracking-wide text-yellow-200">
-                  🏆 Päivän kärki
-                </div>
-                <p className="mt-1 truncate text-xl font-black">
-                  {topPost.content}
-                </p>
-                <div className="mt-2 flex gap-2 text-xs font-black text-white/70">
-                  <span>💗 {topPost.vote_count || 0} ääntä</span>
-                  <span>🤖 AI {Math.round(topPost.ai_score || 0)}</span>
-                  <span>⚡ Score {Math.round(topPost.rank_score || 0)}</span>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
+        <div className="mb-5">
+          <TopThree posts={posts} />
+        </div>
 
         <section className="mb-5 flex gap-2 overflow-x-auto pb-2">
           <FilterButton active={filter === "ranking"} onClick={() => setFilter("ranking")}>
@@ -325,7 +316,6 @@ function PostCard({ post, index, voted, onVote }) {
   const character = characters[Math.max(0, index) % characters.length];
   const isTop = index === 0;
   const isNear = index >= 3 && index <= 5;
-  const votesToTop3 = Math.max(1, 3 - Number(post.vote_count || 0));
 
   return (
     <article
@@ -349,38 +339,13 @@ function PostCard({ post, index, voted, onVote }) {
 
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            {isTop && (
-              <Tag className="bg-yellow-400 text-slate-950">
-                🏆 Päivän kärki
-              </Tag>
-            )}
-
-            {index === 1 && (
-              <Tag className="bg-cyan-400/20 text-cyan-100">
-                🥈 Hopea
-              </Tag>
-            )}
-
-            {index === 2 && (
-              <Tag className="bg-orange-400/20 text-orange-100">
-                🥉 Pronssi
-              </Tag>
-            )}
-
-            {isNear && (
-              <Tag className="bg-yellow-400/15 text-yellow-200">
-                🔥 Lähellä TOP 3
-              </Tag>
-            )}
-
-            {post.ai_score > 70 && (
-              <Tag className="bg-cyan-400/15 text-cyan-200">
-                🤖 Vahva AI
-              </Tag>
-            )}
-
+            {isTop && <Tag className="bg-yellow-400 text-slate-950">🏆 Päivän kärki</Tag>}
+            {index === 1 && <Tag className="bg-cyan-400/20 text-cyan-100">🥈 Hopea</Tag>}
+            {index === 2 && <Tag className="bg-orange-400/20 text-orange-100">🥉 Pronssi</Tag>}
+            {isNear && <Tag className="bg-yellow-400/15 text-yellow-200">🔥 Lähellä TOP 3</Tag>}
+            {post.ai_score > 70 && <Tag className="bg-cyan-400/15 text-cyan-200">🤖 Vahva AI</Tag>}
             <Tag className="bg-white/10 text-white/60">
-              Score {Math.round(post.rank_score || 0)}
+              Score {Math.round(post.final_score || post.rank_score || 0)}
             </Tag>
           </div>
 
@@ -439,7 +404,7 @@ function PostCard({ post, index, voted, onVote }) {
                   style={{
                     width: `${Math.min(
                       100,
-                      Math.max(18, 100 - votesToTop3 * 18)
+                      Math.max(15, Number(post.near_win_boost || 0) * 3 + 30)
                     )}%`,
                   }}
                 />
@@ -465,25 +430,15 @@ function BottomNav() {
     <div className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[28px] border border-white/10 bg-[#081226]/95 px-4 py-2 text-white shadow-2xl backdrop-blur-xl">
       <div className="grid grid-cols-5 items-end text-center text-xs font-bold">
         <Link to="/">🏠<div>Koti</div></Link>
-
-        <Link to="/feed" className="text-cyan-300">
-          📋<div>Feed</div>
-        </Link>
-
+        <Link to="/feed" className="text-cyan-300">📋<div>Feed</div></Link>
         <Link to="/new" className="-mt-6">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-500 text-4xl shadow-xl shadow-blue-500/40">
             +
           </div>
           <div>Uusi</div>
         </Link>
-
-        <Link to="/vote">
-          💗<div>Äänestä</div>
-        </Link>
-
-        <Link to="/profile">
-          👤<div>Profiili</div>
-        </Link>
+        <Link to="/vote">💗<div>Äänestä</div></Link>
+        <Link to="/profile">👤<div>Profiili</div></Link>
       </div>
     </div>
   );
