@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { analyzePostWithAI } from "../lib/ai";
 
 export default function NewPostPage() {
   const [content, setContent] = useState("");
   const [group, setGroup] = useState(null);
   const [user, setUser] = useState(null);
-  const [ai, setAi] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
+  const [aiPreview, setAiPreview] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    init();
+    load();
   }, []);
 
-  async function init() {
-    setPageLoading(true);
+  async function load() {
+    setLoading(true);
 
     const {
       data: { user },
@@ -37,48 +37,13 @@ export default function NewPostPage() {
       setGroup(data || null);
     }
 
-    setPageLoading(false);
-  }
-
-  async function analyzeWithAI() {
-    if (!content.trim() || content.trim().length < 20) {
-      alert("Kirjoita ensin hieman pidempi perustelu.");
-      return;
-    }
-
-    setAiLoading(true);
-    setAi(null);
-
-    const response = await fetch("/api/ai-mentor", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text: content }),
-    });
-
-    const data = await response.json();
-    setAiLoading(false);
-
-    if (!response.ok) {
-      alert(data.error || "AI-analyysi epäonnistui.");
-      return;
-    }
-
-    setAi(data);
-  }
-
-  function useImprovedText() {
-    if (ai?.improved_text) {
-      setContent(ai.improved_text);
-    }
+    setLoading(false);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
     if (!user) {
-      alert("Kirjaudu ensin.");
       navigate("/login");
       return;
     }
@@ -91,191 +56,99 @@ export default function NewPostPage() {
       return;
     }
 
-    if (!content.trim()) {
-      alert("Kirjoita perustelu ensin.");
+    if (content.trim().length < 20) {
+      alert("Kirjoita vähintään 20 merkkiä.");
       return;
     }
 
     setPosting(true);
 
-    const { error } = await supabase.from("posts").insert({
-      content: content.trim(),
-      user_id: user.id,
-      group_id: groupId,
-      ai_score: ai?.score || null,
-      ai_feedback: ai || null,
-      ai_improved_text: ai?.improved_text || null,
-    });
+    try {
+      const aiResult = await analyzePostWithAI(content.trim());
+      setAiPreview(aiResult);
 
-    setPosting(false);
+      const { error } = await supabase.from("posts").insert({
+        content: content.trim(),
+        user_id: user.id,
+        group_id: groupId,
+        ai_score: aiResult.ai_score || aiResult.score || 0,
+        ai_feedback: aiResult,
+      });
 
-    if (error) {
-      alert(error.message);
-      return;
+      if (error) throw error;
+
+      setContent("");
+      navigate("/feed");
+    } catch (err) {
+      alert(err.message || "Postauksen lähetys epäonnistui.");
+    } finally {
+      setPosting(false);
     }
-
-    setContent("");
-    navigate("/feed");
   }
 
-  if (pageLoading) {
-    return <div className="mx-auto max-w-3xl p-6 text-white">Ladataan...</div>;
+  if (loading) {
+    return <div className="min-h-screen bg-[#050816] p-6 text-white">Ladataan...</div>;
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6 text-white">
-      <div className="mb-6 flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-black">Uusi perustelu</h1>
-          <p className="mt-1 text-sm text-white/60">
-            {group ? `Porukka: ${group.name}` : "Porukkaa ei ole valittu"}
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#050816] px-4 py-6 pb-32 text-white">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#153b92_0%,#050816_45%,#02030a_100%)]" />
 
-        <div className="flex gap-2">
+      <main className="mx-auto max-w-2xl">
+        <header className="mb-6 flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-4xl font-black">Uusi perustelu</h1>
+            <p className="mt-1 text-sm font-bold text-white/55">
+              {group ? `Porukka: ${group.name}` : "Ei valittua porukkaa"}
+            </p>
+          </div>
+
           <Link
             to="/feed"
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
+            className="rounded-2xl border border-white/10 bg-white/10 px-5 py-3 font-black"
           >
             Feed
           </Link>
+        </header>
 
-          <Link
-            to="/groups"
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold"
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-[34px] border border-white/10 bg-white/10 p-5 shadow-2xl backdrop-blur-xl"
+        >
+          <label className="text-sm font-black uppercase tracking-wide text-cyan-200">
+            Kerro perustelusi
+          </label>
+
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Kirjoita miksi juuri sinun perustelusi pitäisi nousta esiin..."
+            className="mt-3 min-h-56 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-lg font-bold leading-relaxed text-white outline-none placeholder:text-white/35"
+          />
+
+          <div className="mt-3 flex items-center justify-between text-xs font-black text-white/45">
+            <span>{content.length}/1000 merkkiä</span>
+            <span>AI arvioi ennen julkaisua</span>
+          </div>
+
+          <button
+            type="submit"
+            disabled={posting}
+            className="mt-5 w-full rounded-3xl bg-cyan-500 px-5 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/25 disabled:opacity-50"
           >
-            Porukat
-          </Link>
-        </div>
-      </div>
+            {posting ? "🤖 AI analysoi..." : "Lähetä perustelu"}
+          </button>
+        </form>
 
-      {!group && (
-        <div className="mb-5 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 p-5">
-          Valitse ensin porukka ennen postaamista.
-          <Link to="/groups" className="ml-2 font-bold text-cyan-200">
-            Mene porukkiin →
-          </Link>
-        </div>
-      )}
-
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl"
-      >
-        <label className="text-sm font-bold text-cyan-200">
-          Kirjoita perustelu
-        </label>
-
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Esim. Tarvitsen apua vuokraan..."
-          className="mt-3 min-h-44 w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-white outline-none placeholder:text-white/40"
-        />
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-white/50">{content.length}/1000 merkkiä</p>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={analyzeWithAI}
-              disabled={aiLoading}
-              className="rounded-2xl border border-cyan-300/20 bg-cyan-500/20 px-5 py-3 text-sm font-bold text-cyan-100 disabled:opacity-50"
-            >
-              {aiLoading ? "AI analysoi..." : "🤖 Analysoi AI:lla"}
-            </button>
-
-            <button
-              type="submit"
-              disabled={posting || !group}
-              className="rounded-2xl bg-cyan-500 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"
-            >
-              {posting ? "Lähetetään..." : "Postaa"}
-            </button>
+        {aiPreview && (
+          <div className="mt-5 rounded-[30px] border border-cyan-300/20 bg-cyan-500/10 p-5 shadow-xl">
+            <h2 className="text-xl font-black text-cyan-200">AI-analyysi</h2>
+            <p className="mt-2 text-sm text-white/70">
+              Score: {Math.round(aiPreview.ai_score || aiPreview.score || 0)}
+            </p>
           </div>
-        </div>
-      </form>
-
-      {ai && (
-        <div className="mt-6 rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-2xl font-black">AI-mentor</h2>
-              <p className="mt-1 text-sm text-white/60">{ai.summary}</p>
-            </div>
-
-            <div className="rounded-3xl bg-emerald-500/20 px-5 py-3 text-center">
-              <div className="text-xs font-black text-emerald-200">SCORE</div>
-              <div className="text-3xl font-black text-emerald-300">
-                {ai.score}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <ScoreBox title="Selkeys" value={ai.clarity} />
-            <ScoreBox title="Tunne" value={ai.emotion} />
-            <ScoreBox title="Luottamus" value={ai.trust} />
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4">
-              <h3 className="font-black text-emerald-200">Vahvuudet</h3>
-              <ul className="mt-2 space-y-1 text-sm text-white/75">
-                {(ai.strengths || []).map((item, index) => (
-                  <li key={index}>• {item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-pink-300/20 bg-pink-500/10 p-4">
-              <h3 className="font-black text-pink-200">Parannukset</h3>
-              <ul className="mt-2 space-y-1 text-sm text-white/75">
-                {(ai.improvements || []).map((item, index) => (
-                  <li key={index}>• {item}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {ai.improved_text && (
-            <div className="mt-5 rounded-2xl border border-cyan-300/20 bg-cyan-500/10 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <h3 className="font-black text-cyan-200">Parannettu versio</h3>
-
-                <button
-                  onClick={useImprovedText}
-                  className="rounded-xl bg-cyan-500 px-3 py-2 text-xs font-black"
-                >
-                  Käytä tätä
-                </button>
-              </div>
-
-              <p className="text-sm leading-relaxed text-white/80">
-                {ai.improved_text}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ScoreBox({ title, value }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-      <div className="text-xs font-black uppercase tracking-wide text-white/50">
-        {title}
-      </div>
-      <div className="mt-2 text-3xl font-black text-cyan-200">{value}</div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400"
-          style={{ width: `${Math.min(100, Math.max(0, value || 0))}%` }}
-        />
-      </div>
+        )}
+      </main>
     </div>
   );
 }
