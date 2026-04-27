@@ -4,6 +4,7 @@ import AlmostWinBadge from "./AlmostWinBadge";
 import { characters } from "../data/characters";
 import { increaseView, trackEvent } from "../lib/tiktokAI";
 import { getBoostSignal } from "../lib/boostSignals";
+import { boostPostWithXp, getWinHint } from "../lib/postBoosts";
 
 export default function ForYouCard({
   post,
@@ -14,8 +15,12 @@ export default function ForYouCard({
   rankInfo,
 }) {
   const [showHeart, setShowHeart] = useState(false);
+  const [boosting, setBoosting] = useState(false);
+  const [boostMsg, setBoostMsg] = useState(null);
+
   const character = characters[index % characters.length];
   const boostSignal = getBoostSignal(post);
+  const winHint = getWinHint(rankInfo);
 
   useEffect(() => {
     increaseView(post.id);
@@ -44,6 +49,19 @@ export default function ForYouCard({
     await onVote(post);
 
     setTimeout(() => setShowHeart(false), 800);
+  }
+
+  async function handleBoost() {
+    if (!user?.id || boosting) return;
+
+    setBoosting(true);
+    const res = await boostPostWithXp({ userId: user.id, post });
+    setBoostMsg(res.message);
+
+    navigator.vibrate?.(35);
+
+    setTimeout(() => setBoostMsg(null), 2500);
+    setBoosting(false);
   }
 
   async function handleShare() {
@@ -83,12 +101,18 @@ export default function ForYouCard({
           <div className="rounded-2xl bg-black/30 px-4 py-2 text-right">
             <div className="text-xs font-black text-white/50">VIRAL</div>
             <div className="text-lg font-black text-cyan-200">
-              {Math.round(post.growth_score || post.viral_score || post.for_you_score || 0)}
+              {Math.round(post.growth_score || 0)}
             </div>
           </div>
         </div>
 
         <div className="mt-auto">
+          {winHint && (
+            <div className="mb-3 rounded-2xl border border-yellow-300/30 bg-yellow-400/15 px-4 py-3 text-sm font-black text-yellow-100">
+              {winHint}
+            </div>
+          )}
+
           {boostSignal.bonus > 0 && (
             <div className="mb-3 rounded-3xl border border-yellow-300/30 bg-yellow-400/15 px-4 py-3 text-sm font-black text-yellow-100">
               {boostSignal.label === "HOT" && "🔥 Kuuma postaus"}
@@ -101,21 +125,21 @@ export default function ForYouCard({
 
           <div className="mb-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-yellow-400/90 px-3 py-1 text-xs font-black text-black">
-              {post.growth_reason || post.status_label || "✨ Uusi"}
+              {post.growth_reason || "✨ Uusi"}
             </span>
 
-            {post.ai_score > 70 && (
+            {post.ai_signal && (
               <span className="rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-black text-cyan-100">
-                🤖 AI {Math.round(post.ai_score)}
+                🤖 AI {Math.round(post.ai_signal)}
               </span>
             )}
 
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70">
-              💗 {post.vote_count || post.votes || 0}
+              💗 {post.vote_count || 0}
             </span>
 
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70">
-              👀 {post.view_count || post.views || 0}
+              👀 {post.view_count || 0}
             </span>
           </div>
 
@@ -127,24 +151,36 @@ export default function ForYouCard({
 
           <AlmostWinBadge rankInfo={rankInfo} />
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
+          {boostMsg && (
+            <div className="mt-3 rounded-xl bg-black/40 px-3 py-2 text-sm font-black text-white">
+              {boostMsg}
+            </div>
+          )}
+
+          <div className="mt-5 grid grid-cols-3 gap-3">
             <button
               onClick={handleVote}
               disabled={voted}
-              className={`rounded-3xl px-5 py-5 text-xl font-black shadow-2xl transition active:scale-95 ${
-                voted
-                  ? "bg-white/15 text-white/50"
-                  : "bg-pink-500 text-white shadow-pink-500/30"
+              className={`rounded-3xl px-4 py-4 text-lg font-black ${
+                voted ? "bg-white/15 text-white/50" : "bg-pink-500 text-white"
               }`}
             >
-              {voted ? "Äänestetty" : "💗 Äänestä"}
+              💗
+            </button>
+
+            <button
+              onClick={handleBoost}
+              disabled={boosting}
+              className="rounded-3xl bg-yellow-400 px-4 py-4 text-lg font-black text-black"
+            >
+              ⚡
             </button>
 
             <button
               onClick={handleShare}
-              className="rounded-3xl border border-white/10 bg-white/10 px-5 py-5 text-xl font-black transition active:scale-95"
+              className="rounded-3xl border border-white/10 bg-white/10 px-4 py-4 text-lg font-black"
             >
-              🚀 Jaa
+              🚀
             </button>
           </div>
 
