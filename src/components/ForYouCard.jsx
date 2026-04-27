@@ -4,7 +4,7 @@ import AlmostWinBadge from "./AlmostWinBadge";
 import { characters } from "../data/characters";
 import { increaseView, trackEvent } from "../lib/tiktokAI";
 import { getBoostSignal } from "../lib/boostSignals";
-import { boostPostWithXp, getWinHint } from "../lib/postBoosts";
+import { boostPostWithXp, getWinHint, getSocialProof } from "../lib/postBoosts";
 
 export default function ForYouCard({
   post,
@@ -21,6 +21,7 @@ export default function ForYouCard({
   const character = characters[index % characters.length];
   const boostSignal = getBoostSignal(post);
   const winHint = getWinHint(rankInfo);
+  const socialProof = getSocialProof(post);
 
   useEffect(() => {
     increaseView(post.id);
@@ -85,18 +86,9 @@ export default function ForYouCard({
         </div>
       )}
 
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,#2563eb55,transparent_45%)]" />
-      <div className="absolute -right-20 -top-20 h-52 w-52 rounded-full bg-pink-500/20 blur-3xl" />
-      <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-cyan-500/20 blur-3xl" />
-
       <div className="relative z-10 flex min-h-[68vh] flex-col">
         <div className="flex items-center justify-between">
-          <CharacterAvatar
-            character={character}
-            size="lg"
-            showInfo={false}
-            rank={index + 1}
-          />
+          <CharacterAvatar character={character} size="lg" showInfo={false} rank={index + 1} />
 
           <div className="rounded-2xl bg-black/30 px-4 py-2 text-right">
             <div className="text-xs font-black text-white/50">VIRAL</div>
@@ -113,34 +105,8 @@ export default function ForYouCard({
             </div>
           )}
 
-          {boostSignal.bonus > 0 && (
-            <div className="mb-3 rounded-3xl border border-yellow-300/30 bg-yellow-400/15 px-4 py-3 text-sm font-black text-yellow-100">
-              {boostSignal.label === "HOT" && "🔥 Kuuma postaus"}
-              {boostSignal.label === "RISING" && "🚀 Nousemassa"}
-              {boostSignal.label === "QUALITY" && "🤖 Vahva AI-signaali"}
-              {boostSignal.label === "BOOST" && "⚡ Boost päällä"}
-              <span className="ml-2 text-yellow-200">+{boostSignal.bonus}</span>
-            </div>
-          )}
-
-          <div className="mb-3 flex flex-wrap gap-2">
-            <span className="rounded-full bg-yellow-400/90 px-3 py-1 text-xs font-black text-black">
-              {post.growth_reason || "✨ Uusi"}
-            </span>
-
-            {post.ai_signal && (
-              <span className="rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-black text-cyan-100">
-                🤖 AI {Math.round(post.ai_signal)}
-              </span>
-            )}
-
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70">
-              💗 {post.vote_count || 0}
-            </span>
-
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-black text-white/70">
-              👀 {post.view_count || 0}
-            </span>
+          <div className="mb-2 text-xs font-bold text-white/60">
+            {socialProof}
           </div>
 
           <h2 className="text-3xl font-black">Perustelu</h2>
@@ -158,37 +124,18 @@ export default function ForYouCard({
           )}
 
           <div className="mt-5 grid grid-cols-3 gap-3">
-            <button
-              onClick={handleVote}
-              disabled={voted}
-              className={`rounded-3xl px-4 py-4 text-lg font-black ${
-                voted ? "bg-white/15 text-white/50" : "bg-pink-500 text-white"
-              }`}
-            >
+            <button onClick={handleVote} disabled={voted} className={`rounded-3xl px-4 py-4 text-lg font-black ${voted ? "bg-white/15 text-white/50" : "bg-pink-500 text-white"}`}>
               💗
             </button>
 
-            <button
-              onClick={handleBoost}
-              disabled={boosting}
-              className="rounded-3xl bg-yellow-400 px-4 py-4 text-lg font-black text-black"
-            >
+            <button onClick={handleBoost} disabled={boosting} className="rounded-3xl bg-yellow-400 px-4 py-4 text-lg font-black text-black">
               ⚡
             </button>
 
-            <button
-              onClick={handleShare}
-              className="rounded-3xl border border-white/10 bg-white/10 px-4 py-4 text-lg font-black"
-            >
+            <button onClick={handleShare} className="rounded-3xl border border-white/10 bg-white/10 px-4 py-4 text-lg font-black">
               🚀
             </button>
           </div>
-
-          {!voted && index > 0 && (
-            <div className="mt-4 rounded-2xl border border-yellow-300/20 bg-yellow-500/10 p-3 text-sm font-black text-yellow-100">
-              ⚡ Tämä voi nousta. Yksi ääni voi muuttaa rankingin.
-            </div>
-          )}
         </div>
       </div>
     </article>
