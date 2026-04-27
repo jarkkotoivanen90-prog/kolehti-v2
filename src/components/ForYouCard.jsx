@@ -3,6 +3,7 @@ import CharacterAvatar from "./CharacterAvatar";
 import AlmostWinBadge from "./AlmostWinBadge";
 import { characters } from "../data/characters";
 import { increaseView, trackEvent } from "../lib/tiktokAI";
+import { getBoostSignal } from "../lib/boostSignals";
 
 export default function ForYouCard({
   post,
@@ -14,6 +15,7 @@ export default function ForYouCard({
 }) {
   const [showHeart, setShowHeart] = useState(false);
   const character = characters[index % characters.length];
+  const boostSignal = getBoostSignal(post);
 
   useEffect(() => {
     increaseView(post.id);
@@ -81,15 +83,25 @@ export default function ForYouCard({
           <div className="rounded-2xl bg-black/30 px-4 py-2 text-right">
             <div className="text-xs font-black text-white/50">VIRAL</div>
             <div className="text-lg font-black text-cyan-200">
-              {Math.round(post.viral_score || post.for_you_score || 0)}
+              {Math.round(post.growth_score || post.viral_score || post.for_you_score || 0)}
             </div>
           </div>
         </div>
 
         <div className="mt-auto">
+          {boostSignal.bonus > 0 && (
+            <div className="mb-3 rounded-3xl border border-yellow-300/30 bg-yellow-400/15 px-4 py-3 text-sm font-black text-yellow-100">
+              {boostSignal.label === "HOT" && "🔥 Kuuma postaus"}
+              {boostSignal.label === "RISING" && "🚀 Nousemassa"}
+              {boostSignal.label === "QUALITY" && "🤖 Vahva AI-signaali"}
+              {boostSignal.label === "BOOST" && "⚡ Boost päällä"}
+              <span className="ml-2 text-yellow-200">+{boostSignal.bonus}</span>
+            </div>
+          )}
+
           <div className="mb-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-yellow-400/90 px-3 py-1 text-xs font-black text-black">
-              {post.status_label || "✨ Uusi"}
+              {post.growth_reason || post.status_label || "✨ Uusi"}
             </span>
 
             {post.ai_score > 70 && (
