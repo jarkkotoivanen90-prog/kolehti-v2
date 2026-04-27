@@ -12,16 +12,20 @@ import {
   updatePostRankStats,
   notifyAlmostWin,
 } from "../lib/almostWin";
+import { getTodayWinner, pickDailyWinner } from "../lib/dailyWinner";
+
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
 import JackpotBanner from "../components/JackpotBanner";
 import LiveLeaderboard from "../components/LiveLeaderboard";
+import DailyWinnerBanner from "../components/DailyWinnerBanner";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
   const [voted, setVoted] = useState({});
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [dailyWinner, setDailyWinner] = useState(null);
   const [mode, setMode] = useState("foryou");
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
@@ -30,9 +34,17 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-xp-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
+      .channel("kolehti-daily-winner-feed")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "posts" },
+        loadFeed
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votes" },
+        loadFeed
+      )
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -108,6 +120,21 @@ export default function FeedPage() {
 
     setPosts(smartFeed);
     setVoted(votedMap);
+
+    const winner = await getTodayWinner();
+
+    if (winner) {
+      setDailyWinner(winner);
+    } else {
+      const newWinner = await pickDailyWinner();
+
+      if (newWinner) {
+        setDailyWinner({
+          posts: newWinner,
+        });
+      }
+    }
+
     setLoading(false);
   }
 
@@ -261,15 +288,19 @@ export default function FeedPage() {
           <Filter active={mode === "foryou"} onClick={() => changeMode("foryou")}>
             🔥 For You
           </Filter>
+
           <Filter active={mode === "rising"} onClick={() => changeMode("rising")}>
             🚀 Nousevat
           </Filter>
+
           <Filter active={mode === "unvoted"} onClick={() => changeMode("unvoted")}>
             💗 Äänestämättä
           </Filter>
+
           <Filter active={mode === "ai"} onClick={() => changeMode("ai")}>
             🤖 AI
           </Filter>
+
           <Filter active={mode === "new"} onClick={() => changeMode("new")}>
             🆕 Uusimmat
           </Filter>
@@ -278,7 +309,11 @@ export default function FeedPage() {
 
       <main className="mx-auto max-w-md snap-y snap-mandatory space-y-5 overflow-y-auto px-4 py-5 pb-28">
         <ComebackBanner />
+
+        <DailyWinnerBanner winner={dailyWinner} />
+
         <JackpotBanner topPost={posts[0]} />
+
         <LiveLeaderboard posts={posts} />
 
         {loading ? (
@@ -349,16 +384,32 @@ function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[30px] border border-white/10 bg-[#061126]/95 px-4 pb-4 pt-3 text-white shadow-2xl backdrop-blur-xl">
       <div className="grid grid-cols-5 items-end text-center text-xs font-black">
-        <Link to="/">🏠<div>Koti</div></Link>
-        <Link to="/feed" className="text-cyan-300">🔥<div>Feed</div></Link>
+        <Link to="/">
+          🏠
+          <div>Koti</div>
+        </Link>
+
+        <Link to="/feed" className="text-cyan-300">
+          🔥
+          <div>Feed</div>
+        </Link>
+
         <Link to="/new" className="-mt-8">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">
             +
           </div>
           <div>Uusi</div>
         </Link>
-        <Link to="/vote">💗<div>Äänestä</div></Link>
-        <Link to="/profile">👤<div>Profiili</div></Link>
+
+        <Link to="/vote">
+          💗
+          <div>Äänestä</div>
+        </Link>
+
+        <Link to="/profile">
+          👤
+          <div>Profiili</div>
+        </Link>
       </div>
     </nav>
   );
