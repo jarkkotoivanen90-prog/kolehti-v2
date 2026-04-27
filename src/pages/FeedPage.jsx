@@ -14,12 +14,19 @@ import {
   notifyAlmostWin,
 } from "../lib/almostWin";
 import { getTodayWinner } from "../lib/dailyWinner";
+import {
+  cleanupExpiredBoostEvents,
+  createRandomBoostEvent,
+  getActiveBoostEvent,
+} from "../lib/boostEvents";
 
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
 import JackpotBanner from "../components/JackpotBanner";
 import LiveLeaderboard from "../components/LiveLeaderboard";
 import DailyWinnerBanner from "../components/DailyWinnerBanner";
+import WinnerCountdown from "../components/WinnerCountdown";
+import BoostEventBanner from "../components/BoostEventBanner";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
@@ -27,6 +34,7 @@ export default function FeedPage() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [dailyWinner, setDailyWinner] = useState(null);
+  const [boostEvent, setBoostEvent] = useState(null);
   const [mode, setMode] = useState("foryou");
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
@@ -35,7 +43,7 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-clean-feed")
+      .channel("kolehti-countdown-boost-feed")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
@@ -46,6 +54,11 @@ export default function FeedPage() {
         { event: "*", schema: "public", table: "votes" },
         loadFeed
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "boost_events" },
+        loadFeed
+      )
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -53,6 +66,8 @@ export default function FeedPage() {
 
   async function loadFeed() {
     setLoading(true);
+
+    await cleanupExpiredBoostEvents();
 
     const {
       data: { user },
@@ -107,10 +122,18 @@ export default function FeedPage() {
       }
     });
 
-    const prepared = (postsData || []).map((post) => ({
-      ...post,
-      vote_count: voteCounts[post.id] || Number(post.votes || 0),
-    }));
+    const prepared = (postsData || []).map((post) => {
+      const voteCount = voteCounts[post.id] || Number(post.votes || 0);
+      const boostMultiplier = Number(post.boost_multiplier || 1);
+
+      return {
+        ...post,
+        vote_count: voteCount,
+        boost_score:
+          Number(post.boost_score || 0) +
+          (post.boost_event_active ? 40 * boostMultiplier : 0),
+      };
+    });
 
     const ranked = rankForYou(prepared, eventsData || []);
     const smartFeed = getSmartFeed(ranked);
@@ -124,6 +147,14 @@ export default function FeedPage() {
 
     const winner = await getTodayWinner();
     setDailyWinner(winner || null);
+
+    let activeBoost = await getActiveBoostEvent();
+
+    if (!activeBoost && smartFeed.length >= 2) {
+      activeBoost = await createRandomBoostEvent(smartFeed);
+    }
+
+    setBoostEvent(activeBoost || null);
 
     setLoading(false);
   }
@@ -225,6 +256,10 @@ export default function FeedPage() {
       );
     }
 
+    if (mode === "boost") {
+      return posts.filter((post) => post.boost_event_active);
+    }
+
     if (mode === "rising") {
       return posts.filter((post) => {
         const votes = Number(post.vote_count || post.votes || 0);
@@ -287,6 +322,10 @@ export default function FeedPage() {
             🔥 For You
           </Filter>
 
+          <Filter active={mode === "boost"} onClick={() => changeMode("boost")}>
+            ⚡ Boost
+          </Filter>
+
           <Filter active={mode === "rising"} onClick={() => changeMode("rising")}>
             🚀 Nousevat
           </Filter>
@@ -308,7 +347,11 @@ export default function FeedPage() {
       <main className="mx-auto max-w-md snap-y snap-mandatory space-y-5 overflow-y-auto px-4 py-5 pb-28">
         <ComebackBanner />
 
+        <WinnerCountdown />
+
         {dailyWinner && <DailyWinnerBanner winner={dailyWinner} />}
+
+        <BoostEventBanner event={boostEvent} />
 
         <JackpotBanner topPost={posts[0]} />
 
