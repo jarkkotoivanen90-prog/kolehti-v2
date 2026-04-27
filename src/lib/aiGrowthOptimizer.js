@@ -39,6 +39,19 @@ export async function getOptimizerWeights() {
   );
 }
 
+export function getLearningBoost(post = {}) {
+  const votes = safeNumber(post.vote_count || post.votes, 0);
+  const views = safeNumber(post.view_count || post.views, 0);
+  const boost = safeNumber(post.boost_score, 0);
+  const engagementRate = votes / Math.max(1, views);
+
+  if (boost >= 250) return 1.35;
+  if (engagementRate > 0.3 && votes >= 5) return 1.4;
+  if (engagementRate > 0.15 && votes >= 3) return 1.2;
+  if (engagementRate > 0.05 || votes >= 2) return 1.1;
+  return 1;
+}
+
 export function calculateAISignal(post) {
   const aiScore = safeNumber(post.ai_score, 50);
   const aiQuality = safeNumber(post.ai_quality, aiScore);
@@ -87,20 +100,21 @@ export function calculateGrowthScore(post, context = {}) {
   const impressionSignal = Math.min(120, views * 1.5) * safeNumber(weights.impression_weight, 1);
   const riskGatePenalty = aiRisk >= 70 ? 250 : aiRisk >= 50 ? 100 : 0;
 
-  return Math.round(
+  const baseScore =
     aiSignal +
-      voteSignal +
-      impressionSignal +
-      conversion * 170 +
-      freshness * 0.42 +
-      momentum * 150 +
-      boost +
-      explorationBoost +
-      groupBoost +
-      ownerBoost +
-      inviteBoost -
-      riskGatePenalty
-  );
+    voteSignal +
+    impressionSignal +
+    conversion * 170 +
+    freshness * 0.42 +
+    momentum * 150 +
+    boost +
+    explorationBoost +
+    groupBoost +
+    ownerBoost +
+    inviteBoost -
+    riskGatePenalty;
+
+  return Math.round(baseScore * getLearningBoost(post));
 }
 
 export function getGrowthReason(post, score, context = {}) {
@@ -109,8 +123,10 @@ export function getGrowthReason(post, score, context = {}) {
   const aiQuality = safeNumber(post.ai_quality, aiScore);
   const aiNeed = safeNumber(post.ai_need, 50);
   const aiRisk = safeNumber(post.ai_risk, 0);
+  const learningBoost = getLearningBoost(post);
 
   if (aiRisk >= 70) return "Tarkistetaan turvallisuutta";
+  if (learningBoost >= 1.3) return "Trendaa nopeasti";
   if (post.user_id === context.userId && score > 260) return "Oma postaus nousussa";
   if (votes >= 10) return "Paljon ääniä";
   if (votes >= 3) return "Momentum käynnissä";
@@ -125,11 +141,13 @@ export function optimizeFeedForGrowth(posts = [], context = {}) {
   const enriched = posts.map((post) => {
     const growth_score = calculateGrowthScore(post, context);
     const ai_signal = calculateAISignal(post);
+    const learning_boost = getLearningBoost(post);
 
     return {
       ...post,
       growth_score,
       ai_signal,
+      learning_boost,
       growth_reason: getGrowthReason(post, growth_score, context),
     };
   });
@@ -146,13 +164,18 @@ export function optimizeFeedForGrowth(posts = [], context = {}) {
     .sort((a, b) => b.ai_signal - a.ai_signal)
     .slice(0, 5);
 
+  const trending = [...safe]
+    .filter((post) => safeNumber(post.learning_boost, 1) > 1)
+    .sort((a, b) => b.learning_boost - a.learning_boost)
+    .slice(0, 5);
+
   const fresh = [...safe]
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, 5);
 
   const own = safe.filter((post) => post.user_id === context.userId).slice(0, 2);
 
-  const merged = [...top, ...highNeed, ...fresh, ...own];
+  const merged = [...top, ...trending, ...highNeed, ...fresh, ...own];
   const unique = Array.from(new Map(merged.map((post) => [post.id, post])).values());
 
   return [...unique, ...risky.slice(0, 1)].sort((a, b) => b.growth_score - a.growth_score);
