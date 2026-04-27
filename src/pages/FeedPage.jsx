@@ -34,6 +34,7 @@ import LiveLeaderboard from "../components/LiveLeaderboard";
 import DailyWinnerBanner from "../components/DailyWinnerBanner";
 import WinnerCountdown from "../components/WinnerCountdown";
 import BoostEventBanner from "../components/BoostEventBanner";
+import WinnerHypeModal from "../components/WinnerHypeModal";
 
 export default function FeedPage() {
   const [posts, setPosts] = useState([]);
@@ -41,6 +42,7 @@ export default function FeedPage() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [dailyWinner, setDailyWinner] = useState(null);
+  const [winnerPopup, setWinnerPopup] = useState(null);
   const [boostEvent, setBoostEvent] = useState(null);
   const [mode, setMode] = useState("foryou");
   const [loading, setLoading] = useState(true);
@@ -181,6 +183,18 @@ export default function FeedPage() {
     const winner = await getTodayWinner();
     setDailyWinner(winner || null);
 
+    if (user) {
+      const { data: latestWinner } = await supabase
+        .from("competition_winners")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestWinner) setWinnerPopup(latestWinner);
+    }
+
     let activeBoost = await getActiveBoostEvent();
 
     if (!activeBoost && optimizedFeed.length >= 2) {
@@ -301,6 +315,13 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-[#050816] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#153b92_0%,#050816_45%,#02030a_100%)]" />
+
+      {winnerPopup && (
+        <WinnerHypeModal
+          winner={winnerPopup}
+          onClose={() => setWinnerPopup(null)}
+        />
+      )}
 
       {toast && (
         <div className="fixed left-1/2 top-5 z-[999] -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">
