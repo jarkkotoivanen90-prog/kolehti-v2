@@ -10,6 +10,7 @@ export default function Navbar() {
   const links = [
     { to: "/", label: "Koti" },
     { to: "/feed", label: "Feed" },
+    { to: "/pots", label: "Potit" },
     { to: "/new", label: "Uusi" },
     { to: "/groups", label: "Porukat" },
     { to: "/profile", label: "Profiili" },
