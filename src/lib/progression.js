@@ -56,21 +56,52 @@ export function getXPProgress(xp = 0, level = 1) {
   return Math.min(100, Math.max(0, ((xp - prev) / (next - prev)) * 100));
 }
 
-export async function addXP(userId, amount, reason = "action") {
-  if (!userId || !amount) return null;
+async function ensureProfile(userId) {
+  if (!userId) return null;
 
-  const { data: profile } = await supabase
+  const { data: existing } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  const { data: created, error } = await supabase
+    .from("profiles")
+    .insert({
+      id: userId,
+      xp: 0,
+      level: 1,
+      total_votes_given: 0,
+      total_posts_created: 0,
+      top3_count: 0,
+      first_place_count: 0,
+      user_streak: 0,
+      comeback_count: 0,
+      retention_score: 0,
+    })
+    .select("*")
     .single();
 
+  if (error) {
+    console.error("ensureProfile error:", error);
+    return null;
+  }
+
+  return created;
+}
+
+export async function addXP(userId, amount, reason = "action") {
+  if (!userId || !amount) return null;
+
+  const profile = await ensureProfile(userId);
   if (!profile) return null;
 
   const newXP = Number(profile.xp || 0) + Number(amount);
   const newLevel = getLevelFromXP(newXP);
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .update({
       xp: newXP,
@@ -79,6 +110,11 @@ export async function addXP(userId, amount, reason = "action") {
     .eq("id", userId)
     .select("*")
     .single();
+
+  if (error) {
+    console.error("addXP error:", error);
+    return null;
+  }
 
   await supabase.from("retention_events").insert({
     user_id: userId,
@@ -97,51 +133,100 @@ export async function addXP(userId, amount, reason = "action") {
 export async function rewardVote(userId) {
   if (!userId) return null;
 
-  const profile = await addXP(userId, 5, "vote");
+  const profile = await ensureProfile(userId);
+  if (!profile) return null;
 
-  await supabase.rpc("increment_profile_counter", {
-    profile_id: userId,
-    field_name: "total_votes_given",
-    amount: 1,
-  }).catch(() => null);
+  const newXP = Number(profile.xp || 0) + 5;
+  const newLevel = getLevelFromXP(newXP);
 
-  return profile;
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      xp: newXP,
+      level: newLevel,
+      total_votes_given: Number(profile.total_votes_given || 0) + 1,
+    })
+    .eq("id", userId)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("rewardVote error:", error);
+    return null;
+  }
+
+  return data;
 }
 
 export async function rewardPost(userId) {
   if (!userId) return null;
 
-  const profile = await addXP(userId, 10, "post");
+  const profile = await ensureProfile(userId);
+  if (!profile) return null;
 
-  await supabase.rpc("increment_profile_counter", {
-    profile_id: userId,
-    field_name: "total_posts_created",
-    amount: 1,
-  }).catch(() => null);
+  const newXP = Number(profile.xp || 0) + 10;
+  const newLevel = getLevelFromXP(newXP);
 
-  return profile;
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      xp: newXP,
+      level: newLevel,
+      total_posts_created: Number(profile.total_posts_created || 0) + 1,
+    })
+    .eq("id", userId)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("rewardPost error:", error);
+    return null;
+  }
+
+  return data;
 }
 
 export async function rewardTopRank(userId, rank) {
   if (!userId || !rank) return null;
 
+  const profile = await ensureProfile(userId);
+  if (!profile) return null;
+
+  let xpGain = 0;
+  let top3Add = 0;
+  let firstAdd = 0;
+
   if (rank === 1) {
-    await addXP(userId, 100, "first_place");
-
-    await supabase.rpc("increment_profile_counter", {
-      profile_id: userId,
-      field_name: "first_place_count",
-      amount: 1,
-    }).catch(() => null);
+    xpGain = 100;
+    firstAdd = 1;
   } else if (rank <= 3) {
-    await addXP(userId, 50, "top3");
-
-    await supabase.rpc("increment_profile_counter", {
-      profile_id: userId,
-      field_name: "top3_count",
-      amount: 1,
-    }).catch(() => null);
+    xpGain = 50;
+    top3Add = 1;
   } else if (rank <= 8) {
-    await addXP(userId, 25, "almost_win");
+    xpGain = 25;
   }
+
+  if (!xpGain) return profile;
+
+  const newXP = Number(profile.xp || 0) + xpGain;
+  const newLevel = getLevelFromXP(newXP);
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      xp: newXP,
+      level: newLevel,
+      top3_count: Number(profile.top3_count || 0) + top3Add,
+      first_place_count: Number(profile.first_place_count || 0) + firstAdd,
+    })
+    .eq("id", userId)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("rewardTopRank error:", error);
+    return null;
+  }
+
+  return data;
 }
