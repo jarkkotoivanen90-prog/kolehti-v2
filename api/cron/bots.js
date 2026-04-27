@@ -19,32 +19,51 @@ export default async function handler(req, res) {
     .select("*")
     .eq("active", true);
 
-  if (!bots || bots.length === 0) {
-    return res.status(200).json({ ok: true, message: "no bots" });
-  }
-
   const { data: posts } = await supabase
     .from("posts")
     .select("*")
     .order("created_at", { ascending: false })
     .limit(10);
 
-  if (!posts || posts.length === 0) {
-    return res.status(200).json({ ok: true, message: "no posts" });
+  if (!bots?.length || !posts?.length) {
+    return res.status(200).json({ ok: true });
   }
 
   const bot = bots[Math.floor(Math.random() * bots.length)];
   const target = posts[Math.floor(Math.random() * posts.length)];
-  const message = BOT_MESSAGES[Math.floor(Math.random() * BOT_MESSAGES.length)];
 
-  await supabase.from("posts").insert({
-    content: message,
-    is_bot: true,
-    bot_name: bot.name,
-    bot_persona: bot.persona,
-    bot_disclosure: "AI bot",
-    group_id: target.group_id || null
+  // 1. Bot creates post
+  if (Math.random() < 0.4) {
+    const message = BOT_MESSAGES[Math.floor(Math.random() * BOT_MESSAGES.length)];
+
+    await supabase.from("posts").insert({
+      content: message,
+      is_bot: true,
+      bot_name: bot.name,
+      bot_persona: bot.persona,
+      bot_disclosure: "AI bot",
+      group_id: target.group_id || null
+    });
+  }
+
+  // 2. Bot reacts (safe, not real vote)
+  const reactionWeight = Math.floor(Math.random() * 3) + 1;
+
+  await supabase.from("bot_reactions").insert({
+    bot_id: bot.id,
+    post_id: target.id,
+    reaction: "support",
+    weight: reactionWeight,
+    message: "AI bot reaction"
   });
+
+  await supabase
+    .from("posts")
+    .update({
+      bot_reaction_score: (target.bot_reaction_score || 0) + reactionWeight,
+      bot_reaction_count: (target.bot_reaction_count || 0) + 1
+    })
+    .eq("id", target.id);
 
   return res.status(200).json({ ok: true });
 }
