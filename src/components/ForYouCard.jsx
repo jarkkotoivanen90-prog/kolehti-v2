@@ -5,6 +5,7 @@ import { characters } from "../data/characters";
 import { increaseView, trackEvent } from "../lib/tiktokAI";
 import { getBoostSignal } from "../lib/boostSignals";
 import { boostPostWithXp, getWinHint, getSocialProof } from "../lib/postBoosts";
+import { trackSessionEvent } from "../lib/sessionAI";
 
 export default function ForYouCard({
   post,
@@ -25,6 +26,7 @@ export default function ForYouCard({
 
   useEffect(() => {
     increaseView(post.id);
+    trackSessionEvent(post, "view");
 
     trackEvent({
       userId: user?.id,
@@ -39,6 +41,7 @@ export default function ForYouCard({
 
     setShowHeart(true);
     navigator.vibrate?.(45);
+    trackSessionEvent(post, "vote");
 
     await trackEvent({
       userId: user?.id,
@@ -56,6 +59,7 @@ export default function ForYouCard({
     if (!user?.id || boosting) return;
 
     setBoosting(true);
+    trackSessionEvent(post, "boost");
     const res = await boostPostWithXp({ userId: user.id, post });
     setBoostMsg(res.message);
 
@@ -67,6 +71,7 @@ export default function ForYouCard({
 
   async function handleShare() {
     await navigator.clipboard.writeText(window.location.href);
+    trackSessionEvent(post, "share");
 
     await trackEvent({
       userId: user?.id,
