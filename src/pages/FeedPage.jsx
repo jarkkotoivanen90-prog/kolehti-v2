@@ -20,6 +20,10 @@ import {
   getActiveBoostEvent,
 } from "../lib/boostEvents";
 import { runViralLoopV3 } from "../lib/viralLoop";
+import {
+  optimizeFeedForGrowth,
+  trackTopGrowthImpressions,
+} from "../lib/aiGrowthOptimizer";
 
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
@@ -141,20 +145,31 @@ export default function FeedPage() {
     const ranked = rankForYou(prepared, eventsData || []);
     const smartFeed = getSmartFeed(ranked);
 
+    const optimizedFeed = optimizeFeedForGrowth(smartFeed, {
+      userId: user?.id,
+      voted: votedMap,
+      groupId,
+      profile: profileData,
+    });
+
+    if (user) {
+      await trackTopGrowthImpressions(user.id, optimizedFeed);
+    }
+
     if (user && profileData) {
       await runViralLoopV3({
         userId: user.id,
         profile: profileData,
-        posts: smartFeed,
+        posts: optimizedFeed,
         groupId,
       });
     }
 
-    for (let i = 0; i < smartFeed.length; i++) {
-      await updatePostRankStats(smartFeed[i], i + 1);
+    for (let i = 0; i < optimizedFeed.length; i++) {
+      await updatePostRankStats(optimizedFeed[i], i + 1);
     }
 
-    setPosts(smartFeed);
+    setPosts(optimizedFeed);
     setVoted(votedMap);
 
     const winner = await getTodayWinner();
@@ -162,8 +177,8 @@ export default function FeedPage() {
 
     let activeBoost = await getActiveBoostEvent();
 
-    if (!activeBoost && smartFeed.length >= 2) {
-      activeBoost = await createRandomBoostEvent(smartFeed);
+    if (!activeBoost && optimizedFeed.length >= 2) {
+      activeBoost = await createRandomBoostEvent(optimizedFeed);
     }
 
     setBoostEvent(activeBoost || null);
