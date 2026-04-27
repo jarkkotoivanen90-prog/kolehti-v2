@@ -13,6 +13,8 @@
   ],
   "crons": [
     { "path": "/api/cron/daily-winner", "schedule": "0 21 * * *" },
+    { "path": "/api/cron/weekly-winner", "schedule": "0 0 * * 1" },
+    { "path": "/api/cron/monthly-winner", "schedule": "0 0 1 * *" },
     { "path": "/api/cron/boost", "schedule": "*/10 * * * *" },
     { "path": "/api/cron/autopilot", "schedule": "0 */3 * * *" },
     { "path": "/api/cron/optimizer", "schedule": "0 */6 * * *" },
