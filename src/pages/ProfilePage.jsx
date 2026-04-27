@@ -6,9 +6,13 @@ import NotificationBell from "../components/NotificationBell";
 import ProgressCard from "../components/ProgressCard";
 import AchievementCard from "../components/AchievementCard";
 import NextGoalCard from "../components/NextGoalCard";
+import DailyRewardCard from "../components/DailyRewardCard";
+import XPToast from "../components/XPToast";
+import LevelUpModal from "../components/LevelUpModal";
 import { characters } from "../data/characters";
 import { updateLastSeen, trackRetentionEvent } from "../lib/retention";
 import { syncAchievements } from "../lib/achievements";
+import { checkLevelUp } from "../lib/rewards";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -16,6 +20,8 @@ export default function ProfilePage() {
   const [posts, setPosts] = useState([]);
   const [votes, setVotes] = useState([]);
   const [copied, setCopied] = useState(false);
+  const [xpToast, setXpToast] = useState(null);
+  const [levelUp, setLevelUp] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -62,9 +68,16 @@ export default function ProfilePage() {
       votesData || []
     );
 
-    setProfile(syncedProfile || updatedProfile || profileData || null);
+    const finalProfile = syncedProfile || updatedProfile || profileData || null;
+
+    setProfile(finalProfile);
     setPosts(postsData || []);
     setVotes(votesData || []);
+
+    const levelCheck = await checkLevelUp(user.id);
+    if (levelCheck?.levelUp) {
+      setLevelUp(levelCheck.level);
+    }
   }
 
   async function logout() {
@@ -107,6 +120,12 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-[#050816] px-4 py-6 pb-32 text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#153b92_0%,#050816_45%,#02030a_100%)]" />
 
+      {/* XP POP */}
+      <XPToast value={xpToast?.value} text={xpToast?.text} />
+
+      {/* LEVEL UP MODAL */}
+      <LevelUpModal level={levelUp} onClose={() => setLevelUp(null)} />
+
       <main className="mx-auto max-w-4xl">
         <header className="mb-6 flex items-center justify-between gap-3">
           <div>
@@ -128,6 +147,7 @@ export default function ProfilePage() {
           </div>
         </header>
 
+        {/* STATS */}
         <section className="grid gap-3 md:grid-cols-6">
           <div className="rounded-[30px] border border-white/10 bg-white/10 p-5 shadow-2xl md:col-span-1">
             <CharacterAvatar
@@ -141,8 +161,8 @@ export default function ProfilePage() {
           <Stat title="Level" value={`LVL ${profile?.level || 1}`} />
           <Stat title="XP" value={profile?.xp || 0} />
           <Stat title="Saavutukset" value={profile?.achievement_score || 0} />
-          <Stat title="Omat perustelut" value={posts.length} />
-          <Stat title="Annetut äänet" value={votes.length} />
+          <Stat title="Postaukset" value={posts.length} />
+          <Stat title="Äänet" value={votes.length} />
           <Stat title="Streak" value={`🔥 ${profile?.user_streak || 1}`} />
           <Stat
             title="Paras sijoitus"
@@ -150,18 +170,39 @@ export default function ProfilePage() {
           />
         </section>
 
+        {/* PROGRESSION */}
         <div className="mt-5">
           <ProgressCard profile={profile} />
         </div>
 
+        {/* DAILY REWARD */}
+        <div className="mt-5">
+          <DailyRewardCard
+            user={user}
+            onClaim={(result) => {
+              setXpToast({
+                value: result.xp,
+                text: "Päivän palkinto",
+              });
+
+              setTimeout(() => setXpToast(null), 1800);
+
+              loadProfile();
+            }}
+          />
+        </div>
+
+        {/* NEXT GOAL */}
         <div className="mt-5">
           <NextGoalCard profile={profile} />
         </div>
 
+        {/* ACHIEVEMENTS */}
         <div className="mt-5">
           <AchievementCard profile={profile} />
         </div>
 
+        {/* BEST POST */}
         {bestPost && (
           <section className="mt-5 rounded-[34px] border border-yellow-300/20 bg-yellow-500/10 p-5 shadow-2xl">
             <h2 className="text-2xl font-black text-yellow-200">
@@ -174,23 +215,24 @@ export default function ProfilePage() {
 
             <div className="mt-3 flex flex-wrap gap-2">
               <div className="rounded-2xl bg-black/25 px-4 py-3 text-sm font-black text-yellow-100">
-                🤖 AI-score {Math.round(bestPost.ai_score || 0)}
+                🤖 AI {Math.round(bestPost.ai_score || 0)}
               </div>
 
               {bestPost.best_rank && (
                 <div className="rounded-2xl bg-black/25 px-4 py-3 text-sm font-black text-cyan-100">
-                  Paras sijoitus #{bestPost.best_rank}
+                  #{bestPost.best_rank}
                 </div>
               )}
             </div>
           </section>
         )}
 
+        {/* INVITE */}
         <section className="mt-5 rounded-[34px] border border-cyan-300/20 bg-cyan-500/10 p-5 shadow-2xl">
           <h2 className="text-2xl font-black">🚀 Kutsu kavereita</h2>
 
           <p className="mt-2 text-sm font-bold text-white/65">
-            Jaa linkki. Kun uusi käyttäjä liittyy, porukka kasvaa ja saat enemmän näkyvyyttä.
+            Jaa linkki ja kasvata porukkaasi.
           </p>
 
           <div className="mt-4 break-all rounded-2xl bg-black/30 p-4 text-sm font-bold text-cyan-200">
@@ -199,12 +241,13 @@ export default function ProfilePage() {
 
           <button
             onClick={copyInvite}
-            className="mt-4 w-full rounded-2xl bg-cyan-500 px-5 py-4 text-lg font-black shadow-xl shadow-cyan-500/20"
+            className="mt-4 w-full rounded-2xl bg-cyan-500 px-5 py-4 text-lg font-black"
           >
-            {copied ? "Kopioitu ✅" : "Kopioi kutsulinkki"}
+            {copied ? "Kopioitu ✅" : "Kopioi linkki"}
           </button>
         </section>
 
+        {/* POSTS */}
         <section className="mt-5 rounded-[34px] border border-white/10 bg-white/10 p-5 shadow-2xl">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-2xl font-black">Omat perustelut</h2>
@@ -234,9 +277,8 @@ export default function ProfilePage() {
                     <span>
                       {new Date(post.created_at).toLocaleString("fi-FI")}
                     </span>
-                    <span>🤖 AI {Math.round(post.ai_score || 0)}</span>
-                    {post.best_rank && <span>🏆 Paras #{post.best_rank}</span>}
-                    {post.last_rank && <span>Live #{post.last_rank}</span>}
+                    <span>🤖 {Math.round(post.ai_score || 0)}</span>
+                    {post.best_rank && <span>🏆 #{post.best_rank}</span>}
                   </div>
                 </div>
               ))}
@@ -266,7 +308,7 @@ function BottomNav() {
         <Link to="/">🏠<div>Koti</div></Link>
         <Link to="/feed">🔥<div>Feed</div></Link>
         <Link to="/new" className="-mt-8">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl">
             +
           </div>
           <div>Uusi</div>
