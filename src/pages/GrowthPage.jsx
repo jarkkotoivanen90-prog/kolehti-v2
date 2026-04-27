@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { runViralLoopV2 } from "../lib/viralLoop";
 
 const INVITE_GOAL = 3;
 
@@ -50,6 +51,12 @@ export default function GrowthPage() {
       .eq("id", user.id)
       .maybeSingle();
 
+    const activeProfile = refreshedProfile || profileData || null;
+
+    if (activeProfile) {
+      await runViralLoopV2(user.id, activeProfile);
+    }
+
     const { data: leaderboardData } = await supabase
       .from("profiles")
       .select("id, display_name, username, active_badge, referral_count, growth_score, xp, level")
@@ -63,7 +70,7 @@ export default function GrowthPage() {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    setProfile(refreshedProfile || profileData || null);
+    setProfile(activeProfile);
     setLeaderboard(leaderboardData || []);
     setReferrals(referralData || []);
     setLoading(false);
