@@ -19,6 +19,7 @@ import {
   createRandomBoostEvent,
   getActiveBoostEvent,
 } from "../lib/boostEvents";
+import { runViralLoopV3 } from "../lib/viralLoop";
 
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
@@ -75,8 +76,10 @@ export default function FeedPage() {
 
     setUser(user || null);
 
+    let profileData = null;
+
     if (user) {
-      const profileData = await updateStreak(user, supabase);
+      profileData = await updateStreak(user, supabase);
       setProfile(profileData || null);
       await trackRetentionEvent(user.id, "feed_open");
     }
@@ -137,6 +140,15 @@ export default function FeedPage() {
 
     const ranked = rankForYou(prepared, eventsData || []);
     const smartFeed = getSmartFeed(ranked);
+
+    if (user && profileData) {
+      await runViralLoopV3({
+        userId: user.id,
+        profile: profileData,
+        posts: smartFeed,
+        groupId,
+      });
+    }
 
     for (let i = 0; i < smartFeed.length; i++) {
       await updatePostRankStats(smartFeed[i], i + 1);
