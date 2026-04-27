@@ -72,7 +72,7 @@ export default function NewPostPage() {
         content: content.trim(),
         user_id: user.id,
         group_id: groupId,
-        ai_score: aiResult.ai_score || aiResult.score || 0,
+        ai_score: aiResult.ai_score || aiResult.score || 50,
         ai_quality: aiResult.ai_quality || 50,
         ai_need: aiResult.ai_need || 50,
         ai_clarity: aiResult.ai_clarity || 50,
@@ -158,7 +158,7 @@ export default function NewPostPage() {
           <div className="mt-5 rounded-[30px] border border-cyan-300/20 bg-cyan-500/10 p-5 shadow-xl">
             <h2 className="text-xl font-black text-cyan-200">AI-analyysi</h2>
             <p className="mt-2 text-sm text-white/70">
-              Score: {Math.round(aiPreview.ai_score || aiPreview.score || 0)}
+              Score: {Math.round(aiPreview.ai_score || aiPreview.score || 50)}
             </p>
           </div>
         )}
