@@ -30,7 +30,7 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-progression-feed")
+      .channel("kolehti-xp-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
       .subscribe();
@@ -136,6 +136,8 @@ export default function FeedPage() {
 
     const newVoteCount = Number(post.votes || post.vote_count || 0) + 1;
 
+    await rewardVote(user.id);
+
     await supabase
       .from("posts")
       .update({
@@ -144,8 +146,6 @@ export default function FeedPage() {
         last_engaged_at: new Date().toISOString(),
       })
       .eq("id", post.id);
-
-    await rewardVote(user.id);
 
     if (post.user_id) {
       await rewardTopRank(post.user_id, post.last_rank || rankInfoBeforeVote?.rank);
