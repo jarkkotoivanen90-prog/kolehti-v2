@@ -97,19 +97,40 @@ export default function GroupPage() {
       return;
     }
 
-    const { error } = await supabase.from("group_members").upsert(
-      {
+    const { data: existing, error: existingError } = await supabase
+      .from("group_members")
+      .select("id")
+      .eq("group_id", groupId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingError) {
+      alert(existingError.message);
+      return;
+    }
+
+    if (existing?.id) {
+      const { error } = await supabase
+        .from("group_members")
+        .update({ role: "member", active: true })
+        .eq("id", existing.id);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+    } else {
+      const { error } = await supabase.from("group_members").insert({
         group_id: groupId,
         user_id: user.id,
         role: "member",
         active: true,
-      },
-      { onConflict: "group_id,user_id" }
-    );
+      });
 
-    if (error) {
-      alert(error.message);
-      return;
+      if (error) {
+        alert(error.message);
+        return;
+      }
     }
 
     localStorage.setItem("kolehti_group_id", groupId);
