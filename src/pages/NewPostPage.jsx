@@ -3,13 +3,16 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { analyzePostWithAI } from "../lib/ai";
 import { rewardPost } from "../lib/progression";
+import { improvePost } from "../lib/creatorAI";
 
 export default function NewPostPage() {
   const [content, setContent] = useState("");
+  const [tips, setTips] = useState([]);
   const [group, setGroup] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
+  const [improving, setImproving] = useState(false);
   const [aiPreview, setAiPreview] = useState(null);
   const navigate = useNavigate();
 
@@ -39,6 +42,16 @@ export default function NewPostPage() {
     }
 
     setLoading(false);
+  }
+
+  async function handleImprove() {
+    if (!content.trim()) return;
+
+    setImproving(true);
+    const res = await improvePost(content);
+    setContent(res.improved);
+    setTips(res.tips || []);
+    setImproving(false);
   }
 
   async function handleSubmit(e) {
@@ -140,6 +153,23 @@ export default function NewPostPage() {
             className="mt-3 min-h-56 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-lg font-bold leading-relaxed text-white outline-none placeholder:text-white/35"
           />
 
+          <button
+            type="button"
+            onClick={handleImprove}
+            disabled={improving}
+            className="mt-3 w-full rounded-2xl bg-purple-500 px-4 py-3 font-black text-white"
+          >
+            {improving ? "🤖 Parannetaan..." : "🤖 Paranna tekstini"}
+          </button>
+
+          {tips.length > 0 && (
+            <div className="mt-3 text-sm text-white/70">
+              {tips.map((t, i) => (
+                <div key={i}>• {t}</div>
+              ))}
+            </div>
+          )}
+
           <div className="mt-3 flex items-center justify-between text-xs font-black text-white/45">
             <span>{content.length}/1000 merkkiä</span>
             <span>+10 XP postauksesta</span>
@@ -182,7 +212,7 @@ function BottomNav() {
           <div>Uusi</div>
         </Link>
         <Link to="/vote">💗<div>Äänestä</div></Link>
-        <Link to="/profile">👤<div>Profiili</div></Link>
+        <Link to="/profile">👤<div>Profiili</div>
       </div>
     </nav>
   );
