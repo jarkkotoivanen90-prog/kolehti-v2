@@ -42,6 +42,16 @@ export default function LoginPage() {
       return;
     }
 
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref");
+
+    if (ref && result.data?.user?.id) {
+      await supabase.rpc("complete_referral", {
+        invited_id: result.data.user.id,
+        ref_code: ref,
+      });
+    }
+
     navigate("/groups");
   }
 
