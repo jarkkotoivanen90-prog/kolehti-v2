@@ -34,6 +34,16 @@ export default function ForYouCard({
       type: "view",
       weight: 1,
     });
+
+    const start = Date.now();
+
+    return () => {
+      const duration = Date.now() - start;
+
+      if (duration > 3000) {
+        trackSessionEvent(post, "deep_view");
+      }
+    };
   }, [post.id, user?.id]);
 
   async function handleVote() {
