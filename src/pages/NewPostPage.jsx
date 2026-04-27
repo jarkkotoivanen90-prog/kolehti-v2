@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { analyzePostWithAI } from "../lib/ai";
@@ -7,14 +7,30 @@ import { improvePost } from "../lib/creatorAI";
 
 export default function NewPostPage() {
   const [content, setContent] = useState("");
+  const [improvedDraft, setImprovedDraft] = useState("");
   const [tips, setTips] = useState([]);
   const [group, setGroup] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [improving, setImproving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [aiPreview, setAiPreview] = useState(null);
   const navigate = useNavigate();
+
+  const score = Math.round(aiPreview?.ai_score || aiPreview?.score || 0);
+  const quality = Math.round(aiPreview?.ai_quality || 0);
+  const need = Math.round(aiPreview?.ai_need || 0);
+  const clarity = Math.round(aiPreview?.ai_clarity || 0);
+  const risk = Math.round(aiPreview?.ai_risk || 0);
+
+  const creatorStatus = useMemo(() => {
+    if (!content.trim()) return "Kirjoita ensin perustelu.";
+    if (content.trim().length < 60) return "Lisää vielä konkreettinen syy.";
+    if (score >= 80) return "Valmis julkaisuun 🔥";
+    if (score >= 60) return "Hyvä pohja — AI voi vielä hioa.";
+    return "Creator AI voi vahvistaa tätä.";
+  }, [content, score]);
 
   useEffect(() => {
     load();
@@ -49,9 +65,24 @@ export default function NewPostPage() {
 
     setImproving(true);
     const res = await improvePost(content);
-    setContent(res.improved);
+    setImprovedDraft(res.improved || "");
     setTips(res.tips || []);
     setImproving(false);
+  }
+
+  function useImprovedDraft() {
+    if (!improvedDraft) return;
+    setContent(improvedDraft);
+    setImprovedDraft("");
+  }
+
+  async function handleAnalyze() {
+    if (content.trim().length < 20) return;
+
+    setAnalyzing(true);
+    const result = await analyzePostWithAI(content.trim());
+    setAiPreview(result);
+    setAnalyzing(false);
   }
 
   async function handleSubmit(e) {
@@ -78,7 +109,7 @@ export default function NewPostPage() {
     setPosting(true);
 
     try {
-      const aiResult = await analyzePostWithAI(content.trim());
+      const aiResult = aiPreview || (await analyzePostWithAI(content.trim()));
       setAiPreview(aiResult);
 
       const { error } = await supabase.from("posts").insert({
@@ -124,6 +155,7 @@ export default function NewPostPage() {
       <main className="mx-auto max-w-2xl">
         <header className="mb-6 flex items-center justify-between gap-3">
           <div>
+            <p className="text-sm font-black uppercase tracking-wide text-purple-200">Creator AI</p>
             <h1 className="text-4xl font-black">Uusi perustelu</h1>
             <p className="mt-1 text-sm font-bold text-white/55">
               {group ? `Porukka: ${group.name}` : "Ei valittua porukkaa"}
@@ -138,6 +170,18 @@ export default function NewPostPage() {
           </Link>
         </header>
 
+        <div className="mb-4 rounded-[30px] border border-purple-300/20 bg-purple-500/10 p-5 shadow-xl">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-black text-purple-200">🤖 AI status</div>
+              <div className="mt-1 text-xl font-black">{creatorStatus}</div>
+            </div>
+            <div className="grid h-20 w-20 place-items-center rounded-3xl bg-black/30 text-3xl font-black text-cyan-200">
+              {score || "--"}
+            </div>
+          </div>
+        </div>
+
         <form
           onSubmit={handleSubmit}
           className="rounded-[34px] border border-white/10 bg-white/10 p-5 shadow-2xl backdrop-blur-xl"
@@ -148,25 +192,69 @@ export default function NewPostPage() {
 
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setContent(e.target.value);
+              setAiPreview(null);
+            }}
             placeholder="Kirjoita miksi juuri sinun perustelusi pitäisi nousta esiin..."
             className="mt-3 min-h-56 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-lg font-bold leading-relaxed text-white outline-none placeholder:text-white/35"
           />
 
-          <button
-            type="button"
-            onClick={handleImprove}
-            disabled={improving}
-            className="mt-3 w-full rounded-2xl bg-purple-500 px-4 py-3 font-black text-white"
-          >
-            {improving ? "🤖 Parannetaan..." : "🤖 Paranna tekstini"}
-          </button>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={handleImprove}
+              disabled={improving || content.trim().length < 5}
+              className="rounded-2xl bg-purple-500 px-4 py-4 font-black text-white disabled:opacity-50"
+            >
+              {improving ? "🤖 Parannetaan..." : "🤖 Paranna"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={analyzing || content.trim().length < 20}
+              className="rounded-2xl bg-white/10 px-4 py-4 font-black text-white disabled:opacity-50"
+            >
+              {analyzing ? "Analysoi..." : "📊 Score"}
+            </button>
+          </div>
+
+          {improvedDraft && (
+            <div className="mt-4 rounded-3xl border border-purple-300/20 bg-black/30 p-4">
+              <div className="text-sm font-black text-purple-200">AI ehdotus</div>
+              <p className="mt-2 whitespace-pre-wrap text-sm font-bold text-white/75">{improvedDraft}</p>
+              <button
+                type="button"
+                onClick={useImprovedDraft}
+                className="mt-3 rounded-2xl bg-purple-400 px-4 py-3 font-black text-black"
+              >
+                Käytä tätä versiota
+              </button>
+            </div>
+          )}
 
           {tips.length > 0 && (
-            <div className="mt-3 text-sm text-white/70">
+            <div className="mt-3 rounded-2xl bg-white/5 p-4 text-sm font-bold text-white/70">
+              <div className="mb-2 font-black text-cyan-200">AI vinkit</div>
               {tips.map((t, i) => (
                 <div key={i}>• {t}</div>
               ))}
+            </div>
+          )}
+
+          {aiPreview && (
+            <div className="mt-4 rounded-3xl border border-cyan-300/20 bg-cyan-500/10 p-4">
+              <div className="mb-3 text-sm font-black text-cyan-200">AI scorecard</div>
+              <div className="grid grid-cols-4 gap-2 text-center text-xs font-black">
+                <ScoreBox label="Laatu" value={quality} />
+                <ScoreBox label="Tarve" value={need} />
+                <ScoreBox label="Selkeys" value={clarity} />
+                <ScoreBox label="Riski" value={risk} />
+              </div>
+              {aiPreview.summary && (
+                <p className="mt-3 text-sm font-bold text-white/65">{aiPreview.summary}</p>
+              )}
             </div>
           )}
 
@@ -183,18 +271,18 @@ export default function NewPostPage() {
             {posting ? "🤖 AI analysoi..." : "Lähetä perustelu"}
           </button>
         </form>
-
-        {aiPreview && (
-          <div className="mt-5 rounded-[30px] border border-cyan-300/20 bg-cyan-500/10 p-5 shadow-xl">
-            <h2 className="text-xl font-black text-cyan-200">AI-analyysi</h2>
-            <p className="mt-2 text-sm text-white/70">
-              Score: {Math.round(aiPreview.ai_score || aiPreview.score || 50)}
-            </p>
-          </div>
-        )}
       </main>
 
       <BottomNav />
+    </div>
+  );
+}
+
+function ScoreBox({ label, value }) {
+  return (
+    <div className="rounded-2xl bg-black/25 p-3">
+      <div className="text-lg font-black text-white">{value}</div>
+      <div className="text-[10px] text-white/45">{label}</div>
     </div>
   );
 }
@@ -212,7 +300,7 @@ function BottomNav() {
           <div>Uusi</div>
         </Link>
         <Link to="/vote">💗<div>Äänestä</div></Link>
-        <Link to="/profile">👤<div>Profiili</div>
+        <Link to="/profile">👤<div>Profiili</div></Link>
       </div>
     </nav>
   );
