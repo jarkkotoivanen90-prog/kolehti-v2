@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { getPersonalFeedProfile, calculatePersonalBoost } from "./personalFeed";
 
 const DEFAULT_WEIGHTS = {
   vote_weight: 1,
@@ -79,7 +80,7 @@ export function calculateAISignal(post) {
   return Math.round(clamp(aiSignal, -120, 360));
 }
 
-export function calculateGrowthScore(post, context = {}) {
+export async function calculateGrowthScore(post, context = {}) {
   const weights = context.weights || DEFAULT_WEIGHTS;
   const votes = safeNumber(post.vote_count || post.votes, 0);
   const views = safeNumber(post.view_count || post.views, 0);
@@ -114,105 +115,8 @@ export function calculateGrowthScore(post, context = {}) {
     inviteBoost -
     riskGatePenalty;
 
-  return Math.round(baseScore * getLearningBoost(post));
-}
+  const prefs = await getPersonalFeedProfile(context.userId);
+  const personalBoost = calculatePersonalBoost(post, prefs, context);
 
-export function getGrowthReason(post, score, context = {}) {
-  const votes = safeNumber(post.vote_count || post.votes, 0);
-  const aiScore = safeNumber(post.ai_score, 50);
-  const aiQuality = safeNumber(post.ai_quality, aiScore);
-  const aiNeed = safeNumber(post.ai_need, 50);
-  const aiRisk = safeNumber(post.ai_risk, 0);
-  const learningBoost = getLearningBoost(post);
-
-  if (aiRisk >= 70) return "Tarkistetaan turvallisuutta";
-  if (learningBoost >= 1.3) return "Trendaa nopeasti";
-  if (post.user_id === context.userId && score > 260) return "Oma postaus nousussa";
-  if (votes >= 10) return "Paljon ääniä";
-  if (votes >= 3) return "Momentum käynnissä";
-  if (aiNeed >= 82) return "Korkea tarvesignaali";
-  if (aiQuality >= 82) return "Vahva perustelu";
-  if (aiScore >= 80) return "Vahva AI-arvio";
-  if (context.groupId && post.group_id === context.groupId) return "Oman porukan sisältö";
-  return "Uusi kasvumahdollisuus";
-}
-
-export function optimizeFeedForGrowth(posts = [], context = {}) {
-  const enriched = posts.map((post) => {
-    const growth_score = calculateGrowthScore(post, context);
-    const ai_signal = calculateAISignal(post);
-    const learning_boost = getLearningBoost(post);
-
-    return {
-      ...post,
-      growth_score,
-      ai_signal,
-      learning_boost,
-      growth_reason: getGrowthReason(post, growth_score, context),
-    };
-  });
-
-  const safe = enriched.filter((post) => safeNumber(post.ai_risk, 0) < 70);
-  const risky = enriched.filter((post) => safeNumber(post.ai_risk, 0) >= 70);
-
-  const top = [...safe]
-    .sort((a, b) => b.growth_score - a.growth_score)
-    .slice(0, 20);
-
-  const highNeed = [...safe]
-    .filter((post) => safeNumber(post.ai_need, 0) >= 75)
-    .sort((a, b) => b.ai_signal - a.ai_signal)
-    .slice(0, 5);
-
-  const trending = [...safe]
-    .filter((post) => safeNumber(post.learning_boost, 1) > 1)
-    .sort((a, b) => b.learning_boost - a.learning_boost)
-    .slice(0, 5);
-
-  const fresh = [...safe]
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 5);
-
-  const own = safe.filter((post) => post.user_id === context.userId).slice(0, 2);
-
-  const merged = [...top, ...trending, ...highNeed, ...fresh, ...own];
-  const unique = Array.from(new Map(merged.map((post) => [post.id, post])).values());
-
-  return [...unique, ...risky.slice(0, 1)].sort((a, b) => b.growth_score - a.growth_score);
-}
-
-export async function optimizeFeedForGrowthAsync(posts = [], context = {}) {
-  const weights = await getOptimizerWeights();
-  return optimizeFeedForGrowth(posts, { ...context, weights });
-}
-
-export async function trackGrowthImpression({ userId, postId, reason, score }) {
-  if (!postId) return;
-
-  await supabase.from("growth_events").insert({
-    user_id: userId || null,
-    event_type: "growth_impression",
-    source: "ai_growth_optimizer",
-    points: 1,
-    meta: {
-      post_id: postId,
-      reason,
-      score,
-    },
-  });
-}
-
-export async function trackTopGrowthImpressions(userId, posts = []) {
-  const top = posts.slice(0, 5);
-
-  await Promise.all(
-    top.map((post) =>
-      trackGrowthImpression({
-        userId,
-        postId: post.id,
-        reason: post.growth_reason,
-        score: post.growth_score,
-      })
-    )
-  );
+  return Math.round(baseScore * getLearningBoost(post) * personalBoost);
 }
