@@ -49,6 +49,10 @@
     {
       "path": "/api/cron/boost",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/autopilot",
+      "schedule": "0 */3 * * *"
     }
   ]
 }
