@@ -1,5 +1,14 @@
 import { supabase } from "./supabaseClient";
 
+const DEFAULT_WEIGHTS = {
+  vote_weight: 1,
+  invite_weight: 1,
+  impression_weight: 1,
+  notification_weight: 1,
+  freshness_weight: 1,
+  quality_weight: 1,
+};
+
 function hoursSince(dateValue) {
   if (!dateValue) return 24;
   return Math.max(1, (Date.now() - new Date(dateValue).getTime()) / 1000 / 60 / 60);
@@ -10,7 +19,24 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+export async function getOptimizerWeights() {
+  const { data, error } = await supabase
+    .from("optimizer_weights")
+    .select("key,value");
+
+  if (error || !data?.length) return DEFAULT_WEIGHTS;
+
+  return data.reduce(
+    (weights, row) => ({
+      ...weights,
+      [row.key]: safeNumber(row.value, DEFAULT_WEIGHTS[row.key] || 1),
+    }),
+    { ...DEFAULT_WEIGHTS }
+  );
+}
+
 export function calculateGrowthScore(post, context = {}) {
+  const weights = context.weights || DEFAULT_WEIGHTS;
   const votes = safeNumber(post.vote_count || post.votes, 0);
   const views = safeNumber(post.view_count || post.views, 0);
   const aiScore = safeNumber(post.ai_score, 50);
@@ -21,20 +47,22 @@ export function calculateGrowthScore(post, context = {}) {
   const ageHours = hoursSince(post.created_at);
   const lastEngagedHours = hoursSince(post.last_engaged_at || post.created_at);
 
-  const freshness = Math.max(0, 120 - ageHours * 4);
+  const freshness = Math.max(0, 120 - ageHours * 4) * safeNumber(weights.freshness_weight, 1);
   const momentum = votes / Math.max(1, lastEngagedHours);
   const conversion = votes / Math.max(1, views);
-  const quality = aiScore * 1.5 + aiNeed * 1.2 + aiClarity;
+  const quality = (aiScore * 1.5 + aiNeed * 1.2 + aiClarity) * safeNumber(weights.quality_weight, 1);
   const trustPenalty = Math.max(0, aiRisk * 3);
   const explorationBoost = context.voted?.[post.id] ? -90 : 30;
   const groupBoost = context.groupId && post.group_id === context.groupId ? 35 : 0;
   const ownerBoost = post.user_id === context.userId ? 15 : 0;
-  const inviteBoost = safeNumber(context.profile?.referral_count, 0) >= 3 ? 20 : 0;
+  const inviteBoost = safeNumber(context.profile?.referral_count, 0) >= 3 ? 20 * safeNumber(weights.invite_weight, 1) : 0;
+  const voteSignal = votes * 95 * safeNumber(weights.vote_weight, 1);
+  const impressionSignal = views * 2 * safeNumber(weights.impression_weight, 1);
 
   return Math.round(
     quality * 0.4 +
-      votes * 95 +
-      views * 2 +
+      voteSignal +
+      impressionSignal +
       conversion * 180 +
       freshness * 0.4 +
       momentum * 140 +
@@ -87,6 +115,11 @@ export function optimizeFeedForGrowth(posts = [], context = {}) {
   const unique = Array.from(new Map(merged.map((post) => [post.id, post])).values());
 
   return [...unique, ...risky.slice(0, 2)].sort((a, b) => b.growth_score - a.growth_score);
+}
+
+export async function optimizeFeedForGrowthAsync(posts = [], context = {}) {
+  const weights = await getOptimizerWeights();
+  return optimizeFeedForGrowth(posts, { ...context, weights });
 }
 
 export async function trackGrowthImpression({ userId, postId, reason, score }) {
