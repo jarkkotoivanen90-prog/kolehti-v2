@@ -4,8 +4,11 @@ import { supabase } from "../lib/supabaseClient";
 import CharacterAvatar from "../components/CharacterAvatar";
 import NotificationBell from "../components/NotificationBell";
 import ProgressCard from "../components/ProgressCard";
+import AchievementCard from "../components/AchievementCard";
+import NextGoalCard from "../components/NextGoalCard";
 import { characters } from "../data/characters";
 import { updateLastSeen, trackRetentionEvent } from "../lib/retention";
+import { syncAchievements } from "../lib/achievements";
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -41,21 +44,26 @@ export default function ProfilePage() {
       .eq("id", user.id)
       .single();
 
-    setProfile(updatedProfile || profileData || null);
-
     const { data: postsData } = await supabase
       .from("posts")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    setPosts(postsData || []);
-
     const { data: votesData } = await supabase
       .from("votes")
       .select("*")
       .eq("user_id", user.id);
 
+    const syncedProfile = await syncAchievements(
+      user.id,
+      updatedProfile || profileData,
+      postsData || [],
+      votesData || []
+    );
+
+    setProfile(syncedProfile || updatedProfile || profileData || null);
+    setPosts(postsData || []);
     setVotes(votesData || []);
   }
 
@@ -129,18 +137,29 @@ export default function ProfilePage() {
             />
           </div>
 
+          <Stat title="Badge" value={profile?.active_badge || "🌱"} />
           <Stat title="Level" value={`LVL ${profile?.level || 1}`} />
           <Stat title="XP" value={profile?.xp || 0} />
+          <Stat title="Saavutukset" value={profile?.achievement_score || 0} />
           <Stat title="Omat perustelut" value={posts.length} />
           <Stat title="Annetut äänet" value={votes.length} />
           <Stat title="Streak" value={`🔥 ${profile?.user_streak || 1}`} />
-          <Stat title="Paras sijoitus" value={bestRankFromPosts ? `#${bestRankFromPosts}` : "-"} />
-          <Stat title="Paluu-score" value={Math.round(profile?.retention_score || 0)} />
-          <Stat title="Lähellä voittoa" value={profile?.almost_win_count || 0} />
+          <Stat
+            title="Paras sijoitus"
+            value={bestRankFromPosts ? `#${bestRankFromPosts}` : "-"}
+          />
         </section>
 
         <div className="mt-5">
           <ProgressCard profile={profile} />
+        </div>
+
+        <div className="mt-5">
+          <NextGoalCard profile={profile} />
+        </div>
+
+        <div className="mt-5">
+          <AchievementCard profile={profile} />
         </div>
 
         {bestPost && (
@@ -235,7 +254,7 @@ function Stat({ title, value }) {
   return (
     <div className="rounded-[30px] border border-white/10 bg-white/10 p-5 shadow-2xl">
       <div className="text-sm font-black text-cyan-200">{title}</div>
-      <div className="mt-3 text-4xl font-black">{value}</div>
+      <div className="mt-3 text-3xl font-black break-words">{value}</div>
     </div>
   );
 }
