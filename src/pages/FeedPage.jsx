@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+
 import { rankForYou } from "../lib/tiktokAI";
 import { getSmartFeed } from "../lib/smartFeed";
 import { updateStreak } from "../lib/streak";
@@ -12,7 +13,7 @@ import {
   updatePostRankStats,
   notifyAlmostWin,
 } from "../lib/almostWin";
-import { getTodayWinner, pickDailyWinner } from "../lib/dailyWinner";
+import { getTodayWinner } from "../lib/dailyWinner";
 
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
@@ -34,7 +35,7 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-daily-winner-feed")
+      .channel("kolehti-clean-feed")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "posts" },
@@ -108,7 +109,7 @@ export default function FeedPage() {
 
     const prepared = (postsData || []).map((post) => ({
       ...post,
-      vote_count: voteCounts[post.id] || 0,
+      vote_count: voteCounts[post.id] || Number(post.votes || 0),
     }));
 
     const ranked = rankForYou(prepared, eventsData || []);
@@ -122,18 +123,7 @@ export default function FeedPage() {
     setVoted(votedMap);
 
     const winner = await getTodayWinner();
-
-    if (winner) {
-      setDailyWinner(winner);
-    } else {
-      const newWinner = await pickDailyWinner();
-
-      if (newWinner) {
-        setDailyWinner({
-          posts: newWinner,
-        });
-      }
-    }
+    setDailyWinner(winner || null);
 
     setLoading(false);
   }
@@ -161,7 +151,7 @@ export default function FeedPage() {
       return;
     }
 
-    const newVoteCount = Number(post.votes || post.vote_count || 0) + 1;
+    const newVoteCount = Number(post.vote_count || post.votes || 0) + 1;
 
     await rewardVote(user.id);
 
@@ -175,7 +165,10 @@ export default function FeedPage() {
       .eq("id", post.id);
 
     if (post.user_id) {
-      await rewardTopRank(post.user_id, post.last_rank || rankInfoBeforeVote?.rank);
+      await rewardTopRank(
+        post.user_id,
+        post.last_rank || rankInfoBeforeVote?.rank
+      );
 
       await supabase
         .from("profiles")
@@ -216,7 +209,9 @@ export default function FeedPage() {
   }
 
   const visiblePosts = useMemo(() => {
-    if (mode === "unvoted") return posts.filter((p) => !voted[p.id]);
+    if (mode === "unvoted") {
+      return posts.filter((post) => !voted[post.id]);
+    }
 
     if (mode === "new") {
       return [...posts].sort(
@@ -231,14 +226,15 @@ export default function FeedPage() {
     }
 
     if (mode === "rising") {
-      return posts.filter((p) => {
-        const votes = Number(p.vote_count || p.votes || 0);
-        const aiScore = Number(p.ai_score || 0);
+      return posts.filter((post) => {
+        const votes = Number(post.vote_count || post.votes || 0);
+        const aiScore = Number(post.ai_score || 0);
+
         return (
           votes >= 3 ||
           aiScore >= 70 ||
-          p.status_label?.includes("Nousemassa") ||
-          p.status_label?.includes("TOP")
+          post.status_label?.includes("Nousemassa") ||
+          post.status_label?.includes("TOP")
         );
       });
     }
@@ -262,7 +258,9 @@ export default function FeedPage() {
             <h1 className="text-3xl font-black">KOLEHTI</h1>
             <p className="text-xs font-bold text-white/50">
               {profile
-                ? `LVL ${profile.level || 1} · 🔥 ${profile.user_streak || 1} päivän streak`
+                ? `LVL ${profile.level || 1} · 🔥 ${
+                    profile.user_streak || 1
+                  } päivän streak`
                 : "For You"}
             </p>
           </div>
@@ -310,7 +308,7 @@ export default function FeedPage() {
       <main className="mx-auto max-w-md snap-y snap-mandatory space-y-5 overflow-y-auto px-4 py-5 pb-28">
         <ComebackBanner />
 
-        <DailyWinnerBanner winner={dailyWinner} />
+        {dailyWinner && <DailyWinnerBanner winner={dailyWinner} />}
 
         <JackpotBanner topPost={posts[0]} />
 
@@ -324,7 +322,9 @@ export default function FeedPage() {
         ) : visiblePosts.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-center shadow-2xl">
             <div className="text-6xl">✨</div>
+
             <h2 className="mt-4 text-2xl font-black">Ei lisää perusteluja</h2>
+
             <p className="mt-2 text-sm font-bold text-white/55">
               Luo oma perustelu tai vaihda näkymää.
             </p>
