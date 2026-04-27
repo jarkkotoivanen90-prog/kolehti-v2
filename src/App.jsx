@@ -8,6 +8,7 @@ import VotePage from "./pages/VotePage";
 import NewPostPage from "./pages/NewPostPage";
 import ProfilePage from "./pages/ProfilePage";
 import GroupPage from "./pages/GroupPage";
+import GrowthPage from "./pages/GrowthPage";
 
 import AuthGate from "./components/auth/AuthGate";
 import Navbar from "./components/Navbar";
@@ -29,50 +30,12 @@ function AppShell() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset" element={<ResetPasswordPage />} />
 
-        <Route
-          path="/feed"
-          element={
-            <AuthGate>
-              <FeedPage />
-            </AuthGate>
-          }
-        />
-
-        <Route
-          path="/vote"
-          element={
-            <AuthGate>
-              <VotePage />
-            </AuthGate>
-          }
-        />
-
-        <Route
-          path="/new"
-          element={
-            <AuthGate>
-              <NewPostPage />
-            </AuthGate>
-          }
-        />
-
-        <Route
-          path="/groups"
-          element={
-            <AuthGate>
-              <GroupPage />
-            </AuthGate>
-          }
-        />
-
-        <Route
-          path="/profile"
-          element={
-            <AuthGate>
-              <ProfilePage />
-            </AuthGate>
-          }
-        />
+        <Route path="/feed" element={<AuthGate><FeedPage /></AuthGate>} />
+        <Route path="/vote" element={<AuthGate><VotePage /></AuthGate>} />
+        <Route path="/new" element={<AuthGate><NewPostPage /></AuthGate>} />
+        <Route path="/groups" element={<AuthGate><GroupPage /></AuthGate>} />
+        <Route path="/profile" element={<AuthGate><ProfilePage /></AuthGate>} />
+        <Route path="/growth" element={<AuthGate><GrowthPage /></AuthGate>} />
 
         <Route path="*" element={<HomePage />} />
       </Routes>
