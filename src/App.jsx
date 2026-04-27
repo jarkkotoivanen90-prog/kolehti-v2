@@ -10,6 +10,7 @@ import ProfilePage from "./pages/ProfilePage";
 import GroupPage from "./pages/GroupPage";
 import GrowthPage from "./pages/GrowthPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
+import PotsPage from "./pages/PotsPage";
 
 import AuthGate from "./components/auth/AuthGate";
 import Navbar from "./components/Navbar";
@@ -38,6 +39,7 @@ function AppShell() {
         <Route path="/profile" element={<AuthGate><ProfilePage /></AuthGate>} />
         <Route path="/growth" element={<AuthGate><GrowthPage /></AuthGate>} />
         <Route path="/leaderboard" element={<AuthGate><LeaderboardPage /></AuthGate>} />
+        <Route path="/pots" element={<AuthGate><PotsPage /></AuthGate>} />
 
         <Route path="*" element={<HomePage />} />
       </Routes>
