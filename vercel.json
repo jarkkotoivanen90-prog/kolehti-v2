@@ -1,6 +1,54 @@
 {
+  "version": 2,
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/" }
+    {
+      "src": "^/api/(.*)$",
+      "dest": "/api/$1"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/daily-winner",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/boost",
+      "schedule": "*/10 * * * *"
+    }
   ]
 }
