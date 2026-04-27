@@ -24,6 +24,7 @@ import {
   optimizeFeedForGrowth,
   trackTopGrowthImpressions,
 } from "../lib/aiGrowthOptimizer";
+import { getUserSegment } from "../lib/userSegment";
 
 import ForYouCard from "../components/ForYouCard";
 import ComebackBanner from "../components/ComebackBanner";
@@ -162,6 +163,15 @@ export default function FeedPage() {
         profile: profileData,
         posts: optimizedFeed,
         groupId,
+      });
+
+      const segment = getUserSegment(profileData);
+
+      await supabase.from("growth_events").insert({
+        user_id: user.id,
+        event_type: "user_segment",
+        source: "feed",
+        meta: segment,
       });
     }
 
