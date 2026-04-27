@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { getPersonalFeedProfile, calculatePersonalBoost } from "./personalFeed";
+import { getSessionPrefs, calculateSessionBoost } from "./sessionAI";
 
 const DEFAULT_WEIGHTS = {
   vote_weight: 1,
@@ -25,19 +26,9 @@ function clamp(value, min = 0, max = 100) {
 }
 
 export async function getOptimizerWeights() {
-  const { data, error } = await supabase
-    .from("optimizer_weights")
-    .select("key,value");
-
+  const { data, error } = await supabase.from("optimizer_weights").select("key,value");
   if (error || !data?.length) return DEFAULT_WEIGHTS;
-
-  return data.reduce(
-    (weights, row) => ({
-      ...weights,
-      [row.key]: safeNumber(row.value, DEFAULT_WEIGHTS[row.key] || 1),
-    }),
-    { ...DEFAULT_WEIGHTS }
-  );
+  return data.reduce((weights, row) => ({ ...weights, [row.key]: safeNumber(row.value, DEFAULT_WEIGHTS[row.key] || 1) }), { ...DEFAULT_WEIGHTS });
 }
 
 export function getLearningBoost(post = {}) {
@@ -53,7 +44,7 @@ export function getLearningBoost(post = {}) {
   return 1;
 }
 
-export function calculateAISignal(post) {
+export function calculateAISignal(post = {}) {
   const aiScore = safeNumber(post.ai_score, 50);
   const aiQuality = safeNumber(post.ai_quality, aiScore);
   const aiNeed = safeNumber(post.ai_need, 50);
@@ -66,22 +57,37 @@ export function calculateAISignal(post) {
   const weakPenalty = aiQuality < 35 || aiClarity < 35 ? 45 : 0;
   const riskPenalty = aiRisk >= 75 ? 180 : aiRisk >= 55 ? 90 : aiRisk * 1.8;
 
-  const aiSignal =
-    aiScore * 1.1 +
-    aiQuality * 1.35 +
-    aiNeed * 1.15 +
-    aiClarity * 0.9 +
-    highNeedBonus +
-    qualityBonus +
-    clarityBonus -
-    weakPenalty -
-    riskPenalty;
-
+  const aiSignal = aiScore * 1.1 + aiQuality * 1.35 + aiNeed * 1.15 + aiClarity * 0.9 + highNeedBonus + qualityBonus + clarityBonus - weakPenalty - riskPenalty;
   return Math.round(clamp(aiSignal, -120, 360));
+}
+
+export function calculatePrediction(post = {}, prefs = {}, context = {}) {
+  const personalBoost = calculatePersonalBoost(post, prefs, context);
+  const sessionBoost = calculateSessionBoost(post, getSessionPrefs());
+  const learningBoost = getLearningBoost(post);
+  const aiSignal = calculateAISignal(post);
+  const votes = safeNumber(post.vote_count || post.votes, 0);
+  const views = safeNumber(post.view_count || post.views, 0);
+  const conversion = votes / Math.max(1, views);
+  const alreadyVotedPenalty = context.voted?.[post.id] ? -28 : 0;
+  const botPenalty = post.is_bot ? -6 : 0;
+
+  const raw = 26 + personalBoost * 16 + sessionBoost * 16 + learningBoost * 14 + clamp(aiSignal / 7, -12, 32) + clamp(conversion * 60, 0, 18) + alreadyVotedPenalty + botPenalty;
+  const likeProbability = clamp(Math.round(raw), 3, 97);
+  const voteProbability = clamp(Math.round(raw - 14 + votes * 1.5), 1, 92);
+
+  let label = "Mahdollisesti kiinnostava";
+  if (likeProbability >= 84) label = "Todennäköisesti sinulle";
+  else if (likeProbability >= 70) label = "Sopii profiiliisi";
+  else if (sessionBoost > 1.15) label = "Session AI nostaa tätä";
+  else if (learningBoost > 1.15) label = "Trendaa omassa feedissäsi";
+
+  return { like_probability: likeProbability, vote_probability: voteProbability, label, session_boost: sessionBoost };
 }
 
 export async function calculateGrowthScore(post, context = {}) {
   const weights = context.weights || DEFAULT_WEIGHTS;
+  const prefs = context.personalPrefs || (await getPersonalFeedProfile(context.userId));
   const votes = safeNumber(post.vote_count || post.votes, 0);
   const views = safeNumber(post.view_count || post.views, 0);
   const boost = safeNumber(post.boost_score, 0);
@@ -101,22 +107,76 @@ export async function calculateGrowthScore(post, context = {}) {
   const impressionSignal = Math.min(120, views * 1.5) * safeNumber(weights.impression_weight, 1);
   const riskGatePenalty = aiRisk >= 70 ? 250 : aiRisk >= 50 ? 100 : 0;
 
-  const baseScore =
-    aiSignal +
-    voteSignal +
-    impressionSignal +
-    conversion * 170 +
-    freshness * 0.42 +
-    momentum * 150 +
-    boost +
-    explorationBoost +
-    groupBoost +
-    ownerBoost +
-    inviteBoost -
-    riskGatePenalty;
-
-  const prefs = await getPersonalFeedProfile(context.userId);
+  const baseScore = aiSignal + voteSignal + impressionSignal + conversion * 170 + freshness * 0.42 + momentum * 150 + boost + explorationBoost + groupBoost + ownerBoost + inviteBoost - riskGatePenalty;
   const personalBoost = calculatePersonalBoost(post, prefs, context);
+  const sessionBoost = calculateSessionBoost(post, getSessionPrefs());
+  const prediction = calculatePrediction(post, prefs, context);
+  const predictiveBoost = 1 + prediction.like_probability / 520;
 
-  return Math.round(baseScore * getLearningBoost(post) * personalBoost);
+  return Math.round(baseScore * getLearningBoost(post) * personalBoost * sessionBoost * predictiveBoost);
+}
+
+export function getGrowthReason(post, score, context = {}) {
+  const votes = safeNumber(post.vote_count || post.votes, 0);
+  const aiScore = safeNumber(post.ai_score, 50);
+  const aiQuality = safeNumber(post.ai_quality, aiScore);
+  const aiNeed = safeNumber(post.ai_need, 50);
+  const aiRisk = safeNumber(post.ai_risk, 0);
+  const learningBoost = getLearningBoost(post);
+
+  if (post.prediction?.like_probability >= 84) return "Todennäköisesti sinulle";
+  if (post.prediction?.session_boost >= 1.2) return "Session AI nostaa tätä";
+  if (aiRisk >= 70) return "Tarkistetaan turvallisuutta";
+  if (learningBoost >= 1.3) return "Trendaa nopeasti";
+  if (post.user_id === context.userId && score > 260) return "Oma postaus nousussa";
+  if (votes >= 10) return "Paljon ääniä";
+  if (votes >= 3) return "Momentum käynnissä";
+  if (aiNeed >= 82) return "Korkea tarvesignaali";
+  if (aiQuality >= 82) return "Vahva perustelu";
+  if (aiScore >= 80) return "Vahva AI-arvio";
+  if (context.groupId && post.group_id === context.groupId) return "Oman porukan sisältö";
+  return "Uusi kasvumahdollisuus";
+}
+
+export async function optimizeFeedForGrowth(posts = [], context = {}) {
+  const personalPrefs = context.personalPrefs || (await getPersonalFeedProfile(context.userId));
+  const enriched = await Promise.all(posts.map(async (post) => {
+    const prediction = calculatePrediction(post, personalPrefs, context);
+    const basePost = { ...post, prediction };
+    const growth_score = await calculateGrowthScore(basePost, { ...context, personalPrefs });
+    const ai_signal = calculateAISignal(post);
+    const learning_boost = getLearningBoost(post);
+
+    return { ...basePost, growth_score, ai_signal, learning_boost, growth_reason: getGrowthReason(basePost, growth_score, context) };
+  }));
+
+  const safe = enriched.filter((post) => safeNumber(post.ai_risk, 0) < 70);
+  const risky = enriched.filter((post) => safeNumber(post.ai_risk, 0) >= 70);
+  const top = [...safe].sort((a, b) => b.growth_score - a.growth_score).slice(0, 20);
+  const predicted = [...safe].filter((post) => safeNumber(post.prediction?.like_probability, 0) >= 68).sort((a, b) => b.prediction.like_probability - a.prediction.like_probability).slice(0, 8);
+  const session = [...safe].filter((post) => safeNumber(post.prediction?.session_boost, 1) > 1.1).sort((a, b) => b.prediction.session_boost - a.prediction.session_boost).slice(0, 6);
+  const trending = [...safe].filter((post) => safeNumber(post.learning_boost, 1) > 1).sort((a, b) => b.learning_boost - a.learning_boost).slice(0, 5);
+  const highNeed = [...safe].filter((post) => safeNumber(post.ai_need, 0) >= 75).sort((a, b) => b.ai_signal - a.ai_signal).slice(0, 5);
+  const fresh = [...safe].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+  const own = safe.filter((post) => post.user_id === context.userId).slice(0, 2);
+
+  const merged = [...top, ...session, ...predicted, ...trending, ...highNeed, ...fresh, ...own];
+  const unique = Array.from(new Map(merged.map((post) => [post.id, post])).values());
+  return [...unique, ...risky.slice(0, 1)].sort((a, b) => b.growth_score - a.growth_score);
+}
+
+export async function optimizeFeedForGrowthAsync(posts = [], context = {}) {
+  const weights = await getOptimizerWeights();
+  const personalPrefs = await getPersonalFeedProfile(context.userId);
+  return optimizeFeedForGrowth(posts, { ...context, weights, personalPrefs });
+}
+
+export async function trackGrowthImpression({ userId, postId, reason, score, prediction }) {
+  if (!postId) return;
+  await supabase.from("growth_events").insert({ user_id: userId || null, event_type: "growth_impression", source: "ai_growth_optimizer", points: 1, meta: { post_id: postId, reason, score, prediction } });
+}
+
+export async function trackTopGrowthImpressions(userId, posts = []) {
+  const top = posts.slice(0, 5);
+  await Promise.all(top.map((post) => trackGrowthImpression({ userId, postId: post.id, reason: post.growth_reason, score: post.growth_score, prediction: post.prediction })));
 }
