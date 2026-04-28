@@ -16,6 +16,7 @@ export default function ForYouCard({
   rankInfo,
 }) {
   const [showHeart, setShowHeart] = useState(false);
+  const [showXP, setShowXP] = useState(false);
   const [boosting, setBoosting] = useState(false);
   const [boostMsg, setBoostMsg] = useState(null);
 
@@ -23,6 +24,7 @@ export default function ForYouCard({
   const boostSignal = getBoostSignal(post);
   const winHint = getWinHint(rankInfo);
   const socialProof = getSocialProof(post);
+  const isTopRank = rankInfo?.rank && rankInfo.rank <= 3;
 
   useEffect(() => {
     increaseView(post.id);
@@ -50,7 +52,8 @@ export default function ForYouCard({
     if (voted) return;
 
     setShowHeart(true);
-    navigator.vibrate?.(45);
+    setShowXP(true);
+    navigator.vibrate?.([20, 40, 20]);
     trackSessionEvent(post, "vote");
 
     await trackEvent({
@@ -63,6 +66,7 @@ export default function ForYouCard({
     await onVote(post);
 
     setTimeout(() => setShowHeart(false), 800);
+    setTimeout(() => setShowXP(false), 900);
   }
 
   async function handleBoost() {
@@ -94,10 +98,26 @@ export default function ForYouCard({
   }
 
   return (
-    <article className="relative min-h-[72vh] snap-start overflow-hidden rounded-[38px] border border-white/10 bg-white/10 p-5 shadow-2xl backdrop-blur-xl">
+    <article className={`relative min-h-[72vh] snap-start overflow-hidden rounded-[38px] bg-white/10 p-5 shadow-2xl backdrop-blur-xl ${
+      isTopRank
+        ? "border-2 border-yellow-300 shadow-[0_0_35px_rgba(250,204,21,0.35)]"
+        : "border border-white/10"
+    }`}>
       {showHeart && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2 animate-ping text-8xl">
           💗
+        </div>
+      )}
+
+      {showXP && (
+        <div className="pointer-events-none absolute right-8 top-24 z-30 animate-bounce rounded-full border border-cyan-300/30 bg-cyan-500/20 px-4 py-2 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">
+          +5 XP
+        </div>
+      )}
+
+      {isTopRank && (
+        <div className="pointer-events-none absolute right-5 top-5 z-20 rounded-full border border-yellow-300/30 bg-yellow-400/20 px-3 py-1 text-xs font-black text-yellow-100 backdrop-blur-xl">
+          🔥 TOP {rankInfo.rank}
         </div>
       )}
 
@@ -139,11 +159,11 @@ export default function ForYouCard({
           )}
 
           <div className="mt-5 grid grid-cols-3 gap-3">
-            <button onClick={handleVote} disabled={voted} className={`rounded-3xl px-4 py-4 text-lg font-black ${voted ? "bg-white/15 text-white/50" : "bg-pink-500 text-white"}`}>
+            <button onClick={handleVote} disabled={voted} className={`relative rounded-3xl px-4 py-4 text-lg font-black ${voted ? "bg-white/15 text-white/50" : "bg-pink-500 text-white shadow-xl shadow-pink-500/25"}`}>
               💗
             </button>
 
-            <button onClick={handleBoost} disabled={boosting} className="rounded-3xl bg-yellow-400 px-4 py-4 text-lg font-black text-black">
+            <button onClick={handleBoost} disabled={boosting} className="rounded-3xl bg-yellow-400 px-4 py-4 text-lg font-black text-black shadow-xl shadow-yellow-400/20">
               ⚡
             </button>
 
