@@ -76,7 +76,7 @@ function PotHero({ livePot, likeXp }) {
   );
 }
 
-function PostCard({ post, index, voted, onVote, likeXp, active }) {
+function PostCard({ post, index, voted, onVote, likeXp, active, dragging }) {
   const safePost = normalizePost(post);
   if (!safePost) return null;
   const votes = Number(safePost.vote_count || safePost.votes || 0);
@@ -85,7 +85,7 @@ function PostCard({ post, index, voted, onVote, likeXp, active }) {
   const top = index === 0;
 
   return (
-    <article className={`relative w-full overflow-hidden rounded-[36px] border p-[2px] shadow-2xl transition-all duration-300 ${active ? "scale-100 opacity-100" : "scale-[0.965] opacity-70"} ${top ? "border-yellow-300/60 bg-gradient-to-br from-yellow-300 via-pink-500 to-cyan-300" : "border-cyan-300/25 bg-gradient-to-br from-cyan-300/40 via-white/10 to-pink-400/30"}`}>
+    <article className={`relative w-full overflow-hidden rounded-[36px] border p-[2px] shadow-2xl transition-all duration-300 ${active ? "scale-100 opacity-100" : "scale-[0.965] opacity-70"} ${dragging && active ? "scale-[0.985]" : ""} ${top ? "border-yellow-300/60 bg-gradient-to-br from-yellow-300 via-pink-500 to-cyan-300" : "border-cyan-300/25 bg-gradient-to-br from-cyan-300/40 via-white/10 to-pink-400/30"}`}>
       <div className="absolute inset-0 opacity-25 blur-3xl bg-[radial-gradient(circle_at_top_left,#22d3ee,transparent_35%),radial-gradient(circle_at_bottom_right,#ec4899,transparent_35%)]" />
       <div className="relative max-h-[calc(100dvh-145px)] overflow-y-auto rounded-[34px] bg-[#111827]/95 p-5 backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex items-start justify-between gap-3">
@@ -135,6 +135,7 @@ function PostCard({ post, index, voted, onVote, likeXp, active }) {
 export default function FeedPageStable() {
   const scrollerRef = useRef(null);
   const lastScrollTopRef = useRef(0);
+  const touchRef = useRef({ startY: 0, lastY: 0, startTime: 0 });
   const [posts, setPosts] = useState([]);
   const [user, setUser] = useState(null);
   const [voted, setVoted] = useState({});
@@ -142,6 +143,8 @@ export default function FeedPageStable() {
   const [toast, setToast] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [uiHidden, setUiHidden] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [pulse, setPulse] = useState(0);
 
   const safePosts = useMemo(() => {
     const real = sanitizePosts(posts);
@@ -184,7 +187,10 @@ export default function FeedPageStable() {
       if (delta < -12 || root.scrollTop < 40) setUiHidden(false);
       lastScrollTopRef.current = Math.max(0, root.scrollTop);
       setActiveIndex((prev) => {
-        if (prev !== next) navigator.vibrate?.(10);
+        if (prev !== next) {
+          navigator.vibrate?.(10);
+          setPulse((value) => value + 1);
+        }
         return next;
       });
       ticking = false;
@@ -202,9 +208,45 @@ export default function FeedPageStable() {
     return () => root.removeEventListener("scroll", onScroll);
   }, [safePosts.length]);
 
-  function jumpTo(index) {
+  function jumpTo(index, smooth = true) {
     const card = scrollerRef.current?.querySelector(`[data-feed-card-index="${index}"]`);
-    card?.scrollIntoView({ behavior: "smooth", block: "start" });
+    card?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  }
+
+  function handleTouchStart(event) {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touchRef.current = { startY: touch.clientY, lastY: touch.clientY, startTime: Date.now() };
+    setDragging(true);
+    setUiHidden(true);
+  }
+
+  function handleTouchMove(event) {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touchRef.current.lastY = touch.clientY;
+  }
+
+  function handleTouchEnd() {
+    const { startY, lastY, startTime } = touchRef.current;
+    const dy = startY - lastY;
+    const dt = Math.max(1, Date.now() - startTime);
+    const velocity = Math.abs(dy) / dt;
+    const shouldSnap = Math.abs(dy) > 70 || velocity > 0.45;
+    const direction = dy > 0 ? 1 : -1;
+    const skip = velocity > 1.05 && Math.abs(dy) > 130 ? 2 : 1;
+    const maxIndex = safePosts.length;
+
+    setDragging(false);
+
+    if (shouldSnap) {
+      const target = Math.max(0, Math.min(activeIndex + direction * skip, maxIndex));
+      navigator.vibrate?.(skip === 2 ? [8, 18, 8, 18] : [8, 20, 8]);
+      jumpTo(target);
+    } else {
+      navigator.vibrate?.(6);
+      jumpTo(activeIndex);
+    }
   }
 
   async function loadFeed() {
@@ -258,6 +300,7 @@ export default function FeedPageStable() {
       setTimeout(() => setToast(""), 1800);
       return;
     }
+    navigator.vibrate?.([20, 40, 20]);
     setToast(`🔥 Ääni annettu. +${likeXp.xp} XP`);
     setTimeout(() => setToast(""), 2200);
     await loadFeed();
@@ -267,10 +310,11 @@ export default function FeedPageStable() {
     <div className="h-[100dvh] overflow-hidden bg-[#050816] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#12306e_0%,#050816_44%,#02030a_100%)]" />
       {toast && <div className="fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">{toast}</div>}
+      {pulse > 0 && <div key={pulse} className="pointer-events-none fixed inset-x-0 top-1/2 z-[60] mx-auto h-24 max-w-md -translate-y-1/2 rounded-full bg-cyan-300/10 blur-2xl animate-ping" />}
 
-      <header className={`fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#050816]/80 px-4 py-4 shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ${uiHidden ? "-translate-y-full" : "translate-y-0"}`}>
+      <header className={`fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#050816]/80 px-4 py-4 shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ${uiHidden || dragging ? "-translate-y-full" : "translate-y-0"}`}>
         <div className="mx-auto flex max-w-md items-center justify-between">
-          <div><h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase tracking-wide text-white/50">TikTok full screen feed</p></div>
+          <div><h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase tracking-wide text-white/50">Inertia + haptics feed</p></div>
           <Link to="/new" className="rounded-[24px] bg-cyan-500 px-5 py-4 text-sm font-black shadow-2xl shadow-cyan-500/25">Uusi</Link>
         </div>
       </header>
@@ -281,14 +325,20 @@ export default function FeedPageStable() {
         ))}
       </div>
 
-      <main ref={scrollerRef} className="h-[100dvh] snap-y snap-mandatory overflow-y-scroll scroll-smooth px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <main
+        ref={scrollerRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={`h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain scroll-smooth px-4 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+      >
         <section data-feed-card data-feed-card-index="0" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center pt-24">
           <div className="w-full space-y-5">
             <PotHero livePot={livePot} likeXp={likeXp} />
             <div className="rounded-[34px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-xl">
               <p className="text-xs font-black uppercase text-cyan-200">Swipe alas</p>
               <h2 className="mt-2 text-4xl font-black leading-tight">Yksi perustelu kerrallaan</h2>
-              <p className="mt-3 text-sm font-bold leading-relaxed text-white/60">Feed näyttää parhaat perustelut engine-scorella. Tykkää harkiten, strong liket ovat rajallisia.</p>
+              <p className="mt-3 text-sm font-bold leading-relaxed text-white/60">Nopea swipe hyppää pidemmälle. Kevyt swipe palauttaa kortin kohdalleen.</p>
             </div>
           </div>
         </section>
@@ -302,12 +352,12 @@ export default function FeedPageStable() {
           </section>
         ) : safePosts.map((post, index) => (
           <section key={post.id || index} data-feed-card data-feed-card-index={index + 1} className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5">
-            <PostCard post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} likeXp={likeXp} active={activeIndex === index + 1} />
+            <PostCard post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} likeXp={likeXp} active={activeIndex === index + 1} dragging={dragging} />
           </section>
         ))}
       </main>
 
-      <BottomNav hidden={uiHidden} />
+      <BottomNav hidden={uiHidden || dragging} />
     </div>
   );
 }
