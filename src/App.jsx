@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -17,6 +18,14 @@ import Navbar from "./components/Navbar";
 
 function AppShell() {
   const location = useLocation();
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) localStorage.setItem("kolehti_ref", ref);
+    } catch {}
+  }, [location.search]);
 
   const hideNavbar =
     location.pathname === "/" ||
