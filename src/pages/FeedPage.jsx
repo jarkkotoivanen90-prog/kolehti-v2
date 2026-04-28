@@ -21,7 +21,7 @@ import { optimizeFeedForGrowthAsync, trackTopGrowthImpressions } from "../lib/ai
 import { getUserSegment } from "../lib/userSegment";
 import { sendSegmentMessage } from "../lib/segmentMessages";
 
-const FEED_VERSION = "TIKTOK FEED ENGINE 2026-04-28";
+const FEED_VERSION = "SWIPE PHYSICS 2026-04-28";
 
 const starterPosts = [
   { id: "starter-1", content: "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu. Siksi tämän pelin pitäisi nostaa esiin ne perustelut, jotka koskettavat aidosti.", user_id: "starter-ai", group_id: null, votes: 12, vote_count: 12, growth_score: 92, boost_score: 18, ai_score: 91, is_starter: true, created_at: new Date(Date.now() - 1000 * 60 * 8).toISOString() },
@@ -42,10 +42,7 @@ function BottomNav({ hidden }) {
       <div className="grid grid-cols-5 items-end text-center text-xs font-black">
         <Link to="/">🏠<div>Koti</div></Link>
         <Link to="/feed" className="text-cyan-300">🔥<div>Feed</div></Link>
-        <Link to="/new" className="-mt-8">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">+</div>
-          <div>Uusi</div>
-        </Link>
+        <Link to="/new" className="-mt-8"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">+</div><div>Uusi</div></Link>
         <Link to="/pots">🏆<div>Potit</div></Link>
         <Link to="/profile">👤<div>Profiili</div></Link>
       </div>
@@ -56,12 +53,8 @@ function BottomNav({ hidden }) {
 function FloatingActions({ hidden, onInvite }) {
   return (
     <div className={`fixed right-3 top-[38%] z-50 flex flex-col gap-3 transition-all duration-300 ease-out ${hidden ? "translate-x-[125%] opacity-0" : "translate-x-0 opacity-100"}`}>
-      <button onClick={onInvite} className="grid h-14 w-14 place-items-center rounded-2xl border border-green-300/30 bg-green-500 text-xl font-black text-white shadow-2xl shadow-green-500/25" aria-label="Kutsu ja boostaa">
-        🚀
-      </button>
-      <Link to="/new" className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-500 text-3xl font-black text-white shadow-2xl shadow-cyan-500/25" aria-label="Luo uusi">
-        +
-      </Link>
+      <button onClick={onInvite} className="grid h-14 w-14 place-items-center rounded-2xl border border-green-300/30 bg-green-500 text-xl font-black text-white shadow-2xl shadow-green-500/25 active:scale-95" aria-label="Kutsu ja boostaa">🚀</button>
+      <Link to="/new" className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-500 text-3xl font-black text-white shadow-2xl shadow-cyan-500/25 active:scale-95" aria-label="Luo uusi">+</Link>
     </div>
   );
 }
@@ -69,17 +62,12 @@ function FloatingActions({ hidden, onInvite }) {
 function MiniLeaderboard({ posts }) {
   const topPosts = posts.filter((p) => !p.is_starter).slice(0, 3);
   if (!topPosts.length) return null;
-
   return (
     <section className="rounded-[26px] border border-yellow-300/20 bg-yellow-400/10 px-4 py-3 shadow-xl backdrop-blur-xl">
       <div className="mb-2 text-xs font-black uppercase tracking-wide text-yellow-200">🏆 TOP 3 nyt</div>
       <div className="space-y-2">
         {topPosts.map((post, index) => (
-          <div key={post.id} className="flex items-center justify-between gap-2 text-xs font-black text-white/75">
-            <span className="text-yellow-200">#{index + 1}</span>
-            <span className="min-w-0 flex-1 truncate">{post.content}</span>
-            <span>{post.vote_count || post.votes || 0} 💗</span>
-          </div>
+          <div key={post.id} className="flex items-center justify-between gap-2 text-xs font-black text-white/75"><span className="text-yellow-200">#{index + 1}</span><span className="min-w-0 flex-1 truncate">{post.content}</span><span>{post.vote_count || post.votes || 0} 💗</span></div>
         ))}
       </div>
     </section>
@@ -88,7 +76,6 @@ function MiniLeaderboard({ posts }) {
 
 function FeedProgress({ activeIndex, total, onJump, hidden }) {
   if (!total) return null;
-
   return (
     <div className={`fixed right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2 transition-all duration-300 ${hidden ? "translate-x-[120%] opacity-0" : "opacity-100"}`}>
       {Array.from({ length: Math.min(total, 8) }).map((_, i) => (
@@ -102,6 +89,7 @@ export default function FeedPage() {
   const scrollerRef = useRef(null);
   const activeStartedAtRef = useRef(Date.now());
   const activeTrackedRef = useRef({});
+  const touchRef = useRef({ startY: 0, lastY: 0, startTime: 0, dragging: false });
 
   const [posts, setPosts] = useState([]);
   const [voted, setVoted] = useState({});
@@ -115,27 +103,26 @@ export default function FeedPage() {
   const [toast, setToast] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const [feedHeaderHidden, setFeedHeaderHidden] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [swipePulse, setSwipePulse] = useState(0);
 
-  const uiHidden = feedHeaderHidden;
+  const uiHidden = feedHeaderHidden || dragging;
   const topRealPosts = useMemo(() => posts.filter((p) => !p.is_starter), [posts]);
 
   useEffect(() => {
     loadFeed();
-
     const channel = supabase
       .channel("kolehti-tiktok-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "boost_events" }, loadFeed)
       .subscribe();
-
     return () => supabase.removeChannel(channel);
   }, []);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
-
     let lastTop = scroller.scrollTop;
     let ticking = false;
 
@@ -144,14 +131,10 @@ export default function FeedPage() {
       const viewportMiddle = scroller.scrollTop + scroller.clientHeight / 2;
       let nextIndex = activeIndex;
       let bestDistance = Number.POSITIVE_INFINITY;
-
       cards.forEach((card, index) => {
         const cardMiddle = card.offsetTop + card.offsetHeight / 2;
         const distance = Math.abs(cardMiddle - viewportMiddle);
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          nextIndex = index;
-        }
+        if (distance < bestDistance) { bestDistance = distance; nextIndex = index; }
       });
 
       const delta = scroller.scrollTop - lastTop;
@@ -161,30 +144,22 @@ export default function FeedPage() {
 
       setActiveIndex((prev) => {
         if (prev !== nextIndex) {
+          navigator.vibrate?.(12);
+          setSwipePulse((v) => v + 1);
           activeStartedAtRef.current = Date.now();
           const activePost = posts[nextIndex];
           if (activePost && !activePost.is_starter && !activeTrackedRef.current[activePost.id]) {
             activeTrackedRef.current[activePost.id] = true;
-            safeCall(() => supabase.from("user_events").insert({
-              user_id: user?.id || null,
-              post_id: activePost.id,
-              event_type: "tiktok_card_focus",
-              source: "feed",
-              meta: { index: nextIndex, engine: FEED_VERSION },
-            }));
+            safeCall(() => supabase.from("user_events").insert({ user_id: user?.id || null, post_id: activePost.id, event_type: "tiktok_card_focus", source: "feed", meta: { index: nextIndex, engine: FEED_VERSION } }));
           }
         }
         return nextIndex;
       });
-
       ticking = false;
     }
 
     function onScroll() {
-      if (!ticking) {
-        window.requestAnimationFrame(updateActiveCard);
-        ticking = true;
-      }
+      if (!ticking) { window.requestAnimationFrame(updateActiveCard); ticking = true; }
     }
 
     scroller.addEventListener("scroll", onScroll, { passive: true });
@@ -195,17 +170,9 @@ export default function FeedPage() {
   useEffect(() => {
     const activePost = posts[activeIndex];
     if (!activePost || activePost.is_starter) return;
-
     const timer = setTimeout(() => {
-      safeCall(() => supabase.from("user_events").insert({
-        user_id: user?.id || null,
-        post_id: activePost.id,
-        event_type: "tiktok_deep_watch",
-        source: "feed",
-        meta: { duration_ms: Date.now() - activeStartedAtRef.current, index: activeIndex },
-      }));
+      safeCall(() => supabase.from("user_events").insert({ user_id: user?.id || null, post_id: activePost.id, event_type: "tiktok_deep_watch", source: "feed", meta: { duration_ms: Date.now() - activeStartedAtRef.current, index: activeIndex } }));
     }, 3200);
-
     return () => clearTimeout(timer);
   }, [activeIndex, posts, user?.id]);
 
@@ -213,19 +180,51 @@ export default function FeedPage() {
     try { return await fn(); } catch (error) { console.warn("Engine safe fallback:", error); return fallback; }
   }
 
-  function jumpToCard(index) {
+  function snapToCard(index, smooth = true) {
     const scroller = scrollerRef.current;
-    const card = scroller?.querySelector(`[data-feed-card-index="${index}"]`);
-    card?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const safeIndex = Math.max(0, Math.min(index, posts.length - 1));
+    const card = scroller?.querySelector(`[data-feed-card-index="${safeIndex}"]`);
+    card?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  }
+
+  function jumpToCard(index) {
+    navigator.vibrate?.(10);
+    snapToCard(index);
+  }
+
+  function handleTouchStart(event) {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touchRef.current = { startY: touch.clientY, lastY: touch.clientY, startTime: Date.now(), dragging: true };
+    setDragging(true);
+  }
+
+  function handleTouchMove(event) {
+    const touch = event.touches?.[0];
+    if (!touch) return;
+    touchRef.current.lastY = touch.clientY;
+  }
+
+  function handleTouchEnd() {
+    const { startY, lastY, startTime } = touchRef.current;
+    const dy = startY - lastY;
+    const dt = Math.max(1, Date.now() - startTime);
+    const velocity = Math.abs(dy) / dt;
+    const shouldSnap = Math.abs(dy) > 70 || velocity > 0.45;
+
+    setDragging(false);
+    if (shouldSnap) {
+      const direction = dy > 0 ? 1 : -1;
+      navigator.vibrate?.([8, 20, 8]);
+      snapToCard(activeIndex + direction);
+    } else {
+      snapToCard(activeIndex);
+    }
+    touchRef.current.dragging = false;
   }
 
   async function handleInvite() {
-    if (!user?.id) {
-      setToast("Kirjaudu sisään ja saat oman kutsulinkin.");
-      setTimeout(() => setToast(""), 1800);
-      return;
-    }
-
+    if (!user?.id) { setToast("Kirjaudu sisään ja saat oman kutsulinkin."); setTimeout(() => setToast(""), 1800); return; }
     const link = getReferralLink(user.id);
     await navigator.clipboard.writeText(link);
     await safeCall(() => supabase.from("user_events").insert({ user_id: user.id, event_type: "invite_link_copied", source: "feed", meta: { link_copied: true } }));
@@ -238,7 +237,6 @@ export default function FeedPage() {
     setLoading(true);
     await safeCall(() => cleanupExpiredBoostEvents());
     await safeCall(() => createRandomBoostEvent());
-
     const { data: authData } = await supabase.auth.getUser();
     const currentUser = authData?.user || null;
     setUser(currentUser);
@@ -257,20 +255,13 @@ export default function FeedPage() {
     let postsQuery = supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(120);
     let votesQuery = supabase.from("votes").select("post_id,user_id,value,group_id");
     let eventsQuery = supabase.from("user_events").select("*").limit(300);
-
     if (groupId) { postsQuery = postsQuery.eq("group_id", groupId); votesQuery = votesQuery.eq("group_id", groupId); }
     if (currentUser) eventsQuery = eventsQuery.eq("user_id", currentUser.id);
 
     const { data: postsData, error: postsError } = await postsQuery;
     const { data: votesData, error: votesError } = await votesQuery;
     const { data: eventsData } = await eventsQuery;
-
-    if (postsError || votesError) {
-      setToast(postsError?.message || votesError?.message || "Feedin lataus epäonnistui");
-      setPosts(buildAlwaysAliveFeed([]));
-      setLoading(false);
-      return;
-    }
+    if (postsError || votesError) { setToast(postsError?.message || votesError?.message || "Feedin lataus epäonnistui"); setPosts(buildAlwaysAliveFeed([])); setLoading(false); return; }
 
     const voteCounts = {};
     const votedMap = {};
@@ -296,25 +287,20 @@ export default function FeedPage() {
     }
 
     optimizedFeed = buildAlwaysAliveFeed(optimizedFeed);
-
     if (currentUser) {
       await safeCall(() => trackTopGrowthImpressions(currentUser.id, optimizedFeed.filter((p) => !p.is_starter)));
       await safeCall(() => runViralLoopV3({ userId: currentUser.id, posts: optimizedFeed.filter((p) => !p.is_starter), profile: profileData }));
     }
-
     for (let i = 0; i < optimizedFeed.length; i++) {
       if (!optimizedFeed[i].is_starter) {
         await safeCall(() => updatePostRankStats(optimizedFeed[i], i + 1));
         if (currentUser && i < 3) await safeCall(() => rewardTopRank(currentUser.id, i + 1));
       }
     }
-
     setBoostEvent(await safeCall(() => getActiveBoostEvent(), null));
     setDailyWinner(await safeCall(() => getTodayWinner(), null));
-
     const { data: latestWinner } = currentUser ? await supabase.from("competition_winners").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(1).maybeSingle() : { data: null };
     if (latestWinner) setWinnerPopup(latestWinner);
-
     setPosts(optimizedFeed);
     setVoted(votedMap);
     setLoading(false);
@@ -324,14 +310,11 @@ export default function FeedPage() {
     if (post.is_starter) { setToast("✨ Malliperustelu. Luo oma ja kilpaile oikeasti."); setTimeout(() => setToast(""), 1800); return; }
     if (!user) { setToast("Kirjaudu ensin sisään."); setTimeout(() => setToast(""), 1600); return; }
     if (voted[post.id]) { setToast("Olet jo äänestänyt tämän."); setTimeout(() => setToast(""), 1600); return; }
-
     const { error } = await supabase.from("votes").insert({ post_id: post.id, user_id: user.id, group_id: post.group_id || null, value: 1 });
     if (error) { setToast(error.message || "Äänestys epäonnistui"); setTimeout(() => setToast(""), 1800); return; }
-
     await safeCall(() => rewardVote(user.id));
     await safeCall(() => notifyAlmostWin({ userId: post.user_id, post }));
     await safeCall(() => supabase.from("user_events").insert({ user_id: user.id, post_id: post.id, event_type: "vote_growth_trigger", source: "feed", meta: { boost_signal: true } }));
-
     navigator.vibrate?.([20, 40, 20]);
     setToast("🔥 Ääni annettu! +5 XP");
     setTimeout(() => setToast("🚀 Näkyvyys nousussa"), 1100);
@@ -343,50 +326,43 @@ export default function FeedPage() {
   return (
     <div className="h-[100dvh] overflow-hidden bg-[#050816] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#12306e_0%,#050816_42%,#02030a_100%)]" />
-
       {toast && <div className="fixed left-1/2 top-5 z-[999] -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">{toast}</div>}
       {winnerPopup && <WinnerHypeModal winner={winnerPopup} onClose={() => setWinnerPopup(null)} />}
+      {swipePulse > 0 && <div key={swipePulse} className="pointer-events-none fixed inset-x-0 top-1/2 z-[60] mx-auto h-20 max-w-md -translate-y-1/2 rounded-full bg-cyan-300/10 blur-2xl animate-ping" />}
 
       <header className={`fixed left-0 right-0 top-[60px] z-40 border-b border-white/10 bg-[#050816]/85 px-4 py-3 shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ${uiHidden ? "-translate-y-[108%]" : "translate-y-0"}`}>
-        <div className="mx-auto max-w-md">
-          <h1 className="text-3xl font-black tracking-tight">KOLEHTI</h1>
-          <p className="text-[10px] font-black uppercase text-white/50">{FEED_VERSION}</p>
-        </div>
+        <div className="mx-auto max-w-md"><h1 className="text-3xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase text-white/50">{FEED_VERSION}</p></div>
       </header>
 
       <FloatingActions hidden={uiHidden} onInvite={handleInvite} />
       <FeedProgress activeIndex={activeIndex} total={posts.length} onJump={jumpToCard} hidden={uiHidden} />
 
-      <main ref={scrollerRef} id="feed-scroll-root" className="h-[100dvh] snap-y snap-mandatory overflow-y-scroll scroll-smooth px-4 pb-10 pt-28 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <main
+        ref={scrollerRef}
+        id="feed-scroll-root"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        className={`h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain scroll-smooth px-4 pb-10 pt-28 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+      >
         <div className="mx-auto max-w-md snap-start space-y-4 pb-6 pt-10">
           {segmentMessage && <section className="rounded-[26px] border border-cyan-300/20 bg-cyan-500/10 px-5 py-4 text-sm font-black leading-snug text-cyan-50 shadow-xl">{segmentMessage}</section>}
           {dailyWinner && <DailyWinnerBanner winner={dailyWinner} />}
           {boostEvent && <BoostEventBanner event={boostEvent} />}
           <MiniLeaderboard posts={topRealPosts} />
-          <section className="rounded-[30px] border border-yellow-300/30 bg-black/30 p-[2px] shadow-2xl">
-            <div className="rounded-[28px] bg-[#050816] px-5 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <div><p className="text-xs font-black uppercase tracking-wide text-yellow-200">🔥 Päivän kierros</p><p className="mt-1 text-3xl font-black">Potti auki</p></div>
-                <Link to="/pots" className="rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-black">Tilanne</Link>
-              </div>
-            </div>
-          </section>
+          <section className="rounded-[30px] border border-yellow-300/30 bg-black/30 p-[2px] shadow-2xl"><div className="rounded-[28px] bg-[#050816] px-5 py-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-yellow-200">🔥 Päivän kierros</p><p className="mt-1 text-3xl font-black">Potti auki</p></div><Link to="/pots" className="rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-black">Tilanne</Link></div></div></section>
         </div>
 
         {loading ? (
-          <section className="mx-auto max-w-md snap-start rounded-[34px] border border-white/10 bg-white/10 p-6 text-center shadow-2xl backdrop-blur-xl">
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" />
-            <p className="font-black text-white/70">AI järjestää feediä...</p>
-          </section>
+          <section className="mx-auto max-w-md snap-start rounded-[34px] border border-white/10 bg-white/10 p-6 text-center shadow-2xl backdrop-blur-xl"><div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" /><p className="font-black text-white/70">AI järjestää feediä...</p></section>
         ) : (
           posts.map((post, index) => (
-            <div key={post.id} data-feed-card data-feed-card-index={index} className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5">
+            <div key={post.id} data-feed-card data-feed-card-index={index} className={`mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5 transition-all duration-300 ease-out ${activeIndex === index ? "scale-100 opacity-100" : "scale-[0.965] opacity-60"}`}>
               <ForYouCard post={post} index={index} user={user} voted={voted[post.id]} rankInfo={calculateRankInfo(posts, post.id)} onVote={vote} />
             </div>
           ))
         )}
       </main>
-
       <BottomNav hidden={uiHidden} />
     </div>
   );
