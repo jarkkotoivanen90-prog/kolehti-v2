@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import ForYouCard from "../components/ForYouCard";
 import { calculateLivePot, calculateInteractionXp, rankKolehtiFeed } from "../lib/kolehtiEngine";
 
 function normalizePost(post, voteCount = 0) {
@@ -56,6 +55,51 @@ function BottomNav() {
   );
 }
 
+function PostCard({ post, index, voted, onVote }) {
+  const safePost = normalizePost(post);
+  if (!safePost) return null;
+  const votes = Number(safePost.vote_count || safePost.votes || 0);
+  const score = Number(safePost.kolehti_score || safePost.ai_score || 0);
+
+  return (
+    <article className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl backdrop-blur-xl">
+      <div className="flex items-start justify-between gap-3">
+        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-cyan-500/20 text-xl font-black text-cyan-200">
+          {index + 1}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Perustelu</p>
+          <p className="mt-2 whitespace-pre-wrap break-words text-lg font-black leading-snug text-white">{safePost.content}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-black">
+        <div className="rounded-2xl bg-black/25 p-3">
+          <div className="text-white/45">Äänet</div>
+          <div className="mt-1 text-xl text-white">{votes}</div>
+        </div>
+        <div className="rounded-2xl bg-black/25 p-3">
+          <div className="text-white/45">Score</div>
+          <div className="mt-1 text-xl text-cyan-200">{Math.round(score)}</div>
+        </div>
+        <div className="rounded-2xl bg-black/25 p-3">
+          <div className="text-white/45">Tila</div>
+          <div className="mt-1 text-xl">{safePost.is_starter ? "AI" : "Live"}</div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onVote(safePost)}
+        disabled={Boolean(voted) || Boolean(safePost.is_starter)}
+        className="mt-5 w-full rounded-2xl bg-cyan-500 px-5 py-4 text-lg font-black text-white shadow-xl shadow-cyan-500/20 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
+      >
+        {safePost.is_starter ? "Luo oma perustelu" : voted ? "Äänestetty" : "Tykkää + XP"}
+      </button>
+    </article>
+  );
+}
+
 export default function FeedPageStable() {
   const [posts, setPosts] = useState([]);
   const [user, setUser] = useState(null);
@@ -75,7 +119,7 @@ export default function FeedPageStable() {
   useEffect(() => {
     loadFeed();
     const channel = supabase
-      .channel("safe-feed")
+      .channel("safe-feed-no-card")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
       .subscribe();
@@ -161,9 +205,7 @@ export default function FeedPageStable() {
           <p className="mt-1 text-xs font-bold text-cyan-200">Strong liket: {likeXp.strongLikesLeft}</p>
         </section>
         {loading ? <p className="rounded-3xl bg-white/10 p-5 font-black">Feed latautuu...</p> : safePosts.map((post, index) => (
-          <section key={post.id || index} className="rounded-3xl border border-white/10 bg-white/5 p-2">
-            <ForYouCard post={post} index={index} user={user} voted={Boolean(voted[post.id])} rankInfo={{ rank: index + 1, total: safePosts.length }} onVote={vote} />
-          </section>
+          <PostCard key={post.id || index} post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} />
         ))}
       </main>
       <BottomNav />
