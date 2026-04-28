@@ -20,7 +20,69 @@ import { optimizeFeedForGrowthAsync, trackTopGrowthImpressions } from "../lib/ai
 import { getUserSegment } from "../lib/userSegment";
 import { sendSegmentMessage } from "../lib/segmentMessages";
 
-const FEED_VERSION = "FEED ENGINE RESTORED 2026-04-28";
+const FEED_VERSION = "FEED ALWAYS ALIVE 2026-04-28";
+
+const starterPosts = [
+  {
+    id: "starter-1",
+    content: "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu. Siksi tämän pelin pitäisi nostaa esiin ne perustelut, jotka koskettavat aidosti.",
+    user_id: "starter-ai",
+    group_id: null,
+    votes: 12,
+    vote_count: 12,
+    growth_score: 92,
+    boost_score: 18,
+    ai_score: 91,
+    is_starter: true,
+    created_at: new Date(Date.now() - 1000 * 60 * 8).toISOString(),
+  },
+  {
+    id: "starter-2",
+    content: "Hyvä perustelu ei ole pisin teksti. Se on sellainen, jonka jälkeen toinen pelaaja ajattelee: tämän minä ymmärrän ja tätä haluan tukea.",
+    user_id: "starter-ai",
+    group_id: null,
+    votes: 9,
+    vote_count: 9,
+    growth_score: 84,
+    boost_score: 10,
+    ai_score: 86,
+    is_starter: true,
+    created_at: new Date(Date.now() - 1000 * 60 * 24).toISOString(),
+  },
+  {
+    id: "starter-3",
+    content: "Porukan voima syntyy siitä, että ääni ei mene vain äänekkäimmälle vaan sille, joka saa muut mukaan. Siksi jokainen perustelu voi muuttaa pelin suunnan.",
+    user_id: "starter-ai",
+    group_id: null,
+    votes: 7,
+    vote_count: 7,
+    growth_score: 76,
+    boost_score: 8,
+    ai_score: 79,
+    is_starter: true,
+    created_at: new Date(Date.now() - 1000 * 60 * 47).toISOString(),
+  },
+  {
+    id: "starter-4",
+    content: "Tänään voittaja voi olla kuka tahansa. Yksi selkeä ajatus, yksi hyvä perustelu ja muutama ääni voi nostaa uuden nimen kärkeen.",
+    user_id: "starter-ai",
+    group_id: null,
+    votes: 5,
+    vote_count: 5,
+    growth_score: 70,
+    boost_score: 6,
+    ai_score: 75,
+    is_starter: true,
+    created_at: new Date(Date.now() - 1000 * 60 * 64).toISOString(),
+  },
+];
+
+function buildAlwaysAliveFeed(realPosts) {
+  const real = Array.isArray(realPosts) ? realPosts : [];
+  const needed = Math.max(0, 6 - real.length);
+  const fillers = starterPosts.slice(0, needed);
+  return [...real, ...fillers];
+}
 
 function BottomNav() {
   return (
@@ -36,22 +98,6 @@ function BottomNav() {
         <Link to="/profile">👤<div>Profiili</div></Link>
       </div>
     </nav>
-  );
-}
-
-function EmptyFeed() {
-  return (
-    <section className="rounded-[34px] border border-white/10 bg-white/10 p-6 text-center shadow-2xl backdrop-blur-xl">
-      <div className="text-6xl">✨</div>
-      <h2 className="mt-4 text-3xl font-black leading-tight">Ei vielä perusteluja</h2>
-      <p className="mt-3 text-sm font-bold leading-snug text-white/60">
-        Luo ensimmäinen perustelu ja käynnistä kilpailu. Feed päivittyy heti kun postauksia löytyy.
-      </p>
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <Link to="/new" className="rounded-3xl bg-cyan-500 px-5 py-4 text-lg font-black shadow-xl shadow-cyan-500/25">Luo uusi</Link>
-        <Link to="/pots" className="rounded-3xl border border-white/10 bg-white/10 px-5 py-4 text-lg font-black">Potit</Link>
-      </div>
-    </section>
   );
 }
 
@@ -71,7 +117,7 @@ export default function FeedPage() {
     loadFeed();
 
     const channel = supabase
-      .channel("kolehti-engine-feed")
+      .channel("kolehti-always-alive-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "boost_events" }, loadFeed)
@@ -128,7 +174,7 @@ export default function FeedPage() {
 
     if (postsError || votesError) {
       setToast(postsError?.message || votesError?.message || "Feedin lataus epäonnistui");
-      setPosts([]);
+      setPosts(buildAlwaysAliveFeed([]));
       setLoading(false);
       return;
     }
@@ -173,14 +219,18 @@ export default function FeedPage() {
       });
     }
 
+    optimizedFeed = buildAlwaysAliveFeed(optimizedFeed);
+
     if (currentUser) {
-      await safeCall(() => trackTopGrowthImpressions(currentUser.id, optimizedFeed));
-      await safeCall(() => runViralLoopV3({ userId: currentUser.id, posts: optimizedFeed, profile: profileData }));
+      await safeCall(() => trackTopGrowthImpressions(currentUser.id, optimizedFeed.filter((p) => !p.is_starter)));
+      await safeCall(() => runViralLoopV3({ userId: currentUser.id, posts: optimizedFeed.filter((p) => !p.is_starter), profile: profileData }));
     }
 
     for (let i = 0; i < optimizedFeed.length; i++) {
-      await safeCall(() => updatePostRankStats(optimizedFeed[i], i + 1));
-      if (currentUser && i < 3) await safeCall(() => rewardTopRank(currentUser.id, i + 1));
+      if (!optimizedFeed[i].is_starter) {
+        await safeCall(() => updatePostRankStats(optimizedFeed[i], i + 1));
+        if (currentUser && i < 3) await safeCall(() => rewardTopRank(currentUser.id, i + 1));
+      }
     }
 
     const activeBoost = await safeCall(() => getActiveBoostEvent(), null);
@@ -207,6 +257,12 @@ export default function FeedPage() {
   }
 
   async function vote(post) {
+    if (post.is_starter) {
+      setToast("✨ Malliperustelu. Luo oma ja kilpaile oikeasti.");
+      setTimeout(() => setToast(""), 1800);
+      return;
+    }
+
     if (!user) {
       setToast("Kirjaudu ensin sisään.");
       setTimeout(() => setToast(""), 1600);
@@ -257,7 +313,7 @@ export default function FeedPage() {
         <div className="mx-auto flex max-w-md items-center justify-between">
           <div>
             <h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1>
-            <p className="text-xs font-black uppercase text-white/50">AI Feed · Growth engine</p>
+            <p className="text-xs font-black uppercase text-white/50">AI Feed · Always alive</p>
           </div>
           <Link to="/new" className="rounded-3xl bg-cyan-500 px-5 py-4 text-base font-black shadow-xl shadow-cyan-500/25">Uusi</Link>
         </div>
@@ -294,8 +350,6 @@ export default function FeedPage() {
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" />
             <p className="font-black text-white/70">AI järjestää feediä...</p>
           </section>
-        ) : posts.length === 0 ? (
-          <EmptyFeed />
         ) : (
           posts.map((post, index) => (
             <ForYouCard key={post.id} post={post} index={index} user={user} voted={voted[post.id]} rankInfo={calculateRankInfo(posts, post.id)} onVote={vote} />
