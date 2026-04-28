@@ -36,9 +36,22 @@ function sanitizePosts(list) {
     });
 }
 
+function scoreForMode(post, mode = "balanced") {
+  const safePost = normalizePost(post);
+  if (!safePost) return 0;
+  const votes = Number(safePost.vote_count || safePost.votes || 0);
+  const ai = Number(safePost.ai_score || 0);
+  const growth = Number(safePost.growth_score || 0);
+  const boost = Number(safePost.boost_score || 0);
+  const engine = Number(safePost.kolehti_score || 0);
+  if (mode === "skimmer") return growth * 1.45 + votes * 7 + boost * 1.2 + engine;
+  if (mode === "reader") return ai * 1.55 + engine + votes * 3;
+  return engine + ai + growth + votes * 4 + boost;
+}
+
 const starterPosts = [
-  normalizePost({ id: "starter-1", content: "Kirjoita oma perustelu ja kerää ääniä. Hyvä perustelu on selkeä, aito ja sellainen jota muut haluavat tukea.", user_id: "starter", vote_count: 5, ai_score: 70, is_starter: true }),
-  normalizePost({ id: "starter-2", content: "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu.", user_id: "starter", vote_count: 3, ai_score: 65, is_starter: true }),
+  normalizePost({ id: "starter-1", content: "Kirjoita oma perustelu ja kerää ääniä. Hyvä perustelu on selkeä, aito ja sellainen jota muut haluavat tukea.", user_id: "starter", vote_count: 5, ai_score: 70, growth_score: 70, is_starter: true }),
+  normalizePost({ id: "starter-2", content: "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu.", user_id: "starter", vote_count: 3, ai_score: 65, growth_score: 65, is_starter: true }),
 ].filter(Boolean);
 
 function rankBadge(index) {
@@ -62,7 +75,7 @@ function BottomNav({ hidden }) {
   );
 }
 
-function PotHero({ livePot, likeXp }) {
+function PotHero({ livePot, likeXp, behaviorMode }) {
   return (
     <section className="overflow-hidden rounded-[34px] border border-yellow-300/30 bg-gradient-to-br from-yellow-300/10 via-black/30 to-pink-500/10 p-[2px] shadow-2xl">
       <div className="rounded-[32px] bg-[#050816]/95 p-5">
@@ -70,13 +83,14 @@ function PotHero({ livePot, likeXp }) {
         <p className="mt-1 text-5xl font-black">{livePot.amount} €</p>
         <p className="mt-2 text-xs font-black text-white/55">{Math.round(livePot.fillRate)}% täynnä · {livePot.missingPlayers} paikkaa jäljellä</p>
         <p className="mt-1 text-xs font-black text-cyan-200">⚡ Strong liket: {likeXp.strongLikesLeft}</p>
+        <p className="mt-1 text-xs font-black text-pink-200">🧠 AI mode: {behaviorMode}</p>
         <Link to="/pots" className="mt-5 block rounded-[22px] bg-yellow-300 px-5 py-4 text-center text-sm font-black text-black shadow-xl shadow-yellow-300/20">Katso pottien tilanne</Link>
       </div>
     </section>
   );
 }
 
-function PostCard({ post, index, voted, onVote, likeXp, active, dragging }) {
+function PostCard({ post, index, voted, onVote, likeXp, active, dragging, preloaded }) {
   const safePost = normalizePost(post);
   if (!safePost) return null;
   const votes = Number(safePost.vote_count || safePost.votes || 0);
@@ -87,6 +101,7 @@ function PostCard({ post, index, voted, onVote, likeXp, active, dragging }) {
   return (
     <article className={`relative w-full overflow-hidden rounded-[36px] border p-[2px] shadow-2xl transition-all duration-300 ${active ? "scale-100 opacity-100" : "scale-[0.965] opacity-70"} ${dragging && active ? "scale-[0.985]" : ""} ${top ? "border-yellow-300/60 bg-gradient-to-br from-yellow-300 via-pink-500 to-cyan-300" : "border-cyan-300/25 bg-gradient-to-br from-cyan-300/40 via-white/10 to-pink-400/30"}`}>
       <div className="absolute inset-0 opacity-25 blur-3xl bg-[radial-gradient(circle_at_top_left,#22d3ee,transparent_35%),radial-gradient(circle_at_bottom_right,#ec4899,transparent_35%)]" />
+      {preloaded && !active && <div className="absolute right-4 top-4 z-20 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-black text-cyan-100 backdrop-blur-xl">PRELOADED</div>}
       <div className="relative max-h-[calc(100dvh-145px)] overflow-y-auto rounded-[34px] bg-[#111827]/95 p-5 backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex items-start justify-between gap-3">
           <div className="relative grid h-24 w-24 shrink-0 place-items-center rounded-[28px] border border-white/15 bg-gradient-to-br from-cyan-400/30 to-pink-500/30 shadow-xl">
@@ -136,6 +151,9 @@ export default function FeedPageStable() {
   const scrollerRef = useRef(null);
   const lastScrollTopRef = useRef(0);
   const touchRef = useRef({ startY: 0, lastY: 0, startTime: 0 });
+  const activeStartedAtRef = useRef(Date.now());
+  const preloadRef = useRef({});
+  const behaviorRef = useRef({ fast: 0, slow: 0, reorderAt: 0 });
   const [posts, setPosts] = useState([]);
   const [user, setUser] = useState(null);
   const [voted, setVoted] = useState({});
@@ -145,6 +163,8 @@ export default function FeedPageStable() {
   const [uiHidden, setUiHidden] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [pulse, setPulse] = useState(0);
+  const [preloaded, setPreloaded] = useState({});
+  const [behaviorMode, setBehaviorMode] = useState("balanced");
 
   const safePosts = useMemo(() => {
     const real = sanitizePosts(posts);
@@ -158,7 +178,7 @@ export default function FeedPageStable() {
   useEffect(() => {
     loadFeed();
     const channel = supabase
-      .channel("safe-tiktok-pro-feed")
+      .channel("safe-ai-preload-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
       .subscribe();
@@ -188,8 +208,14 @@ export default function FeedPageStable() {
       lastScrollTopRef.current = Math.max(0, root.scrollTop);
       setActiveIndex((prev) => {
         if (prev !== next) {
+          const duration = Date.now() - activeStartedAtRef.current;
+          if (duration < 1200) behaviorRef.current.fast += 1;
+          else behaviorRef.current.slow += 1;
+          activeStartedAtRef.current = Date.now();
           navigator.vibrate?.(10);
           setPulse((value) => value + 1);
+          preloadNext(next);
+          maybeAiReorder(next);
         }
         return next;
       });
@@ -205,8 +231,50 @@ export default function FeedPageStable() {
 
     root.addEventListener("scroll", onScroll, { passive: true });
     updateActive();
+    preloadNext(activeIndex);
     return () => root.removeEventListener("scroll", onScroll);
   }, [safePosts.length]);
+
+  function getMode() {
+    const { fast, slow } = behaviorRef.current;
+    if (fast >= 3 && fast > slow * 1.4) return "skimmer";
+    if (slow >= 2 && slow >= fast) return "reader";
+    return "balanced";
+  }
+
+  function preloadNext(cardIndex) {
+    const postIndex = Math.max(0, cardIndex - 1);
+    [postIndex, postIndex + 1, postIndex + 2, postIndex + 3]
+      .filter((i) => i >= 0 && i < safePosts.length)
+      .forEach((i) => {
+        const post = safePosts[i];
+        if (!post || preloadRef.current[post.id]) return;
+        preloadRef.current[post.id] = true;
+        if (post.image_url) {
+          const img = new Image();
+          img.src = post.image_url;
+        }
+        setPreloaded((prev) => ({ ...prev, [post.id]: true }));
+      });
+  }
+
+  function maybeAiReorder(cardIndex) {
+    const mode = getMode();
+    setBehaviorMode(mode);
+    const now = Date.now();
+    if (now - behaviorRef.current.reorderAt < 5000) return;
+    if (cardIndex < 2 || safePosts.length < 5) return;
+    behaviorRef.current.reorderAt = now;
+
+    const postIndex = Math.max(0, cardIndex - 1);
+    setPosts((prev) => {
+      const safe = sanitizePosts(prev);
+      const locked = safe.slice(0, postIndex + 1);
+      const future = safe.slice(postIndex + 1);
+      const reranked = [...future].sort((a, b) => scoreForMode(b, mode) - scoreForMode(a, mode));
+      return [...locked, ...reranked];
+    });
+  }
 
   function jumpTo(index, smooth = true) {
     const card = scrollerRef.current?.querySelector(`[data-feed-card-index="${index}"]`);
@@ -242,6 +310,7 @@ export default function FeedPageStable() {
     if (shouldSnap) {
       const target = Math.max(0, Math.min(activeIndex + direction * skip, maxIndex));
       navigator.vibrate?.(skip === 2 ? [8, 18, 8, 18] : [8, 20, 8]);
+      preloadNext(target);
       jumpTo(target);
     } else {
       navigator.vibrate?.(6);
@@ -268,6 +337,7 @@ export default function FeedPageStable() {
       const prepared = sanitizePosts(postsData).map((post) => normalizePost(post, voteCounts[post.id] || 0)).filter(Boolean);
       setPosts(rankKolehtiFeed(prepared, { sameGroup: true }));
       setVoted(votedMap);
+      setTimeout(() => preloadNext(activeIndex), 150);
     } catch (error) {
       console.warn("Feed load fallback", error);
       setToast(error?.message || "Feedin lataus epäonnistui");
@@ -314,7 +384,7 @@ export default function FeedPageStable() {
 
       <header className={`fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#050816]/80 px-4 py-4 shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ${uiHidden || dragging ? "-translate-y-full" : "translate-y-0"}`}>
         <div className="mx-auto flex max-w-md items-center justify-between">
-          <div><h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase tracking-wide text-white/50">Inertia + haptics feed</p></div>
+          <div><h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase tracking-wide text-white/50">AI preload feed · {behaviorMode}</p></div>
           <Link to="/new" className="rounded-[24px] bg-cyan-500 px-5 py-4 text-sm font-black shadow-2xl shadow-cyan-500/25">Uusi</Link>
         </div>
       </header>
@@ -334,11 +404,11 @@ export default function FeedPageStable() {
       >
         <section data-feed-card data-feed-card-index="0" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center pt-24">
           <div className="w-full space-y-5">
-            <PotHero livePot={livePot} likeXp={likeXp} />
+            <PotHero livePot={livePot} likeXp={likeXp} behaviorMode={behaviorMode} />
             <div className="rounded-[34px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-xl">
               <p className="text-xs font-black uppercase text-cyan-200">Swipe alas</p>
-              <h2 className="mt-2 text-4xl font-black leading-tight">Yksi perustelu kerrallaan</h2>
-              <p className="mt-3 text-sm font-bold leading-relaxed text-white/60">Nopea swipe hyppää pidemmälle. Kevyt swipe palauttaa kortin kohdalleen.</p>
+              <h2 className="mt-2 text-4xl font-black leading-tight">AI ennakoi seuraavan kortin</h2>
+              <p className="mt-3 text-sm font-bold leading-relaxed text-white/60">Feed preloadataan eteenpäin ja tulevat kortit järjestetään käyttäytymisesi mukaan.</p>
             </div>
           </div>
         </section>
@@ -352,7 +422,7 @@ export default function FeedPageStable() {
           </section>
         ) : safePosts.map((post, index) => (
           <section key={post.id || index} data-feed-card data-feed-card-index={index + 1} className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5">
-            <PostCard post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} likeXp={likeXp} active={activeIndex === index + 1} dragging={dragging} />
+            <PostCard post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} likeXp={likeXp} active={activeIndex === index + 1} dragging={dragging} preloaded={Boolean(preloaded[post.id])} />
           </section>
         ))}
       </main>
