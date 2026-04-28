@@ -10,14 +10,5 @@
       "source": "/api/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "no-store" }]
     }
-  ],
-  "crons": [
-    { "path": "/api/cron/daily-winner", "schedule": "0 21 * * *" },
-    { "path": "/api/cron/weekly-winner", "schedule": "0 0 * * 1" },
-    { "path": "/api/cron/monthly-winner", "schedule": "0 0 1 * *" },
-    { "path": "/api/cron/boost", "schedule": "10 21 * * *" },
-    { "path": "/api/cron/autopilot", "schedule": "20 21 * * *" },
-    { "path": "/api/cron/optimizer", "schedule": "30 21 * * *" },
-    { "path": "/api/cron/bots", "schedule": "40 21 * * *" }
   ]
 }
