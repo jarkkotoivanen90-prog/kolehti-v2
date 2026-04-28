@@ -21,6 +21,7 @@ function normalizePost(post, voteCount = 0) {
     growth_score: Number(post.growth_score || post.ai_score || 50),
     boost_score: Number(post.boost_score || 0),
     views: Number(post.views || 1),
+    image_url: post.image_url || post.photo_url || null,
   };
 }
 
@@ -37,16 +38,32 @@ function sanitizePosts(list) {
 }
 
 function scoreForMode(post, mode = "balanced") {
-  const safePost = normalizePost(post);
-  if (!safePost) return 0;
-  const votes = Number(safePost.vote_count || safePost.votes || 0);
-  const ai = Number(safePost.ai_score || 0);
-  const growth = Number(safePost.growth_score || 0);
-  const boost = Number(safePost.boost_score || 0);
-  const engine = Number(safePost.kolehti_score || 0);
+  const p = normalizePost(post);
+  if (!p) return 0;
+  const votes = Number(p.vote_count || p.votes || 0);
+  const ai = Number(p.ai_score || 0);
+  const growth = Number(p.growth_score || 0);
+  const boost = Number(p.boost_score || 0);
+  const engine = Number(p.kolehti_score || 0);
   if (mode === "skimmer") return growth * 1.45 + votes * 7 + boost * 1.2 + engine;
   if (mode === "reader") return ai * 1.55 + engine + votes * 3;
   return engine + ai + growth + votes * 4 + boost;
+}
+
+function buildMotivation({ post, index, posts, likeXp }) {
+  const p = normalizePost(post);
+  if (!p) return { headline: "", detail: "", tone: "cyan" };
+  const votes = Number(p.vote_count || p.votes || 0);
+  const prev = index > 0 ? normalizePost(posts[index - 1]) : null;
+  const next = index < posts.length - 1 ? normalizePost(posts[index + 1]) : null;
+  const gapUp = prev ? Math.max(1, Number(prev.vote_count || prev.votes || 0) - votes + 1) : 0;
+  const gapDown = next ? Math.max(0, votes - Number(next.vote_count || next.votes || 0)) : 0;
+
+  if (p.is_starter) return { headline: "✨ Mallikortti", detail: "Luo oma perustelu ja pääset oikeaan kilpailuun.", tone: "cyan" };
+  if (index === 0) return { headline: "👑 Kärjessä nyt", detail: gapDown > 0 ? `${gapDown} äänen johto seuraavaan.` : "Johto on todella tiukka.", tone: "gold" };
+  if (gapUp <= 2) return { headline: "🎯 Lähes nousu", detail: `🔥 ${gapUp} ääni${gapUp === 1 ? "" : "tä"} → ohitat ${Math.min(3, index)} pelaajaa`, tone: "pink" };
+  if (likeXp.strongLikesLeft <= 3) return { headline: "⚡ Viimeiset strong liket", detail: `${likeXp.strongLikesLeft} jäljellä → tämä voi ratkaista rankingin`, tone: "orange" };
+  return { headline: "🔥 Ranking pressure", detail: `Sija #${index + 1}. Seuraava nousu vaatii ${gapUp} ääntä.`, tone: "cyan" };
 }
 
 const starterPosts = [
@@ -75,6 +92,19 @@ function BottomNav({ hidden }) {
   );
 }
 
+function RewardBurst({ reward }) {
+  if (!reward) return null;
+  return (
+    <div key={reward.id} className="pointer-events-none fixed inset-x-0 top-[34%] z-[80] mx-auto max-w-sm px-6 text-center">
+      <div className="animate-bounce rounded-[34px] border border-yellow-300/30 bg-black/65 px-5 py-5 text-white shadow-2xl shadow-yellow-400/20 backdrop-blur-2xl">
+        <div className="text-6xl">{reward.emoji}</div>
+        <div className="mt-2 text-2xl font-black leading-tight">{reward.title}</div>
+        <div className="mt-1 text-sm font-bold text-white/65">{reward.text}</div>
+      </div>
+    </div>
+  );
+}
+
 function PotHero({ livePot, likeXp, behaviorMode }) {
   return (
     <section className="overflow-hidden rounded-[34px] border border-yellow-300/30 bg-gradient-to-br from-yellow-300/10 via-black/30 to-pink-500/10 p-[2px] shadow-2xl">
@@ -82,7 +112,7 @@ function PotHero({ livePot, likeXp, behaviorMode }) {
         <p className="text-xs font-black uppercase tracking-wide text-yellow-200">🔥 Päivän kierros</p>
         <p className="mt-1 text-5xl font-black">{livePot.amount} €</p>
         <p className="mt-2 text-xs font-black text-white/55">{Math.round(livePot.fillRate)}% täynnä · {livePot.missingPlayers} paikkaa jäljellä</p>
-        <p className="mt-1 text-xs font-black text-cyan-200">⚡ Strong liket: {likeXp.strongLikesLeft}</p>
+        <p className="mt-1 text-xs font-black text-cyan-200">⚡ Strong liket: {likeXp.strongLikesLeft} — käytä viisaasti</p>
         <p className="mt-1 text-xs font-black text-pink-200">🧠 AI mode: {behaviorMode}</p>
         <Link to="/pots" className="mt-5 block rounded-[22px] bg-yellow-300 px-5 py-4 text-center text-sm font-black text-black shadow-xl shadow-yellow-300/20">Katso pottien tilanne</Link>
       </div>
@@ -90,13 +120,19 @@ function PotHero({ livePot, likeXp, behaviorMode }) {
   );
 }
 
-function PostCard({ post, index, voted, onVote, likeXp, active, dragging, preloaded }) {
+function MotivationStrip({ motivation }) {
+  const color = motivation.tone === "gold" ? "border-yellow-300/30 bg-yellow-300/10 text-yellow-50" : motivation.tone === "pink" ? "border-pink-300/30 bg-pink-500/10 text-pink-50" : motivation.tone === "orange" ? "border-orange-300/30 bg-orange-500/10 text-orange-50" : "border-cyan-300/30 bg-cyan-500/10 text-cyan-50";
+  return <div className={`mt-5 rounded-[24px] border px-4 py-4 text-sm font-black leading-snug ${color}`}><div>{motivation.headline}</div><div className="mt-1 text-xs opacity-75">{motivation.detail}</div></div>;
+}
+
+function PostCard({ post, index, posts, voted, onVote, likeXp, active, dragging, preloaded }) {
   const safePost = normalizePost(post);
   if (!safePost) return null;
   const votes = Number(safePost.vote_count || safePost.votes || 0);
   const score = Math.round(Number(safePost.kolehti_score || safePost.ai_score || 0));
   const momentum = Math.round(Math.min(99, votes * 9 + Number(safePost.boost_score || 0)));
   const top = index === 0;
+  const motivation = buildMotivation({ post: safePost, index, posts, likeXp });
 
   return (
     <article className={`relative w-full overflow-hidden rounded-[36px] border p-[2px] shadow-2xl transition-all duration-300 ${active ? "scale-100 opacity-100" : "scale-[0.965] opacity-70"} ${dragging && active ? "scale-[0.985]" : ""} ${top ? "border-yellow-300/60 bg-gradient-to-br from-yellow-300 via-pink-500 to-cyan-300" : "border-cyan-300/25 bg-gradient-to-br from-cyan-300/40 via-white/10 to-pink-400/30"}`}>
@@ -117,29 +153,14 @@ function PostCard({ post, index, voted, onVote, likeXp, active, dragging, preloa
             </div>
           </div>
         </div>
-
-        <div className="mt-5 rounded-[24px] border border-yellow-300/25 bg-yellow-300/10 px-4 py-4 text-sm font-black leading-snug text-yellow-50">
-          {top ? "👑 Johdat nyt kilpailua" : safePost.is_starter ? "✨ Malliperustelu — tee oma ja nouse mukaan." : "🔥 Nouse rankingissa tykkäyksillä ja vahvalla perustelulla."}
-        </div>
-
-        <div className="mt-5">
-          <p className="text-xs font-black uppercase tracking-wide text-white/45">Perustelu</p>
-          <h2 className="mt-2 text-3xl font-black leading-tight text-white">{safePost.is_starter ? "Malliperustelu" : "Pelaajan perustelu"}</h2>
-          <p className="mt-4 whitespace-pre-wrap break-words text-xl font-black leading-relaxed text-white/85">{safePost.content}</p>
-        </div>
-
+        <MotivationStrip motivation={motivation} />
+        <div className="mt-5"><p className="text-xs font-black uppercase tracking-wide text-white/45">Perustelu</p><h2 className="mt-2 text-3xl font-black leading-tight text-white">{safePost.is_starter ? "Malliperustelu" : "Pelaajan perustelu"}</h2><p className="mt-4 whitespace-pre-wrap break-words text-xl font-black leading-relaxed text-white/85">{safePost.content}</p></div>
         <div className="mt-6 grid grid-cols-3 gap-2 text-center text-xs font-black">
           <div className="rounded-2xl bg-black/30 p-3"><div className="text-white/45">ÄÄNET</div><div className="mt-1 text-2xl">{votes}</div></div>
           <div className="rounded-2xl bg-black/30 p-3"><div className="text-white/45">VIRAL</div><div className="mt-1 text-2xl text-pink-300">{Math.min(99, votes * 7 + score)}</div></div>
-          <div className="rounded-2xl bg-black/30 p-3"><div className="text-white/45">TILA</div><div className="mt-1 text-2xl">{safePost.is_starter ? "AI" : "LIVE"}</div></div>
+          <div className="rounded-2xl bg-black/30 p-3"><div className="text-white/45">SIJA</div><div className="mt-1 text-2xl">#{index + 1}</div></div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => onVote(safePost)}
-          disabled={Boolean(voted) || Boolean(safePost.is_starter)}
-          className="mt-6 w-full rounded-[26px] bg-cyan-500 px-5 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/25 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
-        >
+        <button type="button" onClick={() => onVote(safePost)} disabled={Boolean(voted) || Boolean(safePost.is_starter)} className="mt-6 w-full rounded-[26px] bg-cyan-500 px-5 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/25 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40">
           {safePost.is_starter ? "Luo oma perustelu" : voted ? "Äänestetty" : `Tykkää +${likeXp.xp} XP`}
         </button>
       </div>
@@ -153,7 +174,8 @@ export default function FeedPageStable() {
   const touchRef = useRef({ startY: 0, lastY: 0, startTime: 0 });
   const activeStartedAtRef = useRef(Date.now());
   const preloadRef = useRef({});
-  const behaviorRef = useRef({ fast: 0, slow: 0, reorderAt: 0 });
+  const lastRewardTypeRef = useRef(null);
+  const behaviorRef = useRef({ fast: 0, slow: 0, reorderAt: 0, rewardAt: 0 });
   const [posts, setPosts] = useState([]);
   const [user, setUser] = useState(null);
   const [voted, setVoted] = useState({});
@@ -165,6 +187,7 @@ export default function FeedPageStable() {
   const [pulse, setPulse] = useState(0);
   const [preloaded, setPreloaded] = useState({});
   const [behaviorMode, setBehaviorMode] = useState("balanced");
+  const [reward, setReward] = useState(null);
 
   const safePosts = useMemo(() => {
     const real = sanitizePosts(posts);
@@ -177,11 +200,7 @@ export default function FeedPageStable() {
 
   useEffect(() => {
     loadFeed();
-    const channel = supabase
-      .channel("safe-ai-preload-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
-      .subscribe();
+    const channel = supabase.channel("safe-motivation-v3-feed").on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed).on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed).subscribe();
     return () => supabase.removeChannel(channel);
   }, []);
 
@@ -189,18 +208,13 @@ export default function FeedPageStable() {
     const root = scrollerRef.current;
     if (!root) return;
     let ticking = false;
-
     function updateActive() {
       const cards = Array.from(root.querySelectorAll("[data-feed-card]"));
       const middle = root.scrollTop + root.clientHeight / 2;
-      let next = 0;
-      let best = Infinity;
+      let next = 0, best = Infinity;
       cards.forEach((card, i) => {
         const distance = Math.abs(card.offsetTop + card.offsetHeight / 2 - middle);
-        if (distance < best) {
-          best = distance;
-          next = i;
-        }
+        if (distance < best) { best = distance; next = i; }
       });
       const delta = root.scrollTop - lastScrollTopRef.current;
       if (delta > 12 && root.scrollTop > 80) setUiHidden(true);
@@ -216,19 +230,15 @@ export default function FeedPageStable() {
           setPulse((value) => value + 1);
           preloadNext(next);
           maybeAiReorder(next);
+          maybeReward(next);
         }
         return next;
       });
       ticking = false;
     }
-
     function onScroll() {
-      if (!ticking) {
-        window.requestAnimationFrame(updateActive);
-        ticking = true;
-      }
+      if (!ticking) { window.requestAnimationFrame(updateActive); ticking = true; }
     }
-
     root.addEventListener("scroll", onScroll, { passive: true });
     updateActive();
     preloadNext(activeIndex);
@@ -242,20 +252,36 @@ export default function FeedPageStable() {
     return "balanced";
   }
 
+  function triggerReward(type, emoji, title, text, force = false) {
+    const now = Date.now();
+    if (!force && lastRewardTypeRef.current === type) return;
+    if (!force && now - behaviorRef.current.rewardAt < 6500) return;
+    behaviorRef.current.rewardAt = now;
+    lastRewardTypeRef.current = type;
+    setReward({ id: `${now}-${Math.random()}`, emoji, title, text });
+    navigator.vibrate?.([10, 25, 10]);
+    setTimeout(() => { setReward(null); lastRewardTypeRef.current = null; }, 1800);
+  }
+
+  function maybeReward(cardIndex) {
+    if (cardIndex <= 0) return;
+    const postIndex = cardIndex - 1;
+    const post = safePosts[postIndex];
+    const motivation = buildMotivation({ post, index: postIndex, posts: safePosts, likeXp });
+    if (motivation.tone === "pink") triggerReward("nearWin", "🎯", "Lähellä nousua", motivation.detail);
+    else if (postIndex === 0) triggerReward("top", "👑", "Kärkipostaus", "Tämä johtaa kilpailua juuri nyt.");
+    else if (likeXp.strongLikesLeft <= 3) triggerReward("scarcity", "⚡", "Strong liket vähissä", `${likeXp.strongLikesLeft} jäljellä`);
+  }
+
   function preloadNext(cardIndex) {
     const postIndex = Math.max(0, cardIndex - 1);
-    [postIndex, postIndex + 1, postIndex + 2, postIndex + 3]
-      .filter((i) => i >= 0 && i < safePosts.length)
-      .forEach((i) => {
-        const post = safePosts[i];
-        if (!post || preloadRef.current[post.id]) return;
-        preloadRef.current[post.id] = true;
-        if (post.image_url) {
-          const img = new Image();
-          img.src = post.image_url;
-        }
-        setPreloaded((prev) => ({ ...prev, [post.id]: true }));
-      });
+    [postIndex, postIndex + 1, postIndex + 2, postIndex + 3].filter((i) => i >= 0 && i < safePosts.length).forEach((i) => {
+      const post = safePosts[i];
+      if (!post || preloadRef.current[post.id]) return;
+      preloadRef.current[post.id] = true;
+      if (post.image_url) { const img = new Image(); img.src = post.image_url; }
+      setPreloaded((prev) => ({ ...prev, [post.id]: true }));
+    });
   }
 
   function maybeAiReorder(cardIndex) {
@@ -265,7 +291,6 @@ export default function FeedPageStable() {
     if (now - behaviorRef.current.reorderAt < 5000) return;
     if (cardIndex < 2 || safePosts.length < 5) return;
     behaviorRef.current.reorderAt = now;
-
     const postIndex = Math.max(0, cardIndex - 1);
     setPosts((prev) => {
       const safe = sanitizePosts(prev);
@@ -277,24 +302,19 @@ export default function FeedPageStable() {
   }
 
   function jumpTo(index, smooth = true) {
-    const card = scrollerRef.current?.querySelector(`[data-feed-card-index="${index}"]`);
-    card?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    scrollerRef.current?.querySelector(`[data-feed-card-index="${index}"]`)?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
   }
 
   function handleTouchStart(event) {
     const touch = event.touches?.[0];
     if (!touch) return;
     touchRef.current = { startY: touch.clientY, lastY: touch.clientY, startTime: Date.now() };
-    setDragging(true);
-    setUiHidden(true);
+    setDragging(true); setUiHidden(true);
   }
-
   function handleTouchMove(event) {
     const touch = event.touches?.[0];
-    if (!touch) return;
-    touchRef.current.lastY = touch.clientY;
+    if (touch) touchRef.current.lastY = touch.clientY;
   }
-
   function handleTouchEnd() {
     const { startY, lastY, startTime } = touchRef.current;
     const dy = startY - lastY;
@@ -304,18 +324,12 @@ export default function FeedPageStable() {
     const direction = dy > 0 ? 1 : -1;
     const skip = velocity > 1.05 && Math.abs(dy) > 130 ? 2 : 1;
     const maxIndex = safePosts.length;
-
     setDragging(false);
-
     if (shouldSnap) {
       const target = Math.max(0, Math.min(activeIndex + direction * skip, maxIndex));
       navigator.vibrate?.(skip === 2 ? [8, 18, 8, 18] : [8, 20, 8]);
-      preloadNext(target);
-      jumpTo(target);
-    } else {
-      navigator.vibrate?.(6);
-      jumpTo(activeIndex);
-    }
+      preloadNext(target); jumpTo(target);
+    } else { navigator.vibrate?.(6); jumpTo(activeIndex); }
   }
 
   async function loadFeed() {
@@ -327,8 +341,7 @@ export default function FeedPageStable() {
       const { data: postsData, error: postsError } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(80);
       const { data: votesData, error: votesError } = await supabase.from("votes").select("post_id,user_id,value,group_id");
       if (postsError || votesError) throw postsError || votesError;
-      const voteCounts = {};
-      const votedMap = {};
+      const voteCounts = {}, votedMap = {};
       (votesData || []).forEach((vote) => {
         if (!vote?.post_id) return;
         voteCounts[vote.post_id] = (voteCounts[vote.post_id] || 0) + Number(vote.value || 1);
@@ -342,35 +355,18 @@ export default function FeedPageStable() {
       console.warn("Feed load fallback", error);
       setToast(error?.message || "Feedin lataus epäonnistui");
       setPosts(starterPosts);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   async function vote(post) {
     const safePost = normalizePost(post);
-    if (!safePost || safePost.is_starter) {
-      setToast("Luo oma perustelu ja kilpaile oikeasti.");
-      setTimeout(() => setToast(""), 1800);
-      return;
-    }
-    if (!user) {
-      setToast("Kirjaudu ensin sisään.");
-      setTimeout(() => setToast(""), 1600);
-      return;
-    }
-    if (voted[safePost.id]) {
-      setToast("Olet jo äänestänyt tämän.");
-      setTimeout(() => setToast(""), 1600);
-      return;
-    }
+    if (!safePost || safePost.is_starter) { setToast("Luo oma perustelu ja kilpaile oikeasti."); setTimeout(() => setToast(""), 1800); return; }
+    if (!user) { setToast("Kirjaudu ensin sisään."); setTimeout(() => setToast(""), 1600); return; }
+    if (voted[safePost.id]) { setToast("Olet jo äänestänyt tämän."); setTimeout(() => setToast(""), 1600); return; }
     const { error } = await supabase.from("votes").insert({ post_id: safePost.id, user_id: user.id, group_id: safePost.group_id || null, value: 1 });
-    if (error) {
-      setToast(error.message || "Äänestys epäonnistui");
-      setTimeout(() => setToast(""), 1800);
-      return;
-    }
+    if (error) { setToast(error.message || "Äänestys epäonnistui"); setTimeout(() => setToast(""), 1800); return; }
     navigator.vibrate?.([20, 40, 20]);
+    triggerReward("vote", "💗", `+${likeXp.xp} XP`, "Ääni annettu ja ranking päivittyy.", true);
     setToast(`🔥 Ääni annettu. +${likeXp.xp} XP`);
     setTimeout(() => setToast(""), 2200);
     await loadFeed();
@@ -381,52 +377,17 @@ export default function FeedPageStable() {
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#12306e_0%,#050816_44%,#02030a_100%)]" />
       {toast && <div className="fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">{toast}</div>}
       {pulse > 0 && <div key={pulse} className="pointer-events-none fixed inset-x-0 top-1/2 z-[60] mx-auto h-24 max-w-md -translate-y-1/2 rounded-full bg-cyan-300/10 blur-2xl animate-ping" />}
-
+      <RewardBurst reward={reward} />
       <header className={`fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#050816]/80 px-4 py-4 shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ${uiHidden || dragging ? "-translate-y-full" : "translate-y-0"}`}>
-        <div className="mx-auto flex max-w-md items-center justify-between">
-          <div><h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase tracking-wide text-white/50">AI preload feed · {behaviorMode}</p></div>
-          <Link to="/new" className="rounded-[24px] bg-cyan-500 px-5 py-4 text-sm font-black shadow-2xl shadow-cyan-500/25">Uusi</Link>
-        </div>
+        <div className="mx-auto flex max-w-md items-center justify-between"><div><h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase tracking-wide text-white/50">motivation engine v3 · {behaviorMode}</p></div><Link to="/new" className="rounded-[24px] bg-cyan-500 px-5 py-4 text-sm font-black shadow-2xl shadow-cyan-500/25">Uusi</Link></div>
       </header>
-
       <div className="fixed right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
-        {Array.from({ length: Math.min(safePosts.length + 1, 8) }).map((_, i) => (
-          <button key={i} onClick={() => jumpTo(i)} className={`rounded-full transition-all ${activeIndex === i ? "h-2 w-6 bg-cyan-300" : "h-2 w-2 bg-white/25"}`} aria-label={`Siirry kohtaan ${i + 1}`} />
-        ))}
+        {Array.from({ length: Math.min(safePosts.length + 1, 8) }).map((_, i) => <button key={i} onClick={() => jumpTo(i)} className={`rounded-full transition-all ${activeIndex === i ? "h-2 w-6 bg-cyan-300" : "h-2 w-2 bg-white/25"}`} aria-label={`Siirry kohtaan ${i + 1}`} />)}
       </div>
-
-      <main
-        ref={scrollerRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className={`h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain scroll-smooth px-4 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
-      >
-        <section data-feed-card data-feed-card-index="0" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center pt-24">
-          <div className="w-full space-y-5">
-            <PotHero livePot={livePot} likeXp={likeXp} behaviorMode={behaviorMode} />
-            <div className="rounded-[34px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-xl">
-              <p className="text-xs font-black uppercase text-cyan-200">Swipe alas</p>
-              <h2 className="mt-2 text-4xl font-black leading-tight">AI ennakoi seuraavan kortin</h2>
-              <p className="mt-3 text-sm font-bold leading-relaxed text-white/60">Feed preloadataan eteenpäin ja tulevat kortit järjestetään käyttäytymisesi mukaan.</p>
-            </div>
-          </div>
-        </section>
-
-        {loading ? (
-          <section data-feed-card data-feed-card-index="1" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center">
-            <div className="w-full rounded-[34px] border border-white/10 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl">
-              <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" />
-              <p className="font-black text-white/70">Feed latautuu...</p>
-            </div>
-          </section>
-        ) : safePosts.map((post, index) => (
-          <section key={post.id || index} data-feed-card data-feed-card-index={index + 1} className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5">
-            <PostCard post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} likeXp={likeXp} active={activeIndex === index + 1} dragging={dragging} preloaded={Boolean(preloaded[post.id])} />
-          </section>
-        ))}
+      <main ref={scrollerRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain scroll-smooth px-4 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}>
+        <section data-feed-card data-feed-card-index="0" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center pt-24"><div className="w-full space-y-5"><PotHero livePot={livePot} likeXp={likeXp} behaviorMode={behaviorMode} /><div className="rounded-[34px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-xl"><p className="text-xs font-black uppercase text-cyan-200">Swipe alas</p><h2 className="mt-2 text-4xl font-black leading-tight">Ranking reagoi joka liikkeeseen</h2><p className="mt-3 text-sm font-bold leading-relaxed text-white/60">Near-win, strong-like scarcity ja ranking pressure näkyvät oikean datan perusteella.</p></div></div></section>
+        {loading ? <section data-feed-card data-feed-card-index="1" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center"><div className="w-full rounded-[34px] border border-white/10 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl"><div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" /><p className="font-black text-white/70">Feed latautuu...</p></div></section> : safePosts.map((post, index) => <section key={post.id || index} data-feed-card data-feed-card-index={index + 1} className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5"><PostCard post={post} index={index} posts={safePosts} voted={Boolean(voted[post.id])} onVote={vote} likeXp={likeXp} active={activeIndex === index + 1} dragging={dragging} preloaded={Boolean(preloaded[post.id])} /></section>)}
       </main>
-
       <BottomNav hidden={uiHidden || dragging} />
     </div>
   );
