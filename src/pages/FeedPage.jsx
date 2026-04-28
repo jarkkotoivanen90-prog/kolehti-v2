@@ -63,17 +63,12 @@ export default function FeedPage() {
 
   async function loadFeed() {
     setLoading(true);
-
     await cleanupExpiredBoostEvents();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    const { data: { user } } = await supabase.auth.getUser();
     setUser(user || null);
 
     let profileData = null;
-
     if (user) {
       profileData = await updateStreak(user, supabase);
       setProfile(profileData || null);
@@ -82,12 +77,7 @@ export default function FeedPage() {
 
     const groupId = localStorage.getItem("kolehti_group_id");
 
-    let postsQuery = supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(120);
-
+    let postsQuery = supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(120);
     let votesQuery = supabase.from("votes").select("*");
     let eventsQuery = supabase.from("user_events").select("*").limit(300);
 
@@ -95,10 +85,7 @@ export default function FeedPage() {
       postsQuery = postsQuery.eq("group_id", groupId);
       votesQuery = votesQuery.eq("group_id", groupId);
     }
-
-    if (user) {
-      eventsQuery = eventsQuery.eq("user_id", user.id);
-    }
+    if (user) eventsQuery = eventsQuery.eq("user_id", user.id);
 
     const { data: postsData, error: postsError } = await postsQuery;
     const { data: votesData, error: votesError } = await votesQuery;
@@ -115,28 +102,21 @@ export default function FeedPage() {
 
     (votesData || []).forEach((vote) => {
       voteCounts[vote.post_id] = (voteCounts[vote.post_id] || 0) + 1;
-
-      if (vote.user_id === user?.id) {
-        votedMap[vote.post_id] = true;
-      }
+      if (vote.user_id === user?.id) votedMap[vote.post_id] = true;
     });
 
     const prepared = (postsData || []).map((post) => {
       const voteCount = voteCounts[post.id] || Number(post.votes || 0);
       const boostMultiplier = Number(post.boost_multiplier || 1);
-
       return {
         ...post,
         vote_count: voteCount,
-        boost_score:
-          Number(post.boost_score || 0) +
-          (post.boost_event_active ? 40 * boostMultiplier : 0),
+        boost_score: Number(post.boost_score || 0) + (post.boost_event_active ? 40 * boostMultiplier : 0),
       };
     });
 
     const ranked = rankForYou(prepared, eventsData || []);
     const smartFeed = getSmartFeed(ranked);
-
     const optimizedFeed = await optimizeFeedForGrowthAsync(smartFeed, {
       userId: user?.id,
       voted: votedMap,
@@ -144,33 +124,13 @@ export default function FeedPage() {
       profile: profileData,
     });
 
-    if (user) {
-      await trackTopGrowthImpressions(user.id, optimizedFeed);
-    }
+    if (user) await trackTopGrowthImpressions(user.id, optimizedFeed);
 
     if (user && profileData) {
-      await runViralLoopV3({
-        userId: user.id,
-        profile: profileData,
-        posts: optimizedFeed,
-        groupId,
-      });
-
+      await runViralLoopV3({ userId: user.id, profile: profileData, posts: optimizedFeed, groupId });
       const segment = getUserSegment(profileData);
-
-      await supabase.from("growth_events").insert({
-        user_id: user.id,
-        event_type: "user_segment",
-        source: "feed",
-        meta: segment,
-      });
-
-      await sendSegmentMessage({
-        user,
-        profile: profileData,
-        segment,
-        posts: optimizedFeed,
-      });
+      await supabase.from("growth_events").insert({ user_id: user.id, event_type: "user_segment", source: "feed", meta: segment });
+      await sendSegmentMessage({ user, profile: profileData, segment, posts: optimizedFeed });
     }
 
     for (let i = 0; i < optimizedFeed.length; i++) {
@@ -191,15 +151,11 @@ export default function FeedPage() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-
       if (latestWinner) setWinnerPopup(latestWinner);
     }
 
     let activeBoost = await getActiveBoostEvent();
-
-    if (!activeBoost && optimizedFeed.length >= 2) {
-      activeBoost = await createRandomBoostEvent(optimizedFeed);
-    }
+    if (!activeBoost && optimizedFeed.length >= 2) activeBoost = await createRandomBoostEvent(optimizedFeed);
 
     setBoostEvent(activeBoost || null);
     setLoading(false);
@@ -229,37 +185,24 @@ export default function FeedPage() {
     }
 
     const newVoteCount = Number(post.vote_count || post.votes || 0) + 1;
-
     await rewardVote(user.id);
 
-    await supabase
-      .from("posts")
-      .update({
-        votes: newVoteCount,
-        boost_score: Number(post.boost_score || 0) + 5,
-        last_engaged_at: new Date().toISOString(),
-      })
-      .eq("id", post.id);
+    await supabase.from("posts").update({
+      votes: newVoteCount,
+      boost_score: Number(post.boost_score || 0) + 5,
+      last_engaged_at: new Date().toISOString(),
+    }).eq("id", post.id);
 
     if (post.user_id) {
       await rewardTopRank(post.user_id, post.last_rank || rankInfoBeforeVote?.rank);
-
-      await supabase
-        .from("profiles")
-        .update({
-          leaderboard_points: newVoteCount,
-          leaderboard_best_rank: post.last_rank || null,
-        })
-        .eq("id", post.user_id);
+      await supabase.from("profiles").update({
+        leaderboard_points: newVoteCount,
+        leaderboard_best_rank: post.last_rank || null,
+      }).eq("id", post.user_id);
     }
 
     await trackRetentionEvent(user.id, "vote", { post_id: post.id });
-
-    await notifyAlmostWin({
-      post,
-      rankInfo: rankInfoBeforeVote,
-      userId: user.id,
-    });
+    await notifyAlmostWin({ post, rankInfo: rankInfoBeforeVote, userId: user.id });
 
     if (post.user_id && post.user_id !== user.id) {
       await createNotification({
@@ -273,7 +216,6 @@ export default function FeedPage() {
     navigator.vibrate?.(45);
     setToast("💗 +5 XP · Ääni annettu");
     setTimeout(() => setToast(""), 1600);
-
     await loadFeed();
   }
 
@@ -284,31 +226,16 @@ export default function FeedPage() {
 
   const visiblePosts = useMemo(() => {
     if (mode === "unvoted") return posts.filter((post) => !voted[post.id]);
-
-    if (mode === "new") {
-      return [...posts].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    }
-
-    if (mode === "ai") {
-      return [...posts].sort((a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0));
-    }
-
+    if (mode === "new") return [...posts].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    if (mode === "ai") return [...posts].sort((a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0));
     if (mode === "boost") return posts.filter((post) => post.boost_event_active);
-
     if (mode === "rising") {
       return posts.filter((post) => {
         const votes = Number(post.vote_count || post.votes || 0);
         const aiScore = Number(post.ai_score || 0);
-
-        return (
-          votes >= 3 ||
-          aiScore >= 70 ||
-          post.status_label?.includes("Nousemassa") ||
-          post.status_label?.includes("TOP")
-        );
+        return votes >= 3 || aiScore >= 70 || post.status_label?.includes("Nousemassa") || post.status_label?.includes("TOP");
       });
     }
-
     return posts;
   }, [posts, voted, mode]);
 
@@ -316,12 +243,7 @@ export default function FeedPage() {
     <div className="min-h-screen bg-[#050816] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#153b92_0%,#050816_45%,#02030a_100%)]" />
 
-      {winnerPopup && (
-        <WinnerHypeModal
-          winner={winnerPopup}
-          onClose={() => setWinnerPopup(null)}
-        />
-      )}
+      {winnerPopup && <WinnerHypeModal winner={winnerPopup} onClose={() => setWinnerPopup(null)} />}
 
       {toast && (
         <div className="fixed left-1/2 top-5 z-[999] -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">
@@ -339,23 +261,9 @@ export default function FeedPage() {
           </div>
 
           <div className="flex gap-2">
-            <Link to="/new" className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black shadow-lg shadow-cyan-500/20">
-              Uusi
-            </Link>
-
-            <Link to="/profile" className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black">
-              Profiili
-            </Link>
+            <Link to="/new" className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black shadow-lg shadow-cyan-500/20">Uusi</Link>
+            <Link to="/profile" className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-black">Profiili</Link>
           </div>
-        </div>
-
-        <div className="mx-auto mt-4 flex max-w-md gap-2 overflow-x-auto pb-1">
-          <Filter active={mode === "foryou"} onClick={() => changeMode("foryou")}>🔥 For You</Filter>
-          <Filter active={mode === "boost"} onClick={() => changeMode("boost")}>⚡ Boost</Filter>
-          <Filter active={mode === "rising"} onClick={() => changeMode("rising")}>🚀 Nousevat</Filter>
-          <Filter active={mode === "unvoted"} onClick={() => changeMode("unvoted")}>💗 Äänestämättä</Filter>
-          <Filter active={mode === "ai"} onClick={() => changeMode("ai")}>🤖 AI</Filter>
-          <Filter active={mode === "new"} onClick={() => changeMode("new")}>🆕 Uusimmat</Filter>
         </div>
       </header>
 
@@ -376,24 +284,15 @@ export default function FeedPage() {
           <div className="rounded-3xl border border-white/10 bg-white/10 p-6 text-center shadow-2xl">
             <div className="text-6xl">✨</div>
             <h2 className="mt-4 text-2xl font-black">Ei lisää perusteluja</h2>
-            <p className="mt-2 text-sm font-bold text-white/55">Luo oma perustelu tai vaihda näkymää.</p>
-
+            <p className="mt-2 text-sm font-bold text-white/55">Luo oma perustelu tai odota uusia.</p>
             <div className="mt-5 grid grid-cols-2 gap-2">
               <Link to="/new" className="rounded-2xl bg-cyan-500 px-5 py-4 font-black">Luo uusi</Link>
-              <button onClick={() => changeMode("foryou")} className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 font-black">For You</button>
+              <Link to="/pots" className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 font-black">Potit</Link>
             </div>
           </div>
         ) : (
           visiblePosts.map((post, index) => (
-            <ForYouCard
-              key={post.id}
-              post={post}
-              index={index}
-              user={user}
-              voted={voted[post.id]}
-              rankInfo={calculateRankInfo(posts, post.id)}
-              onVote={vote}
-            />
+            <ForYouCard key={post.id} post={post} index={index} user={user} voted={voted[post.id]} rankInfo={calculateRankInfo(posts, post.id)} onVote={vote} />
           ))
         )}
       </main>
@@ -403,29 +302,13 @@ export default function FeedPage() {
   );
 }
 
-function Filter({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition active:scale-95 ${
-        active ? "bg-white text-black shadow-xl shadow-white/10" : "border border-white/10 bg-white/10 text-white/70"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
 function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[30px] border border-white/10 bg-[#061126]/95 px-4 pb-4 pt-3 text-white shadow-2xl backdrop-blur-xl">
       <div className="grid grid-cols-5 items-end text-center text-xs font-black">
         <Link to="/">🏠<div>Koti</div></Link>
         <Link to="/feed" className="text-cyan-300">🔥<div>Feed</div></Link>
-        <Link to="/new" className="-mt-8">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">+</div>
-          <div>Uusi</div>
-        </Link>
+        <Link to="/new" className="-mt-8"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-blue-500 text-5xl shadow-2xl shadow-blue-500/40">+</div><div>Uusi</div></Link>
         <Link to="/vote">💗<div>Äänestä</div></Link>
         <Link to="/profile">👤<div>Profiili</div></Link>
       </div>
