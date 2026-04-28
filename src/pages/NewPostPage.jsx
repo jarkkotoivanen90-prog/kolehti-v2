@@ -5,28 +5,12 @@ import { analyzePostWithAI } from "../lib/ai";
 import { rewardPost } from "../lib/progression";
 import { improvePost } from "../lib/creatorAI";
 
-function getWeekMs() {
-  return 7 * 24 * 60 * 60 * 1000;
-}
-
-function getNextPostTime(lastCreatedAt) {
-  return new Date(new Date(lastCreatedAt).getTime() + getWeekMs());
-}
-
-function formatTimeLeft(targetDate) {
-  const diff = Math.max(0, targetDate.getTime() - Date.now());
-  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-  const hours = Math.floor((diff / (60 * 60 * 1000)) % 24);
-  return `${days} pv ${hours} h`;
-}
-
 export default function NewPostPage() {
   const [content, setContent] = useState("");
   const [improvedDraft, setImprovedDraft] = useState("");
   const [tips, setTips] = useState([]);
   const [group, setGroup] = useState(null);
   const [user, setUser] = useState(null);
-  const [lastPost, setLastPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [improving, setImproving] = useState(false);
@@ -39,17 +23,14 @@ export default function NewPostPage() {
   const need = Math.round(aiPreview?.ai_need || 0);
   const clarity = Math.round(aiPreview?.ai_clarity || 0);
   const risk = Math.round(aiPreview?.ai_risk || 0);
-  const nextPostAt = lastPost?.created_at ? getNextPostTime(lastPost.created_at) : null;
-  const weeklyLocked = nextPostAt ? nextPostAt.getTime() > Date.now() : false;
 
   const creatorStatus = useMemo(() => {
-    if (weeklyLocked) return `Seuraava viikkopostaus: ${formatTimeLeft(nextPostAt)}`;
-    if (!content.trim()) return "Kirjoita ensin perustelu.";
+    if (!content.trim()) return "Kirjoita perustelu ja julkaise heti.";
     if (content.trim().length < 60) return "Lisää vielä konkreettinen syy.";
     if (score >= 80) return "Valmis julkaisuun 🔥";
     if (score >= 60) return "Hyvä pohja — AI voi vielä hioa.";
     return "Creator AI voi vahvistaa tätä.";
-  }, [content, score, weeklyLocked, nextPostAt]);
+  }, [content, score]);
 
   useEffect(() => {
     load();
@@ -63,19 +44,6 @@ export default function NewPostPage() {
     } = await supabase.auth.getUser();
 
     setUser(user || null);
-
-    if (user) {
-      const { data: postData } = await supabase
-        .from("posts")
-        .select("created_at")
-        .eq("user_id", user.id)
-        .eq("is_bot", false)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      setLastPost(postData || null);
-    }
 
     const groupId = localStorage.getItem("kolehti_group_id");
 
@@ -126,14 +94,6 @@ export default function NewPostPage() {
       return;
     }
 
-    const groupId = localStorage.getItem("kolehti_group_id");
-
-    if (!groupId) {
-      alert("Valitse ensin porukka.");
-      navigate("/groups");
-      return;
-    }
-
     if (content.trim().length < 20) {
       alert("Kirjoita vähintään 20 merkkiä.");
       return;
@@ -142,33 +102,14 @@ export default function NewPostPage() {
     setPosting(true);
 
     try {
-      const { data: latestPost, error: latestError } = await supabase
-        .from("posts")
-        .select("created_at")
-        .eq("user_id", user.id)
-        .eq("is_bot", false)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (latestError) throw latestError;
-
-      if (latestPost?.created_at) {
-        const nextAllowed = getNextPostTime(latestPost.created_at);
-        if (nextAllowed.getTime() > Date.now()) {
-          alert(`Voit postata vain kerran viikossa. Seuraava postaus: ${formatTimeLeft(nextAllowed)}`);
-          setPosting(false);
-          return;
-        }
-      }
-
+      const groupId = localStorage.getItem("kolehti_group_id");
       const aiResult = aiPreview || (await analyzePostWithAI(content.trim()));
       setAiPreview(aiResult);
 
       const { error } = await supabase.from("posts").insert({
         content: content.trim(),
         user_id: user.id,
-        group_id: groupId,
+        group_id: groupId || null,
         ai_score: aiResult.ai_score || aiResult.score || 50,
         ai_quality: aiResult.ai_quality || 50,
         ai_need: aiResult.ai_need || 50,
@@ -209,7 +150,7 @@ export default function NewPostPage() {
             <p className="text-sm font-black uppercase tracking-wide text-purple-200">Creator AI</p>
             <h1 className="text-4xl font-black">Uusi perustelu</h1>
             <p className="mt-1 text-sm font-bold text-white/55">
-              {group ? `Porukka: ${group.name}` : "Ei valittua porukkaa"}
+              {group ? `Porukka: ${group.name}` : "Voit julkaista heti"}
             </p>
           </div>
 
@@ -218,14 +159,14 @@ export default function NewPostPage() {
           </Link>
         </header>
 
-        <div className={`mb-4 rounded-[30px] border p-5 shadow-xl ${weeklyLocked ? "border-yellow-300/20 bg-yellow-400/10" : "border-purple-300/20 bg-purple-500/10"}`}>
+        <div className="mb-4 rounded-[30px] border border-purple-300/20 bg-purple-500/10 p-5 shadow-xl">
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="text-sm font-black text-purple-200">🤖 AI status</div>
               <div className="mt-1 text-xl font-black">{creatorStatus}</div>
             </div>
             <div className="grid h-20 w-20 place-items-center rounded-3xl bg-black/30 text-3xl font-black text-cyan-200">
-              {weeklyLocked ? "⏳" : score || "--"}
+              {score || "--"}
             </div>
           </div>
         </div>
@@ -239,17 +180,16 @@ export default function NewPostPage() {
               setContent(e.target.value);
               setAiPreview(null);
             }}
-            disabled={weeklyLocked}
-            placeholder={weeklyLocked ? "Viikkopostaus on jo käytetty." : "Kirjoita miksi juuri sinun perustelusi pitäisi nousta esiin..."}
-            className="mt-3 min-h-56 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-lg font-bold leading-relaxed text-white outline-none placeholder:text-white/35 disabled:opacity-50"
+            placeholder="Kirjoita miksi juuri sinun perustelusi pitäisi nousta esiin..."
+            className="mt-3 min-h-56 w-full resize-none rounded-3xl border border-white/10 bg-black/30 p-5 text-lg font-bold leading-relaxed text-white outline-none placeholder:text-white/35"
           />
 
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <button type="button" onClick={handleImprove} disabled={weeklyLocked || improving || content.trim().length < 5} className="rounded-2xl bg-purple-500 px-4 py-4 font-black text-white disabled:opacity-50">
+            <button type="button" onClick={handleImprove} disabled={improving || content.trim().length < 5} className="rounded-2xl bg-purple-500 px-4 py-4 font-black text-white disabled:opacity-50">
               {improving ? "🤖 Parannetaan..." : "🤖 Paranna"}
             </button>
 
-            <button type="button" onClick={handleAnalyze} disabled={weeklyLocked || analyzing || content.trim().length < 20} className="rounded-2xl bg-white/10 px-4 py-4 font-black text-white disabled:opacity-50">
+            <button type="button" onClick={handleAnalyze} disabled={analyzing || content.trim().length < 20} className="rounded-2xl bg-white/10 px-4 py-4 font-black text-white disabled:opacity-50">
               {analyzing ? "Analysoi..." : "📊 Score"}
             </button>
           </div>
@@ -286,11 +226,11 @@ export default function NewPostPage() {
 
           <div className="mt-3 flex items-center justify-between text-xs font-black text-white/45">
             <span>{content.length}/1000 merkkiä</span>
-            <span>1 postaus / viikko</span>
+            <span>Ei postauslimittiä</span>
           </div>
 
-          <button type="submit" disabled={posting || weeklyLocked} className="mt-5 w-full rounded-3xl bg-cyan-500 px-5 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/25 disabled:opacity-50">
-            {weeklyLocked ? "Viikkopostaus käytetty" : posting ? "🤖 AI analysoi..." : "Lähetä perustelu"}
+          <button type="submit" disabled={posting} className="mt-5 w-full rounded-3xl bg-cyan-500 px-5 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/25 disabled:opacity-50">
+            {posting ? "🤖 AI analysoi..." : "Lähetä perustelu"}
           </button>
         </form>
       </main>
