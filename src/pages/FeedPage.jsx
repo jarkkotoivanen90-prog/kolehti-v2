@@ -21,7 +21,7 @@ import { optimizeFeedForGrowthAsync, trackTopGrowthImpressions } from "../lib/ai
 import { getUserSegment } from "../lib/userSegment";
 import { sendSegmentMessage } from "../lib/segmentMessages";
 
-const FEED_VERSION = "SWIPE PHYSICS 2026-04-28";
+const FEED_VERSION = "AI PRELOAD FEED 2026-04-28";
 
 const starterPosts = [
   { id: "starter-1", content: "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu. Siksi tämän pelin pitäisi nostaa esiin ne perustelut, jotka koskettavat aidosti.", user_id: "starter-ai", group_id: null, votes: 12, vote_count: 12, growth_score: 92, boost_score: 18, ai_score: 91, is_starter: true, created_at: new Date(Date.now() - 1000 * 60 * 8).toISOString() },
@@ -90,6 +90,8 @@ export default function FeedPage() {
   const activeStartedAtRef = useRef(Date.now());
   const activeTrackedRef = useRef({});
   const touchRef = useRef({ startY: 0, lastY: 0, startTime: 0, dragging: false });
+  const preloadRef = useRef({});
+  const behaviorRef = useRef({ fastScrolls: 0, slowReads: 0, lastDirection: 1, reorderCooldown: 0 });
 
   const [posts, setPosts] = useState([]);
   const [voted, setVoted] = useState({});
@@ -105,6 +107,7 @@ export default function FeedPage() {
   const [feedHeaderHidden, setFeedHeaderHidden] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [swipePulse, setSwipePulse] = useState(0);
+  const [preloaded, setPreloaded] = useState({});
 
   const uiHidden = feedHeaderHidden || dragging;
   const topRealPosts = useMemo(() => posts.filter((p) => !p.is_starter), [posts]);
@@ -112,7 +115,7 @@ export default function FeedPage() {
   useEffect(() => {
     loadFeed();
     const channel = supabase
-      .channel("kolehti-tiktok-feed")
+      .channel("kolehti-ai-preload-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
       .on("postgres_changes", { event: "*", schema: "public", table: "boost_events" }, loadFeed)
@@ -140,17 +143,25 @@ export default function FeedPage() {
       const delta = scroller.scrollTop - lastTop;
       if (delta > 8 && scroller.scrollTop > 120) setFeedHeaderHidden(true);
       if (delta < -8 || scroller.scrollTop < 60) setFeedHeaderHidden(false);
+      behaviorRef.current.lastDirection = delta >= 0 ? 1 : -1;
       lastTop = Math.max(0, scroller.scrollTop);
 
       setActiveIndex((prev) => {
         if (prev !== nextIndex) {
+          const duration = Date.now() - activeStartedAtRef.current;
+          if (duration < 1200) behaviorRef.current.fastScrolls += 1;
+          else behaviorRef.current.slowReads += 1;
+
           navigator.vibrate?.(12);
           setSwipePulse((v) => v + 1);
           activeStartedAtRef.current = Date.now();
+          preloadNext(nextIndex);
+          maybeReorderFeed(nextIndex);
+
           const activePost = posts[nextIndex];
           if (activePost && !activePost.is_starter && !activeTrackedRef.current[activePost.id]) {
             activeTrackedRef.current[activePost.id] = true;
-            safeCall(() => supabase.from("user_events").insert({ user_id: user?.id || null, post_id: activePost.id, event_type: "tiktok_card_focus", source: "feed", meta: { index: nextIndex, engine: FEED_VERSION } }));
+            safeCall(() => supabase.from("user_events").insert({ user_id: user?.id || null, post_id: activePost.id, event_type: "ai_scroll_focus", source: "feed", meta: { index: nextIndex, engine: FEED_VERSION, behavior: behaviorRef.current } }));
           }
         }
         return nextIndex;
@@ -164,6 +175,7 @@ export default function FeedPage() {
 
     scroller.addEventListener("scroll", onScroll, { passive: true });
     updateActiveCard();
+    preloadNext(activeIndex);
     return () => scroller.removeEventListener("scroll", onScroll);
   }, [posts, user?.id, activeIndex]);
 
@@ -171,13 +183,61 @@ export default function FeedPage() {
     const activePost = posts[activeIndex];
     if (!activePost || activePost.is_starter) return;
     const timer = setTimeout(() => {
-      safeCall(() => supabase.from("user_events").insert({ user_id: user?.id || null, post_id: activePost.id, event_type: "tiktok_deep_watch", source: "feed", meta: { duration_ms: Date.now() - activeStartedAtRef.current, index: activeIndex } }));
+      safeCall(() => supabase.from("user_events").insert({ user_id: user?.id || null, post_id: activePost.id, event_type: "ai_deep_watch", source: "feed", meta: { duration_ms: Date.now() - activeStartedAtRef.current, index: activeIndex } }));
     }, 3200);
     return () => clearTimeout(timer);
   }, [activeIndex, posts, user?.id]);
 
   async function safeCall(fn, fallback = null) {
     try { return await fn(); } catch (error) { console.warn("Engine safe fallback:", error); return fallback; }
+  }
+
+  function preloadNext(index) {
+    const indexes = [index + 1, index + 2, index + 3, index - 1].filter((i) => i >= 0 && i < posts.length);
+    indexes.forEach((i) => {
+      const post = posts[i];
+      if (!post || preloadRef.current[post.id]) return;
+      preloadRef.current[post.id] = true;
+
+      if (post.image_url) {
+        const img = new Image();
+        img.src = post.image_url;
+      }
+
+      if (!post.is_starter) {
+        safeCall(() => supabase.from("posts").select("id,votes,views,growth_score,ai_score,boost_score").eq("id", post.id).maybeSingle());
+      }
+
+      setPreloaded((prev) => ({ ...prev, [post.id]: true }));
+    });
+  }
+
+  function maybeReorderFeed(currentIndex) {
+    const now = Date.now();
+    if (now - behaviorRef.current.reorderCooldown < 4500) return;
+    if (currentIndex < 2 || posts.length < 5) return;
+
+    const { fastScrolls, slowReads } = behaviorRef.current;
+    const isSkimmer = fastScrolls > slowReads * 1.5 && fastScrolls >= 3;
+    const isReader = slowReads >= fastScrolls && slowReads >= 2;
+    if (!isSkimmer && !isReader) return;
+
+    behaviorRef.current.reorderCooldown = now;
+    setPosts((prev) => {
+      const locked = prev.slice(0, Math.max(currentIndex + 1, 1));
+      const rest = prev.slice(Math.max(currentIndex + 1, 1));
+      const sorted = [...rest].sort((a, b) => {
+        if (a.is_starter !== b.is_starter) return a.is_starter ? 1 : -1;
+        const aScore = isSkimmer
+          ? Number(a.growth_score || 0) * 1.4 + Number(a.boost_score || 0) + Number(a.vote_count || a.votes || 0) * 4
+          : Number(a.ai_score || 0) * 1.4 + Number(a.ai_quality || 0) + Number(a.vote_count || a.votes || 0) * 2;
+        const bScore = isSkimmer
+          ? Number(b.growth_score || 0) * 1.4 + Number(b.boost_score || 0) + Number(b.vote_count || b.votes || 0) * 4
+          : Number(b.ai_score || 0) * 1.4 + Number(b.ai_quality || 0) + Number(b.vote_count || b.votes || 0) * 2;
+        return bScore - aScore;
+      });
+      return [...locked, ...sorted];
+    });
   }
 
   function snapToCard(index, smooth = true) {
@@ -211,12 +271,14 @@ export default function FeedPage() {
     const dt = Math.max(1, Date.now() - startTime);
     const velocity = Math.abs(dy) / dt;
     const shouldSnap = Math.abs(dy) > 70 || velocity > 0.45;
+    const direction = dy > 0 ? 1 : -1;
+    const skip = velocity > 0.95 && Math.abs(dy) > 130 ? 2 : 1;
 
     setDragging(false);
     if (shouldSnap) {
-      const direction = dy > 0 ? 1 : -1;
-      navigator.vibrate?.([8, 20, 8]);
-      snapToCard(activeIndex + direction);
+      navigator.vibrate?.(skip === 2 ? [8, 18, 8, 18] : [8, 20, 8]);
+      snapToCard(activeIndex + direction * skip);
+      preloadNext(activeIndex + direction * skip);
     } else {
       snapToCard(activeIndex);
     }
@@ -304,6 +366,7 @@ export default function FeedPage() {
     setPosts(optimizedFeed);
     setVoted(votedMap);
     setLoading(false);
+    setTimeout(() => preloadNext(0), 200);
   }
 
   async function vote(post) {
@@ -337,14 +400,7 @@ export default function FeedPage() {
       <FloatingActions hidden={uiHidden} onInvite={handleInvite} />
       <FeedProgress activeIndex={activeIndex} total={posts.length} onJump={jumpToCard} hidden={uiHidden} />
 
-      <main
-        ref={scrollerRef}
-        id="feed-scroll-root"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className={`h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain scroll-smooth px-4 pb-10 pt-28 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
-      >
+      <main ref={scrollerRef} id="feed-scroll-root" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain scroll-smooth px-4 pb-10 pt-28 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}>
         <div className="mx-auto max-w-md snap-start space-y-4 pb-6 pt-10">
           {segmentMessage && <section className="rounded-[26px] border border-cyan-300/20 bg-cyan-500/10 px-5 py-4 text-sm font-black leading-snug text-cyan-50 shadow-xl">{segmentMessage}</section>}
           {dailyWinner && <DailyWinnerBanner winner={dailyWinner} />}
@@ -358,7 +414,10 @@ export default function FeedPage() {
         ) : (
           posts.map((post, index) => (
             <div key={post.id} data-feed-card data-feed-card-index={index} className={`mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5 transition-all duration-300 ease-out ${activeIndex === index ? "scale-100 opacity-100" : "scale-[0.965] opacity-60"}`}>
-              <ForYouCard post={post} index={index} user={user} voted={voted[post.id]} rankInfo={calculateRankInfo(posts, post.id)} onVote={vote} />
+              <div className="relative w-full">
+                {!preloaded[post.id] && index > activeIndex && index <= activeIndex + 3 && <div className="absolute right-5 top-5 z-20 rounded-full bg-black/40 px-3 py-1 text-[10px] font-black text-white/50 backdrop-blur-xl">preload...</div>}
+                <ForYouCard post={post} index={index} user={user} voted={voted[post.id]} rankInfo={calculateRankInfo(posts, post.id)} onVote={vote} />
+              </div>
             </div>
           ))
         )}
