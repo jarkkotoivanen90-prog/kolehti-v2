@@ -24,62 +24,10 @@ import { sendSegmentMessage } from "../lib/segmentMessages";
 const FEED_VERSION = "TIKTOK FEED ENGINE 2026-04-28";
 
 const starterPosts = [
-  {
-    id: "starter-1",
-    content:
-      "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu. Siksi tämän pelin pitäisi nostaa esiin ne perustelut, jotka koskettavat aidosti.",
-    user_id: "starter-ai",
-    group_id: null,
-    votes: 12,
-    vote_count: 12,
-    growth_score: 92,
-    boost_score: 18,
-    ai_score: 91,
-    is_starter: true,
-    created_at: new Date(Date.now() - 1000 * 60 * 8).toISOString(),
-  },
-  {
-    id: "starter-2",
-    content:
-      "Hyvä perustelu ei ole pisin teksti. Se on sellainen, jonka jälkeen toinen pelaaja ajattelee: tämän minä ymmärrän ja tätä haluan tukea.",
-    user_id: "starter-ai",
-    group_id: null,
-    votes: 9,
-    vote_count: 9,
-    growth_score: 84,
-    boost_score: 10,
-    ai_score: 86,
-    is_starter: true,
-    created_at: new Date(Date.now() - 1000 * 60 * 24).toISOString(),
-  },
-  {
-    id: "starter-3",
-    content:
-      "Porukan voima syntyy siitä, että ääni ei mene vain äänekkäimmälle vaan sille, joka saa muut mukaan. Siksi jokainen perustelu voi muuttaa pelin suunnan.",
-    user_id: "starter-ai",
-    group_id: null,
-    votes: 7,
-    vote_count: 7,
-    growth_score: 76,
-    boost_score: 8,
-    ai_score: 79,
-    is_starter: true,
-    created_at: new Date(Date.now() - 1000 * 60 * 47).toISOString(),
-  },
-  {
-    id: "starter-4",
-    content:
-      "Tänään voittaja voi olla kuka tahansa. Yksi selkeä ajatus, yksi hyvä perustelu ja muutama ääni voi nostaa uuden nimen kärkeen.",
-    user_id: "starter-ai",
-    group_id: null,
-    votes: 5,
-    vote_count: 5,
-    growth_score: 70,
-    boost_score: 6,
-    ai_score: 75,
-    is_starter: true,
-    created_at: new Date(Date.now() - 1000 * 60 * 64).toISOString(),
-  },
+  { id: "starter-1", content: "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu. Siksi tämän pelin pitäisi nostaa esiin ne perustelut, jotka koskettavat aidosti.", user_id: "starter-ai", group_id: null, votes: 12, vote_count: 12, growth_score: 92, boost_score: 18, ai_score: 91, is_starter: true, created_at: new Date(Date.now() - 1000 * 60 * 8).toISOString() },
+  { id: "starter-2", content: "Hyvä perustelu ei ole pisin teksti. Se on sellainen, jonka jälkeen toinen pelaaja ajattelee: tämän minä ymmärrän ja tätä haluan tukea.", user_id: "starter-ai", group_id: null, votes: 9, vote_count: 9, growth_score: 84, boost_score: 10, ai_score: 86, is_starter: true, created_at: new Date(Date.now() - 1000 * 60 * 24).toISOString() },
+  { id: "starter-3", content: "Porukan voima syntyy siitä, että ääni ei mene vain äänekkäimmälle vaan sille, joka saa muut mukaan. Siksi jokainen perustelu voi muuttaa pelin suunnan.", user_id: "starter-ai", group_id: null, votes: 7, vote_count: 7, growth_score: 76, boost_score: 8, ai_score: 79, is_starter: true, created_at: new Date(Date.now() - 1000 * 60 * 47).toISOString() },
+  { id: "starter-4", content: "Tänään voittaja voi olla kuka tahansa. Yksi selkeä ajatus, yksi hyvä perustelu ja muutama ääni voi nostaa uuden nimen kärkeen.", user_id: "starter-ai", group_id: null, votes: 5, vote_count: 5, growth_score: 70, boost_score: 6, ai_score: 75, is_starter: true, created_at: new Date(Date.now() - 1000 * 60 * 64).toISOString() },
 ];
 
 function buildAlwaysAliveFeed(realPosts) {
@@ -88,9 +36,9 @@ function buildAlwaysAliveFeed(realPosts) {
   return [...real, ...starterPosts.slice(0, needed)];
 }
 
-function BottomNav() {
+function BottomNav({ hidden }) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[30px] border border-white/10 bg-[#061126]/95 px-4 pb-4 pt-3 text-white shadow-2xl backdrop-blur-xl">
+    <nav className={`fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[30px] border border-white/10 bg-[#061126]/95 px-4 pb-4 pt-3 text-white shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out ${hidden ? "translate-y-full" : "translate-y-0"}`}>
       <div className="grid grid-cols-5 items-end text-center text-xs font-black">
         <Link to="/">🏠<div>Koti</div></Link>
         <Link to="/feed" className="text-cyan-300">🔥<div>Feed</div></Link>
@@ -102,6 +50,19 @@ function BottomNav() {
         <Link to="/profile">👤<div>Profiili</div></Link>
       </div>
     </nav>
+  );
+}
+
+function FloatingActions({ hidden, onInvite }) {
+  return (
+    <div className={`fixed right-3 top-[38%] z-50 flex flex-col gap-3 transition-all duration-300 ease-out ${hidden ? "translate-x-[125%] opacity-0" : "translate-x-0 opacity-100"}`}>
+      <button onClick={onInvite} className="grid h-14 w-14 place-items-center rounded-2xl border border-green-300/30 bg-green-500 text-xl font-black text-white shadow-2xl shadow-green-500/25" aria-label="Kutsu ja boostaa">
+        🚀
+      </button>
+      <Link to="/new" className="grid h-14 w-14 place-items-center rounded-2xl border border-cyan-300/30 bg-cyan-500 text-3xl font-black text-white shadow-2xl shadow-cyan-500/25" aria-label="Luo uusi">
+        +
+      </Link>
+    </div>
   );
 }
 
@@ -125,18 +86,13 @@ function MiniLeaderboard({ posts }) {
   );
 }
 
-function FeedProgress({ activeIndex, total, onJump }) {
+function FeedProgress({ activeIndex, total, onJump, hidden }) {
   if (!total) return null;
 
   return (
-    <div className="fixed right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
+    <div className={`fixed right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2 transition-all duration-300 ${hidden ? "translate-x-[120%] opacity-0" : "opacity-100"}`}>
       {Array.from({ length: Math.min(total, 8) }).map((_, i) => (
-        <button
-          key={i}
-          onClick={() => onJump(i)}
-          className={`h-2 rounded-full transition-all ${activeIndex === i ? "w-5 bg-cyan-300" : "w-2 bg-white/25"}`}
-          aria-label={`Siirry korttiin ${i + 1}`}
-        />
+        <button key={i} onClick={() => onJump(i)} className={`h-2 rounded-full transition-all ${activeIndex === i ? "w-5 bg-cyan-300" : "w-2 bg-white/25"}`} aria-label={`Siirry korttiin ${i + 1}`} />
       ))}
     </div>
   );
@@ -160,6 +116,7 @@ export default function FeedPage() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [feedHeaderHidden, setFeedHeaderHidden] = useState(false);
 
+  const uiHidden = feedHeaderHidden;
   const topRealPosts = useMemo(() => posts.filter((p) => !p.is_starter), [posts]);
 
   useEffect(() => {
@@ -185,7 +142,6 @@ export default function FeedPage() {
     function updateActiveCard() {
       const cards = Array.from(scroller.querySelectorAll("[data-feed-card]"));
       const viewportMiddle = scroller.scrollTop + scroller.clientHeight / 2;
-
       let nextIndex = activeIndex;
       let bestDistance = Number.POSITIVE_INFINITY;
 
@@ -198,8 +154,9 @@ export default function FeedPage() {
         }
       });
 
-      const goingDown = scroller.scrollTop > lastTop;
-      setFeedHeaderHidden(goingDown && scroller.scrollTop > 120);
+      const delta = scroller.scrollTop - lastTop;
+      if (delta > 8 && scroller.scrollTop > 120) setFeedHeaderHidden(true);
+      if (delta < -8 || scroller.scrollTop < 60) setFeedHeaderHidden(false);
       lastTop = Math.max(0, scroller.scrollTop);
 
       setActiveIndex((prev) => {
@@ -232,7 +189,6 @@ export default function FeedPage() {
 
     scroller.addEventListener("scroll", onScroll, { passive: true });
     updateActiveCard();
-
     return () => scroller.removeEventListener("scroll", onScroll);
   }, [posts, user?.id, activeIndex]);
 
@@ -254,12 +210,7 @@ export default function FeedPage() {
   }, [activeIndex, posts, user?.id]);
 
   async function safeCall(fn, fallback = null) {
-    try {
-      return await fn();
-    } catch (error) {
-      console.warn("Engine safe fallback:", error);
-      return fallback;
-    }
+    try { return await fn(); } catch (error) { console.warn("Engine safe fallback:", error); return fallback; }
   }
 
   function jumpToCard(index) {
@@ -277,13 +228,7 @@ export default function FeedPage() {
 
     const link = getReferralLink(user.id);
     await navigator.clipboard.writeText(link);
-    await safeCall(() => supabase.from("user_events").insert({
-      user_id: user.id,
-      event_type: "invite_link_copied",
-      source: "feed",
-      meta: { link_copied: true },
-    }));
-
+    await safeCall(() => supabase.from("user_events").insert({ user_id: user.id, event_type: "invite_link_copied", source: "feed", meta: { link_copied: true } }));
     navigator.vibrate?.(25);
     setToast("🔥 Kutsu linkki kopioitu! Kaverit mukaan → näkyvyys kasvaa.");
     setTimeout(() => setToast(""), 2400);
@@ -313,10 +258,7 @@ export default function FeedPage() {
     let votesQuery = supabase.from("votes").select("post_id,user_id,value,group_id");
     let eventsQuery = supabase.from("user_events").select("*").limit(300);
 
-    if (groupId) {
-      postsQuery = postsQuery.eq("group_id", groupId);
-      votesQuery = votesQuery.eq("group_id", groupId);
-    }
+    if (groupId) { postsQuery = postsQuery.eq("group_id", groupId); votesQuery = votesQuery.eq("group_id", groupId); }
     if (currentUser) eventsQuery = eventsQuery.eq("user_id", currentUser.id);
 
     const { data: postsData, error: postsError } = await postsQuery;
@@ -340,31 +282,17 @@ export default function FeedPage() {
     const prepared = (postsData || []).map((post) => {
       const voteCount = voteCounts[post.id] || Number(post.votes || 0);
       const boostMultiplier = Number(post.boost_multiplier || 1);
-      return {
-        ...post,
-        vote_count: voteCount,
-        boost_score: Number(post.boost_score || 0) + (post.boost_event_active ? 40 * boostMultiplier : 0),
-        growth_score: Number(post.growth_score || post.ai_score || 0),
-      };
+      return { ...post, vote_count: voteCount, boost_score: Number(post.boost_score || 0) + (post.boost_event_active ? 40 * boostMultiplier : 0), growth_score: Number(post.growth_score || post.ai_score || 0) };
     });
 
     let optimizedFeed = [];
     try {
       const ranked = rankForYou(prepared, eventsData || []);
       const smartFeed = getSmartFeed(ranked);
-      optimizedFeed = await optimizeFeedForGrowthAsync(smartFeed, {
-        userId: currentUser?.id,
-        voted: votedMap,
-        groupId,
-        profile: profileData,
-      });
+      optimizedFeed = await optimizeFeedForGrowthAsync(smartFeed, { userId: currentUser?.id, voted: votedMap, groupId, profile: profileData });
     } catch (error) {
       console.warn("AI engine fallback used:", error);
-      optimizedFeed = prepared.sort((a, b) => {
-        const scoreA = Number(a.vote_count || 0) * 10 + Number(a.growth_score || 0) + Number(a.boost_score || 0);
-        const scoreB = Number(b.vote_count || 0) * 10 + Number(b.growth_score || 0) + Number(b.boost_score || 0);
-        return scoreB - scoreA;
-      });
+      optimizedFeed = prepared.sort((a, b) => (Number(b.vote_count || 0) * 10 + Number(b.growth_score || 0) + Number(b.boost_score || 0)) - (Number(a.vote_count || 0) * 10 + Number(a.growth_score || 0) + Number(a.boost_score || 0)));
     }
 
     optimizedFeed = buildAlwaysAliveFeed(optimizedFeed);
@@ -384,15 +312,7 @@ export default function FeedPage() {
     setBoostEvent(await safeCall(() => getActiveBoostEvent(), null));
     setDailyWinner(await safeCall(() => getTodayWinner(), null));
 
-    const { data: latestWinner } = currentUser
-      ? await supabase
-          .from("competition_winners")
-          .select("*")
-          .eq("user_id", currentUser.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle()
-      : { data: null };
+    const { data: latestWinner } = currentUser ? await supabase.from("competition_winners").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(1).maybeSingle() : { data: null };
     if (latestWinner) setWinnerPopup(latestWinner);
 
     setPosts(optimizedFeed);
@@ -401,43 +321,16 @@ export default function FeedPage() {
   }
 
   async function vote(post) {
-    if (post.is_starter) {
-      setToast("✨ Malliperustelu. Luo oma ja kilpaile oikeasti.");
-      setTimeout(() => setToast(""), 1800);
-      return;
-    }
-    if (!user) {
-      setToast("Kirjaudu ensin sisään.");
-      setTimeout(() => setToast(""), 1600);
-      return;
-    }
-    if (voted[post.id]) {
-      setToast("Olet jo äänestänyt tämän.");
-      setTimeout(() => setToast(""), 1600);
-      return;
-    }
+    if (post.is_starter) { setToast("✨ Malliperustelu. Luo oma ja kilpaile oikeasti."); setTimeout(() => setToast(""), 1800); return; }
+    if (!user) { setToast("Kirjaudu ensin sisään."); setTimeout(() => setToast(""), 1600); return; }
+    if (voted[post.id]) { setToast("Olet jo äänestänyt tämän."); setTimeout(() => setToast(""), 1600); return; }
 
-    const { error } = await supabase.from("votes").insert({
-      post_id: post.id,
-      user_id: user.id,
-      group_id: post.group_id || null,
-      value: 1,
-    });
-    if (error) {
-      setToast(error.message || "Äänestys epäonnistui");
-      setTimeout(() => setToast(""), 1800);
-      return;
-    }
+    const { error } = await supabase.from("votes").insert({ post_id: post.id, user_id: user.id, group_id: post.group_id || null, value: 1 });
+    if (error) { setToast(error.message || "Äänestys epäonnistui"); setTimeout(() => setToast(""), 1800); return; }
 
     await safeCall(() => rewardVote(user.id));
     await safeCall(() => notifyAlmostWin({ userId: post.user_id, post }));
-    await safeCall(() => supabase.from("user_events").insert({
-      user_id: user.id,
-      post_id: post.id,
-      event_type: "vote_growth_trigger",
-      source: "feed",
-      meta: { boost_signal: true },
-    }));
+    await safeCall(() => supabase.from("user_events").insert({ user_id: user.id, post_id: post.id, event_type: "vote_growth_trigger", source: "feed", meta: { boost_signal: true } }));
 
     navigator.vibrate?.([20, 40, 20]);
     setToast("🔥 Ääni annettu! +5 XP");
@@ -451,56 +344,30 @@ export default function FeedPage() {
     <div className="h-[100dvh] overflow-hidden bg-[#050816] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#12306e_0%,#050816_42%,#02030a_100%)]" />
 
-      {toast && (
-        <div className="fixed left-1/2 top-5 z-[999] -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">
-          {toast}
-        </div>
-      )}
+      {toast && <div className="fixed left-1/2 top-5 z-[999] -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">{toast}</div>}
       {winnerPopup && <WinnerHypeModal winner={winnerPopup} onClose={() => setWinnerPopup(null)} />}
 
-      <header className={`fixed left-0 right-0 top-[60px] z-40 border-b border-white/10 bg-[#050816]/85 px-4 py-3 shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ${feedHeaderHidden ? "-translate-y-[86%]" : "translate-y-0"}`}>
-        <div className="mx-auto flex max-w-md items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight">KOLEHTI</h1>
-            <p className="text-[10px] font-black uppercase text-white/50">{FEED_VERSION}</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleInvite} className="rounded-2xl bg-green-500 px-3 py-3 text-xs font-black text-white shadow-xl shadow-green-500/20">
-              Kutsu +Boost
-            </button>
-            <Link to="/new" className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black shadow-xl shadow-cyan-500/25">
-              Uusi
-            </Link>
-          </div>
+      <header className={`fixed left-0 right-0 top-[60px] z-40 border-b border-white/10 bg-[#050816]/85 px-4 py-3 shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ${uiHidden ? "-translate-y-[108%]" : "translate-y-0"}`}>
+        <div className="mx-auto max-w-md">
+          <h1 className="text-3xl font-black tracking-tight">KOLEHTI</h1>
+          <p className="text-[10px] font-black uppercase text-white/50">{FEED_VERSION}</p>
         </div>
       </header>
 
-      <FeedProgress activeIndex={activeIndex} total={posts.length} onJump={jumpToCard} />
+      <FloatingActions hidden={uiHidden} onInvite={handleInvite} />
+      <FeedProgress activeIndex={activeIndex} total={posts.length} onJump={jumpToCard} hidden={uiHidden} />
 
-      <main
-        ref={scrollerRef}
-        id="feed-scroll-root"
-        className="h-[100dvh] snap-y snap-mandatory overflow-y-scroll scroll-smooth px-4 pb-28 pt-28 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
+      <main ref={scrollerRef} id="feed-scroll-root" className="h-[100dvh] snap-y snap-mandatory overflow-y-scroll scroll-smooth px-4 pb-10 pt-28 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="mx-auto max-w-md snap-start space-y-4 pb-6 pt-10">
-          {segmentMessage && (
-            <section className="rounded-[26px] border border-cyan-300/20 bg-cyan-500/10 px-5 py-4 text-sm font-black leading-snug text-cyan-50 shadow-xl">
-              {segmentMessage}
-            </section>
-          )}
+          {segmentMessage && <section className="rounded-[26px] border border-cyan-300/20 bg-cyan-500/10 px-5 py-4 text-sm font-black leading-snug text-cyan-50 shadow-xl">{segmentMessage}</section>}
           {dailyWinner && <DailyWinnerBanner winner={dailyWinner} />}
           {boostEvent && <BoostEventBanner event={boostEvent} />}
           <MiniLeaderboard posts={topRealPosts} />
           <section className="rounded-[30px] border border-yellow-300/30 bg-black/30 p-[2px] shadow-2xl">
             <div className="rounded-[28px] bg-[#050816] px-5 py-4">
               <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-wide text-yellow-200">🔥 Päivän kierros</p>
-                  <p className="mt-1 text-3xl font-black">Potti auki</p>
-                </div>
-                <Link to="/pots" className="rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-black">
-                  Tilanne
-                </Link>
+                <div><p className="text-xs font-black uppercase tracking-wide text-yellow-200">🔥 Päivän kierros</p><p className="mt-1 text-3xl font-black">Potti auki</p></div>
+                <Link to="/pots" className="rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-black">Tilanne</Link>
               </div>
             </div>
           </section>
@@ -513,26 +380,14 @@ export default function FeedPage() {
           </section>
         ) : (
           posts.map((post, index) => (
-            <div
-              key={post.id}
-              data-feed-card
-              data-feed-card-index={index}
-              className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5"
-            >
-              <ForYouCard
-                post={post}
-                index={index}
-                user={user}
-                voted={voted[post.id]}
-                rankInfo={calculateRankInfo(posts, post.id)}
-                onVote={vote}
-              />
+            <div key={post.id} data-feed-card data-feed-card-index={index} className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5">
+              <ForYouCard post={post} index={index} user={user} voted={voted[post.id]} rankInfo={calculateRankInfo(posts, post.id)} onVote={vote} />
             </div>
           ))
         )}
       </main>
 
-      <BottomNav />
+      <BottomNav hidden={uiHidden} />
     </div>
   );
 }
