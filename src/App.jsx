@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import FeedPage from "./pages/FeedPage";
+import FeedPage from "./pages/FeedPageStable";
 import VotePage from "./pages/VotePage";
 import NewPostPage from "./pages/NewPostPage";
 import ProfilePage from "./pages/ProfilePage";
