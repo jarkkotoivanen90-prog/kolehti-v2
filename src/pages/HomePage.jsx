@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 const koliBg = "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=85";
+const UI_VERSION = "UI CLEAN 2026-04-28";
 
 function BottomNav() {
   return (
@@ -57,6 +58,10 @@ export default function HomePage() {
           </div>
           <Link to="/profile" className="grid h-14 w-14 place-items-center rounded-3xl border border-white/10 bg-white/10 text-3xl shadow-xl">👤</Link>
         </header>
+
+        <section className="mb-4 rounded-2xl border border-cyan-300/20 bg-cyan-500/10 px-4 py-3 text-xs font-black text-cyan-100">
+          {UI_VERSION}
+        </section>
 
         <section
           className="relative min-h-[390px] overflow-hidden rounded-[38px] border border-cyan-300/25 shadow-2xl"
