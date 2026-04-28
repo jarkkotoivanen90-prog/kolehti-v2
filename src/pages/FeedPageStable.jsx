@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { calculateLivePot, calculateInteractionXp, rankKolehtiFeed } from "../lib/kolehtiEngine";
@@ -37,223 +37,38 @@ function sanitizePosts(list) {
 }
 
 const starterPosts = [
-  normalizePost({ id: "starter-1", content: "Kirjoita oma perustelu ja kerää ääniä. Hyvä perustelu on selkeä, aito ja sellainen jota muut haluavat tukea.", user_id: "starter", vote_count: 5, ai_score: 70, is_starter: true }),
-  normalizePost({ id: "starter-2", content: "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu.", user_id: "starter", vote_count: 3, ai_score: 65, is_starter: true }),
+  normalizePost({ id: "starter-1", content: "Kirjoita oma perustelu ja kerää ääniä.", user_id: "starter", vote_count: 5, ai_score: 70, is_starter: true }),
 ].filter(Boolean);
 
-function BottomNav() {
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md rounded-t-[30px] border border-cyan-300/10 bg-[#071328]/95 px-4 pb-4 pt-3 text-white shadow-2xl backdrop-blur-xl">
-      <div className="grid grid-cols-5 items-end text-center text-[11px] font-black">
-        <Link to="/" className="text-white/75">🏠<div>Koti</div></Link>
-        <Link to="/feed" className="text-cyan-300">🔥<div>Feed</div></Link>
-        <Link to="/new" className="-mt-9"><div className="mx-auto grid h-17 w-17 place-items-center rounded-full bg-blue-500 px-5 py-3 text-5xl shadow-2xl shadow-blue-500/40">+</div><div>Uusi</div></Link>
-        <Link to="/pots" className="text-white/75">🏆<div>Potit</div></Link>
-        <Link to="/profile" className="text-white/75">👤<div>Profiili</div></Link>
-      </div>
-    </nav>
-  );
-}
-
-function rankBadge(index) {
-  if (index === 0) return "🥇";
-  if (index === 1) return "🥈";
-  if (index === 2) return "🥉";
-  return index + 1;
-}
-
-function PostCard({ post, index, voted, onVote, likeXp }) {
-  const safePost = normalizePost(post);
-  if (!safePost) return null;
-  const votes = Number(safePost.vote_count || safePost.votes || 0);
-  const score = Math.round(Number(safePost.kolehti_score || safePost.ai_score || 0));
-  const momentum = Math.round(Math.min(99, votes * 9 + Number(safePost.boost_score || 0)));
-  const top = index === 0;
-
-  return (
-    <article className={`relative overflow-hidden rounded-[36px] border p-[2px] shadow-2xl ${top ? "border-yellow-300/60 bg-gradient-to-br from-yellow-300 via-pink-500 to-cyan-300" : "border-cyan-300/25 bg-gradient-to-br from-cyan-300/40 via-white/10 to-pink-400/30"}`}>
-      <div className="absolute inset-0 opacity-25 blur-3xl bg-[radial-gradient(circle_at_top_left,#22d3ee,transparent_35%),radial-gradient(circle_at_bottom_right,#ec4899,transparent_35%)]" />
-      <div className="relative rounded-[34px] bg-[#111827]/95 p-5 backdrop-blur-xl">
-        <div className="flex items-start justify-between gap-3">
-          <div className="relative grid h-24 w-24 shrink-0 place-items-center rounded-[28px] border border-white/15 bg-gradient-to-br from-cyan-400/30 to-pink-500/30 shadow-xl">
-            <div className="absolute -left-3 -top-3 grid h-12 w-12 place-items-center rounded-full bg-yellow-300 text-xl font-black text-black shadow-xl">
-              {rankBadge(index)}
-            </div>
-            <div className="text-5xl">{safePost.is_starter ? "✨" : "💙"}</div>
-            <div className="absolute bottom-2 left-2 right-2 h-2 rounded-full bg-cyan-300/80" />
-          </div>
-
-          <div className="flex min-w-0 flex-1 flex-col items-end gap-2">
-            <div className="rounded-full border border-cyan-300/30 bg-cyan-400/15 px-3 py-2 text-xs font-black text-cyan-100">
-              🤖 AI MALLI
-            </div>
-            <div className="grid w-full grid-cols-2 gap-2 text-center text-xs font-black">
-              <div className="rounded-2xl bg-black/30 p-3">
-                <div className="text-white/45">SCORE</div>
-                <div className="mt-1 text-2xl text-cyan-200">{score}</div>
-              </div>
-              <div className="rounded-2xl bg-yellow-300/15 p-3">
-                <div className="text-yellow-100/60">MOMENTUM</div>
-                <div className="mt-1 text-2xl text-yellow-200">{momentum}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-[24px] border border-yellow-300/25 bg-yellow-300/10 px-4 py-4 text-sm font-black leading-snug text-yellow-50">
-          {top ? "👑 Johdat nyt kilpailua" : safePost.is_starter ? "✨ Malliperustelu — tee oma ja nouse mukaan." : "🔥 Nouse rankingissa tykkäyksillä ja vahvalla perustelulla."}
-        </div>
-
-        <div className="mt-5">
-          <p className="text-xs font-black uppercase tracking-wide text-white/45">Perustelu</p>
-          <h2 className="mt-2 text-3xl font-black leading-tight text-white">{safePost.is_starter ? "Malliperustelu" : "Pelaajan perustelu"}</h2>
-          <p className="mt-4 whitespace-pre-wrap break-words text-xl font-black leading-relaxed text-white/85">{safePost.content}</p>
-        </div>
-
-        <div className="mt-6 grid grid-cols-3 gap-2 text-center text-xs font-black">
-          <div className="rounded-2xl bg-black/30 p-3"><div className="text-white/45">ÄÄNET</div><div className="mt-1 text-2xl">{votes}</div></div>
-          <div className="rounded-2xl bg-black/30 p-3"><div className="text-white/45">VIRAL</div><div className="mt-1 text-2xl text-pink-300">{Math.min(99, votes * 7 + score)}</div></div>
-          <div className="rounded-2xl bg-black/30 p-3"><div className="text-white/45">TILA</div><div className="mt-1 text-2xl">{safePost.is_starter ? "AI" : "LIVE"}</div></div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onVote(safePost)}
-          disabled={Boolean(voted) || Boolean(safePost.is_starter)}
-          className="mt-6 w-full rounded-[26px] bg-cyan-500 px-5 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/25 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40"
-        >
-          {safePost.is_starter ? "Luo oma perustelu" : voted ? "Äänestetty" : `Tykkää +${likeXp.xp} XP`}
-        </button>
-      </div>
-    </article>
-  );
-}
-
 export default function FeedPageStable() {
+  const scrollerRef = useRef(null);
   const [posts, setPosts] = useState([]);
-  const [user, setUser] = useState(null);
-  const [voted, setVoted] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  const safePosts = useMemo(() => {
-    const real = sanitizePosts(posts);
-    return real.length ? real : starterPosts;
-  }, [posts]);
-
-  const activePlayers = Math.max(1, safePosts.filter((p) => !p.is_starter).length * 120);
-  const livePot = calculateLivePot({ activePlayers, invitedPlayers: 25 });
-  const likeXp = calculateInteractionXp({ action: "like", strongLikesUsed: 2, groupSize: activePlayers });
+  const safePosts = useMemo(() => sanitizePosts(posts), [posts]);
 
   useEffect(() => {
-    loadFeed();
-    const channel = supabase
-      .channel("safe-pro-feed")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed)
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed)
-      .subscribe();
-    return () => supabase.removeChannel(channel);
+    const root = scrollerRef.current;
+    if (!root) return;
+
+    function onScroll() {
+      const index = Math.round(root.scrollTop / root.clientHeight);
+      setActiveIndex(index);
+    }
+
+    root.addEventListener("scroll", onScroll);
+    return () => root.removeEventListener("scroll", onScroll);
   }, []);
 
-  async function loadFeed() {
-    setLoading(true);
-    try {
-      const { data: auth } = await supabase.auth.getUser();
-      const currentUser = auth?.user || null;
-      setUser(currentUser);
-
-      const { data: postsData, error: postsError } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(80);
-      const { data: votesData, error: votesError } = await supabase.from("votes").select("post_id,user_id,value,group_id");
-      if (postsError || votesError) throw postsError || votesError;
-
-      const voteCounts = {};
-      const votedMap = {};
-      (votesData || []).forEach((vote) => {
-        if (!vote?.post_id) return;
-        voteCounts[vote.post_id] = (voteCounts[vote.post_id] || 0) + Number(vote.value || 1);
-        if (vote.user_id === currentUser?.id) votedMap[vote.post_id] = true;
-      });
-
-      const prepared = sanitizePosts(postsData).map((post) => normalizePost(post, voteCounts[post.id] || 0)).filter(Boolean);
-      setPosts(rankKolehtiFeed(prepared, { sameGroup: true }));
-      setVoted(votedMap);
-    } catch (error) {
-      console.warn("Feed load fallback", error);
-      setToast(error?.message || "Feedin lataus epäonnistui");
-      setPosts(starterPosts);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function vote(post) {
-    const safePost = normalizePost(post);
-    if (!safePost || safePost.is_starter) {
-      setToast("Luo oma perustelu ja kilpaile oikeasti.");
-      setTimeout(() => setToast(""), 1800);
-      return;
-    }
-    if (!user) {
-      setToast("Kirjaudu ensin sisään.");
-      setTimeout(() => setToast(""), 1600);
-      return;
-    }
-    if (voted[safePost.id]) {
-      setToast("Olet jo äänestänyt tämän.");
-      setTimeout(() => setToast(""), 1600);
-      return;
-    }
-    const { error } = await supabase.from("votes").insert({ post_id: safePost.id, user_id: user.id, group_id: safePost.group_id || null, value: 1 });
-    if (error) {
-      setToast(error.message || "Äänestys epäonnistui");
-      setTimeout(() => setToast(""), 1800);
-      return;
-    }
-    setToast(`🔥 Ääni annettu. +${likeXp.xp} XP`);
-    setTimeout(() => setToast(""), 2200);
-    await loadFeed();
-  }
-
   return (
-    <div className="min-h-[100dvh] overflow-x-hidden bg-[#050816] px-4 pb-32 pt-5 text-white">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#12306e_0%,#050816_44%,#02030a_100%)]" />
-      {toast && <div className="fixed left-1/2 top-5 z-50 -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">{toast}</div>}
-
-      <header className="mx-auto max-w-md">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-5xl font-black tracking-tight">KOLEHTI</h1>
-            <p className="text-xs font-black uppercase tracking-wide text-white/50">Pro safe feed engine</p>
-          </div>
-          <Link to="/new" className="rounded-[24px] bg-cyan-500 px-5 py-4 text-sm font-black shadow-2xl shadow-cyan-500/25">Uusi</Link>
-        </div>
-      </header>
-
-      <main className="mx-auto mt-5 max-w-md space-y-6">
-        <section className="overflow-hidden rounded-[34px] border border-yellow-300/30 bg-gradient-to-br from-yellow-300/10 via-black/30 to-pink-500/10 p-[2px] shadow-2xl">
-          <div className="rounded-[32px] bg-[#050816]/95 p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-wide text-yellow-200">🔥 Päivän kierros</p>
-                <p className="mt-1 text-4xl font-black">{livePot.amount} €</p>
-                <p className="mt-1 text-xs font-black text-white/55">{Math.round(livePot.fillRate)}% täynnä · {livePot.missingPlayers} paikkaa jäljellä</p>
-                <p className="mt-1 text-xs font-black text-cyan-200">⚡ Strong liket: {likeXp.strongLikesLeft}</p>
-              </div>
-              <Link to="/pots" className="rounded-[22px] bg-yellow-300 px-5 py-4 text-sm font-black text-black shadow-xl shadow-yellow-300/20">Tilanne</Link>
-            </div>
-          </div>
-        </section>
-
-        {loading ? (
-          <section className="rounded-[34px] border border-white/10 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl">
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" />
-            <p className="font-black text-white/70">Feed latautuu...</p>
+    <div className="h-screen overflow-hidden bg-black text-white">
+      <main ref={scrollerRef} className="h-screen snap-y snap-mandatory overflow-y-scroll">
+        {safePosts.map((post, index) => (
+          <section key={post.id} className="h-screen snap-start flex items-center justify-center">
+            <div className="text-3xl">{post.content}</div>
           </section>
-        ) : safePosts.map((post, index) => (
-          <PostCard key={post.id || index} post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} likeXp={likeXp} />
         ))}
       </main>
-      <BottomNav />
     </div>
   );
 }
