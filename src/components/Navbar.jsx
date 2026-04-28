@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -16,6 +17,37 @@ export default function Navbar() {
     { to: "/profile", label: "Profiili" },
   ];
 
+  useEffect(() => {
+    let lastY = 0;
+
+    function readScrollY() {
+      const feedScroller = document.getElementById("feed-scroll-root");
+      return feedScroller ? feedScroller.scrollTop : window.scrollY;
+    }
+
+    function update() {
+      const y = readScrollY();
+      const goingDown = y > lastY;
+      setHidden(location.pathname === "/feed" && goingDown && y > 90 && !open);
+      lastY = Math.max(0, y);
+    }
+
+    const feedScroller = document.getElementById("feed-scroll-root");
+    const target = feedScroller || window;
+    target.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("touchmove", update, { passive: true });
+
+    return () => {
+      target.removeEventListener("scroll", update);
+      window.removeEventListener("touchmove", update);
+    };
+  }, [location.pathname, open]);
+
+  useEffect(() => {
+    setHidden(false);
+    setOpen(false);
+  }, [location.pathname]);
+
   async function logout() {
     await supabase.auth.signOut();
     localStorage.removeItem("kolehti_group_id");
@@ -27,7 +59,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/85 text-white backdrop-blur-xl">
+    <header className={`sticky top-0 z-50 border-b border-white/10 bg-slate-950/85 text-white shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ease-out ${hidden ? "-translate-y-[82%]" : "translate-y-0"}`}>
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500 text-xl shadow-lg">
@@ -55,10 +87,7 @@ export default function Navbar() {
             </Link>
           ))}
 
-          <button
-            onClick={logout}
-            className="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-bold text-white"
-          >
+          <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-bold text-white">
             Ulos
           </button>
         </nav>
@@ -90,10 +119,7 @@ export default function Navbar() {
               </Link>
             ))}
 
-            <button
-              onClick={logout}
-              className="rounded-2xl bg-pink-500 px-4 py-3 text-left text-sm font-bold text-white"
-            >
+            <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-3 text-left text-sm font-bold text-white">
               Kirjaudu ulos
             </button>
           </div>
