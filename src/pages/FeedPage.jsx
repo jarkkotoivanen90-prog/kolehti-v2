@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { getReferralLink } from "../lib/referral";
 
 import ForYouCard from "../components/ForYouCard";
 import BoostEventBanner from "../components/BoostEventBanner";
@@ -20,7 +21,7 @@ import { optimizeFeedForGrowthAsync, trackTopGrowthImpressions } from "../lib/ai
 import { getUserSegment } from "../lib/userSegment";
 import { sendSegmentMessage } from "../lib/segmentMessages";
 
-const FEED_VERSION = "SWIPE FEED UX 2026-04-28";
+const FEED_VERSION = "GROWTH LOOP 2026-04-28";
 
 const starterPosts = [
   { id: "starter-1", content: "Kun yksi ihminen saa apua oikealla hetkellä, koko porukka vahvistuu. Siksi tämän pelin pitäisi nostaa esiin ne perustelut, jotka koskettavat aidosti.", user_id: "starter-ai", group_id: null, votes: 12, vote_count: 12, growth_score: 92, boost_score: 18, ai_score: 91, is_starter: true, created_at: new Date(Date.now() - 1000 * 60 * 8).toISOString() },
@@ -98,6 +99,27 @@ export default function FeedPage() {
 
   async function safeCall(fn, fallback = null) {
     try { return await fn(); } catch (error) { console.warn("Engine safe fallback:", error); return fallback; }
+  }
+
+  async function handleInvite() {
+    if (!user?.id) {
+      setToast("Kirjaudu sisään ja saat oman kutsulinkin.");
+      setTimeout(() => setToast(""), 1800);
+      return;
+    }
+
+    const link = getReferralLink(user.id);
+    await navigator.clipboard.writeText(link);
+    await safeCall(() => supabase.from("user_events").insert({
+      user_id: user.id,
+      event_type: "invite_link_copied",
+      source: "feed",
+      meta: { link_copied: true },
+    }));
+
+    navigator.vibrate?.(25);
+    setToast("🔥 Kutsu linkki kopioitu! Kaverit mukaan → näkyvyys kasvaa.");
+    setTimeout(() => setToast(""), 2400);
   }
 
   async function loadFeed() {
@@ -205,11 +227,19 @@ export default function FeedPage() {
 
     await safeCall(() => rewardVote(user.id));
     await safeCall(() => notifyAlmostWin({ userId: post.user_id, post }));
+    await safeCall(() => supabase.from("user_events").insert({
+      user_id: user.id,
+      post_id: post.id,
+      event_type: "vote_growth_trigger",
+      source: "feed",
+      meta: { boost_signal: true },
+    }));
 
     navigator.vibrate?.([20, 40, 20]);
     setToast("🔥 Ääni annettu! +5 XP");
     setTimeout(() => setToast("🚀 Näkyvyys nousussa"), 1100);
-    setTimeout(() => setToast(""), 2600);
+    if (Math.random() > 0.7) setTimeout(() => setToast("👀 Uusia katsojia tuli"), 1800);
+    setTimeout(() => setToast(""), 3000);
     await loadFeed();
   }
 
@@ -226,7 +256,10 @@ export default function FeedPage() {
             <h1 className="text-3xl font-black tracking-tight">KOLEHTI</h1>
             <p className="text-[10px] font-black uppercase text-white/50">Swipe Feed · {FEED_VERSION}</p>
           </div>
-          <Link to="/new" className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black shadow-xl shadow-cyan-500/25">Uusi</Link>
+          <div className="flex gap-2">
+            <button onClick={handleInvite} className="rounded-2xl bg-green-500 px-3 py-3 text-xs font-black text-white shadow-xl shadow-green-500/20">Kutsu +Boost</button>
+            <Link to="/new" className="rounded-2xl bg-cyan-500 px-4 py-3 text-sm font-black shadow-xl shadow-cyan-500/25">Uusi</Link>
+          </div>
         </div>
       </header>
 
