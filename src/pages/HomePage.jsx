@@ -3,13 +3,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 const IMG = {
-  helsinki: "https://source.unsplash.com/1400x1000/?helsinki,finland,harbour",
-  slogan: "https://source.unsplash.com/1200x600/?finland,lake,forest",
-  lake: "https://source.unsplash.com/900x1200/?finland,lake",
-  forest: "https://source.unsplash.com/900x1200/?finland,forest",
-  lapland: "https://source.unsplash.com/900x1200/?lapland,finland",
-  road: "https://source.unsplash.com/900x1200/?finland,road,forest",
-  archipelago: "https://source.unsplash.com/900x1200/?finland,archipelago",
+  helsinki: "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=1400&q=90",
+  slogan: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=90",
+  lake: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=90",
+  forest: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=900&q=90",
+  lapland: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=900&q=90",
+  road: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=900&q=90",
+  archipelago: "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=900&q=90",
 };
 
 const slogans = [
@@ -68,33 +68,11 @@ function BrandHeader({ mode, onPulse }) {
 }
 
 function SloganCard({ slogan, onPulse }) {
-  return (
-    <section onClick={() => onPulse("action")} className="relative mt-5 overflow-hidden rounded-[26px] border border-cyan-300/25 px-5 py-4 shadow-2xl shadow-cyan-400/5">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.58), rgba(2,6,23,.84)), url(${IMG.slogan})` }} />
-      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/70 to-transparent" />
-      <div className="relative flex items-center gap-4">
-        <div className="floaty text-4xl">{slogan[0]}</div>
-        <div>
-          <div className="text-[22px] font-black leading-tight">{slogan[1]}</div>
-          <div className="mt-1 text-sm font-bold text-white/72">{slogan[2]}</div>
-        </div>
-      </div>
-    </section>
-  );
+  return <section onClick={() => onPulse("action")} className="relative mt-5 overflow-hidden rounded-[26px] border border-cyan-300/25 px-5 py-4 shadow-2xl shadow-cyan-400/5"><div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.58), rgba(2,6,23,.84)), url(${IMG.slogan})` }} /><div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/70 to-transparent" /><div className="relative flex items-center gap-4"><div className="floaty text-4xl">{slogan[0]}</div><div><div className="text-[22px] font-black leading-tight">{slogan[1]}</div><div className="mt-1 text-sm font-bold text-white/72">{slogan[2]}</div></div></div></section>;
 }
 
 function HeroCard({ onPulse }) {
-  return (
-    <section className="relative mt-5 overflow-hidden rounded-[36px] border border-cyan-300/25 shadow-2xl">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.16), rgba(2,6,23,.38), rgba(2,6,23,.86)), url(${IMG.helsinki})` }} />
-      <div className="absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/90 to-transparent" />
-      <div className="relative min-h-[356px] p-5">
-        <div className="w-fit rounded-full border border-white/20 bg-black/50 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-100 backdrop-blur-md">🇫🇮 Suomalainen yhteisöpeli</div>
-        <div className="mt-16 max-w-[88%]"><p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-200">Tämän päivän kierros</p><h2 className="mt-3 text-[56px] font-black leading-[0.88] tracking-tight text-white drop-shadow-2xl">POTTI<br />AUKI!</h2><p className="mt-5 text-[17px] font-black leading-snug text-white/90">Kirjoita hyvä perustelu, kerää ääniä ja nouse mukaan kilpailuun.</p></div>
-        <div className="mt-8 grid grid-cols-2 gap-4"><Link onClick={() => onPulse("reward")} to="/new" className="rounded-[28px] bg-cyan-500 px-4 py-5 text-center text-base font-black uppercase shadow-2xl shadow-cyan-500/30 active:scale-[0.98]">Luo perustelu</Link><Link onClick={() => onPulse("reward")} to="/feed" className="rounded-[28px] border border-white/25 bg-black/30 px-4 py-5 text-center text-base font-black uppercase backdrop-blur-md active:scale-[0.98]">Katso feed</Link></div>
-      </div>
-    </section>
-  );
+  return <section className="relative mt-5 overflow-hidden rounded-[36px] border border-cyan-300/25 shadow-2xl"><div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.16), rgba(2,6,23,.38), rgba(2,6,23,.86)), url(${IMG.helsinki})` }} /><div className="absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/90 to-transparent" /><div className="relative min-h-[356px] p-5"><div className="w-fit rounded-full border border-white/20 bg-black/50 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-100 backdrop-blur-md">🇫🇮 Suomalainen yhteisöpeli</div><div className="mt-16 max-w-[88%]"><p className="text-xs font-black uppercase tracking-[0.28em] text-cyan-200">Tämän päivän kierros</p><h2 className="mt-3 text-[56px] font-black leading-[0.88] tracking-tight text-white drop-shadow-2xl">POTTI<br />AUKI!</h2><p className="mt-5 text-[17px] font-black leading-snug text-white/90">Kirjoita hyvä perustelu, kerää ääniä ja nouse mukaan kilpailuun.</p></div><div className="mt-8 grid grid-cols-2 gap-4"><Link onClick={() => onPulse("reward")} to="/new" className="rounded-[28px] bg-cyan-500 px-4 py-5 text-center text-base font-black uppercase shadow-2xl shadow-cyan-500/30 active:scale-[0.98]">Luo perustelu</Link><Link onClick={() => onPulse("reward")} to="/feed" className="rounded-[28px] border border-white/25 bg-black/30 px-4 py-5 text-center text-base font-black uppercase backdrop-blur-md active:scale-[0.98]">Katso feed</Link></div></div></section>;
 }
 
 function RuleCard({ n, icon, title, text, image, onPulse }) {
@@ -108,65 +86,16 @@ function MetricCard({ title, value, icon, text, footerLeft, footerRight, image, 
 function BottomNav({ onPulse }) {
   const location = useLocation();
   const tap = (mode = "action") => { navigator.vibrate?.(10); onPulse(mode); };
-  const items = [
-    { to: "/", icon: "⌂", label: "Koti", alive: true },
-    { to: "/feed", icon: "🔥", label: "Feed", badge: "LIVE" },
-    { to: "/new", icon: "+", label: "Uusi", fab: true },
-    { to: "/pots", icon: "🏆", label: "Potit", badge: "HOT", gold: true },
-    { to: "/profile", icon: "●", label: "Profiili", alive: true },
-  ];
+  const items = [{ to: "/", icon: "⌂", label: "Koti", alive: true }, { to: "/feed", icon: "🔥", label: "Feed", badge: "LIVE" }, { to: "/new", icon: "+", label: "Uusi", fab: true }, { to: "/pots", icon: "🏆", label: "Potit", badge: "HOT", gold: true }, { to: "/profile", icon: "●", label: "Profiili", alive: true }];
   return <nav className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md px-5 pb-4 text-white"><div className="relative rounded-[40px] border border-cyan-300/25 bg-[#061126]/95 px-4 pb-5 pt-4 shadow-2xl shadow-cyan-500/15 backdrop-blur-2xl"><div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/80 to-transparent" /><div className="grid grid-cols-5 items-end text-center text-[12px] font-black">{items.map((item) => { const active = location.pathname === item.to; if (item.fab) return <Link key={item.to} to={item.to} onClick={() => tap("reward")} className="-mt-12 flex flex-col items-center"><div className="grid h-[88px] w-[88px] place-items-center rounded-full border-[6px] border-[#061126] bg-gradient-to-br from-cyan-300 via-sky-400 to-blue-600 text-[64px] font-black leading-none shadow-2xl shadow-cyan-400/45 transition active:scale-95">+</div><div className="mt-1 text-white">{item.label}</div></Link>; return <Link key={item.to} to={item.to} onClick={() => tap("action")} className={`relative flex flex-col items-center gap-2 rounded-3xl px-1 py-2 transition active:scale-95 ${active ? "text-cyan-200" : "text-white/55"}`}>{item.badge && <span className={`absolute -top-2 rounded-full px-2 py-0.5 text-[8px] font-black ${item.gold ? "bg-yellow-300 text-black shadow-lg shadow-yellow-300/30" : "bg-pink-500 text-white shadow-lg shadow-pink-500/30"}`}>{item.badge}</span>}<div className={`relative grid h-12 w-12 place-items-center rounded-3xl text-2xl transition ${active ? "bg-cyan-400/15 shadow-lg shadow-cyan-400/30" : item.gold ? "bg-yellow-300/10 shadow-lg shadow-yellow-300/10" : "bg-white/5"} ${item.alive ? "nav-life" : ""}`}>{item.alive && <span className="absolute inset-0 rounded-3xl border border-cyan-300/20" />}{item.icon}</div><div>{item.label}</div></Link>; })}</div></div></nav>;
 }
 
 export default function HomePage() {
-  const [sloganIndex, setSloganIndex] = useState(0);
-  const [posts, setPosts] = useState([]);
-  const [votes, setVotes] = useState([]);
-  const [user, setUser] = useState(null);
-  const [logoMode, setLogoMode] = useState("idle");
-  const timerRef = useRef(null);
-
-  function pulseLogo(mode = "reward") {
-    clearTimeout(timerRef.current);
-    setLogoMode(mode);
-    navigator.vibrate?.(8);
-    timerRef.current = setTimeout(() => setLogoMode("idle"), mode === "reward" ? 900 : 420);
-  }
-
-  useEffect(() => {
-    const sloganTimer = setInterval(() => setSloganIndex((i) => (i + 1) % slogans.length), 2800);
-    loadStats();
-    const onScroll = () => window.scrollY > 30 && pulseLogo("action");
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => { clearInterval(sloganTimer); clearTimeout(timerRef.current); window.removeEventListener("scroll", onScroll); };
-  }, []);
-
-  async function loadStats() {
-    try {
-      const { data: auth } = await supabase.auth.getUser();
-      setUser(auth?.user || null);
-      const [{ data: postData }, { data: voteData }] = await Promise.all([
-        supabase.from("posts").select("id,user_id,ai_score,boost_score,watch_time_total,shares").limit(120),
-        supabase.from("votes").select("post_id,user_id,value").limit(3000),
-      ]);
-      setPosts(postData || []);
-      setVotes(voteData || []);
-    } catch (err) { console.warn("home stats fallback", err); }
-  }
-
-  const stats = useMemo(() => {
-    const voteMap = {};
-    votes.forEach((v) => { if (v?.post_id) voteMap[v.post_id] = (voteMap[v.post_id] || 0) + Number(v.value || 1); });
-    const scored = posts.map((p) => ({ ...p, score: Number(voteMap[p.id] || 0) * 12 + Number(p.ai_score || 50) + Number(p.boost_score || 0) * 2 + Number(p.watch_time_total || 0) * 2 + Number(p.shares || 0) * 4 })).sort((a, b) => b.score - a.score);
-    const myIndex = user?.id ? scored.findIndex((p) => p.user_id === user.id) : -1;
-    const me = myIndex >= 0 ? scored[myIndex] : null;
-    const next = myIndex > 0 ? scored[myIndex - 1] : null;
-    const gap = next && me ? Math.max(1, Math.ceil((next.score - me.score) / 12)) : 27;
-    const players = Math.max(1, new Set([...posts.map((p) => p.user_id), ...votes.map((v) => v.user_id)]).size);
-    return { players, votes: votes.length, pot: Math.round(25 + players * 0.25 + votes.length * 0.05), myRank: myIndex >= 0 ? myIndex + 1 : 1, gap, top5Gap: Math.max(1, gap * 7) };
-  }, [posts, votes, user?.id]);
-
+  const [sloganIndex, setSloganIndex] = useState(0); const [posts, setPosts] = useState([]); const [votes, setVotes] = useState([]); const [user, setUser] = useState(null); const [logoMode, setLogoMode] = useState("idle"); const timerRef = useRef(null);
+  function pulseLogo(mode = "reward") { clearTimeout(timerRef.current); setLogoMode(mode); navigator.vibrate?.(8); timerRef.current = setTimeout(() => setLogoMode("idle"), mode === "reward" ? 900 : 420); }
+  useEffect(() => { const sloganTimer = setInterval(() => setSloganIndex((i) => (i + 1) % slogans.length), 2800); loadStats(); const onScroll = () => window.scrollY > 30 && pulseLogo("action"); window.addEventListener("scroll", onScroll, { passive: true }); return () => { clearInterval(sloganTimer); clearTimeout(timerRef.current); window.removeEventListener("scroll", onScroll); }; }, []);
+  async function loadStats() { try { const { data: auth } = await supabase.auth.getUser(); setUser(auth?.user || null); const [{ data: postData }, { data: voteData }] = await Promise.all([supabase.from("posts").select("id,user_id,ai_score,boost_score,watch_time_total,shares").limit(120), supabase.from("votes").select("post_id,user_id,value").limit(3000)]); setPosts(postData || []); setVotes(voteData || []); } catch (err) { console.warn("home stats fallback", err); } }
+  const stats = useMemo(() => { const voteMap = {}; votes.forEach((v) => { if (v?.post_id) voteMap[v.post_id] = (voteMap[v.post_id] || 0) + Number(v.value || 1); }); const scored = posts.map((p) => ({ ...p, score: Number(voteMap[p.id] || 0) * 12 + Number(p.ai_score || 50) + Number(p.boost_score || 0) * 2 + Number(p.watch_time_total || 0) * 2 + Number(p.shares || 0) * 4 })).sort((a, b) => b.score - a.score); const myIndex = user?.id ? scored.findIndex((p) => p.user_id === user.id) : -1; const me = myIndex >= 0 ? scored[myIndex] : null; const next = myIndex > 0 ? scored[myIndex - 1] : null; const gap = next && me ? Math.max(1, Math.ceil((next.score - me.score) / 12)) : 27; const players = Math.max(1, new Set([...posts.map((p) => p.user_id), ...votes.map((v) => v.user_id)]).size); return { players, votes: votes.length, pot: Math.round(25 + players * 0.25 + votes.length * 0.05), myRank: myIndex >= 0 ? myIndex + 1 : 1, gap, top5Gap: Math.max(1, gap * 7) }; }, [posts, votes, user?.id]);
   const slogan = slogans[sloganIndex];
-
   return <div className="min-h-screen bg-[#050816] pb-36 text-white"><MotionStyles /><div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#082f49_0%,#050816_44%,#02030a_100%)]" /><main className="mx-auto max-w-md px-4 py-5"><BrandHeader mode={logoMode} onPulse={pulseLogo} /><SloganCard slogan={slogan} onPulse={pulseLogo} /><HeroCard onPulse={pulseLogo} /><section className="mt-8"><div className="mb-4 flex items-end justify-between gap-3"><div><p className="text-sm font-black uppercase tracking-wide text-cyan-200">🏆 Säännöt heti selväksi</p><h2 className="text-[38px] font-black leading-none">Näin peli toimii</h2></div><Link onClick={() => pulseLogo("reward")} to="/pots" className="rounded-full bg-gradient-to-r from-yellow-300 to-orange-400 px-5 py-3 text-sm font-black text-black shadow-xl shadow-yellow-300/30 active:scale-[0.98]">Potit →</Link></div><div className="grid grid-cols-2 gap-3"><RuleCard onPulse={pulseLogo} n="1" icon="✍️" title="Postaa kerran viikossa" text="Yksi hyvä perustelu viikossa pitää kilpailun reiluna." image={IMG.road} /><RuleCard onPulse={pulseLogo} n="2" icon="💗" title="Kerää tykkäyksiä" text="Äänet, katselut ja jaot nostavat scorea." image={IMG.lake} /><RuleCard onPulse={pulseLogo} n="3" icon="💎" title="Päivä, viikko, kuukausi" text="Tilanne näkyy Potit-sivulla live-rankingina." image={IMG.lapland} /><RuleCard onPulse={pulseLogo} n="4" icon="👑" title="Porukat finaaliin" text="Suurimman XP:n porukat etenevät finaaliin." image={IMG.forest} /></div></section><section className="mt-5 grid grid-cols-2 gap-3"><MetricCard onPulse={pulseLogo} title="Päivän potti" value={`${stats.pot}€`} icon="💰" text="Potti kasvaa jokaisesta äänestä!" footerLeft={`👥 ${stats.players}`} footerRight={`♡ ${stats.votes}`} image={IMG.archipelago} to="/pots" progress={30 + stats.votes * 8} /><MetricCard onPulse={pulseLogo} title="Oma sijoitus" value={`#${stats.myRank}`} icon="🏅" text={`${stats.top5Gap} ääntä top 5:een`} footerLeft="↗ Nousu" footerRight={`${stats.gap} ääntä`} image={IMG.lake} to="/war" progress={100 - stats.gap * 2} /></section></main><BottomNav onPulse={pulseLogo} /></div>;
 }
