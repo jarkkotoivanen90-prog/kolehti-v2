@@ -22,10 +22,9 @@ function getVoteCountMap(votes) {
   return map;
 }
 
-function getTimeLeft(type) {
+function getEndDate(type) {
   const now = new Date();
   const end = new Date(now);
-
   if (type === "daily") {
     end.setHours(24, 0, 0, 0);
   } else if (type === "weekly") {
@@ -40,16 +39,20 @@ function getTimeLeft(type) {
     end.setMonth(nextHalf, 1);
     end.setHours(0, 0, 0, 0);
   }
+  return end;
+}
 
+function getTimeLeftParts(type) {
+  const now = new Date();
+  const end = getEndDate(type);
   const ms = Math.max(0, end.getTime() - now.getTime());
   const days = Math.floor(ms / 86400000);
   const hours = Math.floor((ms % 86400000) / 3600000);
   const minutes = Math.floor((ms % 3600000) / 60000);
   const seconds = Math.floor((ms % 60000) / 1000);
-
-  if (days > 0) return `${days} pv ${hours} h`;
-  if (hours > 0) return `${hours} h ${minutes} min ${seconds} s`;
-  return `${minutes} min ${seconds} s`;
+  const totalSeconds = Math.floor(ms / 1000);
+  const label = days > 0 ? `${days} pv ${hours} h` : hours > 0 ? `${hours} h ${minutes} min ${seconds} s` : `${minutes} min ${seconds} s`;
+  return { label, totalSeconds };
 }
 
 function normalizePost(post, voteMap) {
@@ -70,9 +73,24 @@ function normalizePost(post, voteMap) {
   };
 }
 
-function scorePost(post) {
+function scorePost(post, boostActive = false) {
   const viral = 1 + Math.min(0.7, Number(post.shares || 0) * 0.04 + Number(post.watch_time_total || 0) * 0.01);
-  return Math.round((Number(post.votes || 0) * 12 + Number(post.ai_score || 0) + Number(post.boost_score || 0) * 2 + Number(post.watch_time_total || 0) * 2) * viral);
+  const boostMultiplier = boostActive ? 2 : 1;
+  return Math.round((Number(post.votes || 0) * 12 + Number(post.ai_score || 0) + Number(post.boost_score || 0) * 2 + Number(post.watch_time_total || 0) * 2) * viral * boostMultiplier);
+}
+
+function getStreak() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const saved = JSON.parse(localStorage.getItem("kolehti_pot_streak") || "{}");
+    if (saved.date === today) return Number(saved.count || 1);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const next = saved.date === yesterday ? Number(saved.count || 0) + 1 : 1;
+    localStorage.setItem("kolehti_pot_streak", JSON.stringify({ date: today, count: next }));
+    return next;
+  } catch {
+    return 1;
+  }
 }
 
 export default function PotsPage() {
@@ -85,12 +103,17 @@ export default function PotsPage() {
   const [liveEvent, setLiveEvent] = useState(null);
   const [activity, setActivity] = useState([]);
   const [activeTab, setActiveTab] = useState("daily");
+  const [boostActive, setBoostActive] = useState(false);
+  const [winnerReveal, setWinnerReveal] = useState(null);
+  const [streak, setStreak] = useState(1);
   const previousTopRef = useRef({});
+  const previousMyRankRef = useRef(null);
   const rewardCooldownRef = useRef({});
+  const winnerShownRef = useRef({});
 
-  function fireEvent(type, emoji, text) {
+  function fireEvent(type, emoji, text, force = false) {
     const current = Date.now();
-    if (rewardCooldownRef.current[type] && current - rewardCooldownRef.current[type] < 6500) return;
+    if (!force && rewardCooldownRef.current[type] && current - rewardCooldownRef.current[type] < 6500) return;
     rewardCooldownRef.current[type] = current;
     setLiveEvent({ id: `${current}-${Math.random()}`, emoji, text });
     setActivity((prev) => [{ id: `${current}-${Math.random()}`, text: `${emoji} ${text}` }, ...prev.slice(0, 4)]);
@@ -99,10 +122,16 @@ export default function PotsPage() {
   }
 
   useEffect(() => {
+    setStreak(getStreak());
     load();
     const timer = setInterval(() => setNow(Date.now()), 1000);
+    const boostTimer = setInterval(() => {
+      setBoostActive(true);
+      fireEvent("boost-window", "🔥", "2X boost ikkuna aktiivinen", true);
+      setTimeout(() => setBoostActive(false), 30000);
+    }, 90000);
     const channel = supabase
-      .channel("premium-pots-page")
+      .channel("pot-v2-insanity")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => {
         fireEvent("post", "📝", "Uusi perustelu mukana poteissa");
         load();
@@ -115,6 +144,7 @@ export default function PotsPage() {
 
     return () => {
       clearInterval(timer);
+      clearInterval(boostTimer);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -149,8 +179,9 @@ export default function PotsPage() {
     const activePlayers = Math.max(1, new Set([...normalized.map((p) => p.user_id), ...votes.map((v) => v.user_id).filter(Boolean)]).size);
 
     return POTS.map((pot) => {
+      const time = getTimeLeftParts(pot.key);
       const leaderboard = [...normalized]
-        .map((post) => ({ ...post, score: scorePost(post) }))
+        .map((post) => ({ ...post, score: scorePost(post, boostActive) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
 
@@ -161,20 +192,26 @@ export default function PotsPage() {
       const likesNeeded = scoreGap ? Math.max(1, Math.ceil(scoreGap / 12)) : 0;
       const oneLikeScore = me ? me.score + 12 : 0;
       const overtakes = me ? leaderboard.slice(0, myIndex).filter((post) => oneLikeScore > post.score).length : 0;
+      const topGap = leaderboard.length > 1 ? Math.abs(Number(leaderboard[0].score || 0) - Number(leaderboard[1].score || 0)) : 999;
 
       return {
         ...pot,
-        amount: Math.round(pot.base + activePlayers * pot.multiplier + leaderboard.length * 2),
+        amount: Math.round(pot.base + activePlayers * pot.multiplier + leaderboard.length * 2 + (boostActive ? 10 : 0)),
         fillRate: Math.min(100, Math.round((activePlayers / 1500) * 100)),
         activePlayers,
         leaderboard,
         myRank: myIndex >= 0 ? myIndex + 1 : null,
+        myGap: scoreGap,
         likesNeeded,
         overtakes,
-        timeLeft: getTimeLeft(pot.key),
+        timeLeft: time.label,
+        timeLeftSeconds: time.totalSeconds,
+        isNearWin: topGap < 15,
+        oneLikeToWin: myIndex === 1 && scoreGap <= 12,
+        isClutch: time.totalSeconds > 0 && time.totalSeconds <= 10,
       };
     });
-  }, [posts, votes, user?.id, now]);
+  }, [posts, votes, user?.id, now, boostActive]);
 
   useEffect(() => {
     data.forEach((pot) => {
@@ -185,17 +222,36 @@ export default function PotsPage() {
         previousTopRef.current[pot.key] = top.id;
       }
       if (pot.overtakes > 0) fireEvent(`overtake-${pot.key}`, "🎯", `${pot.title}: 1 like voi ohittaa ${pot.overtakes} pelaajaa`);
+      if (pot.oneLikeToWin) fireEvent(`one-like-${pot.key}`, "🚀", `${pot.title}: yksi like voi nostaa voittoon`, true);
+      if (pot.isClutch) fireEvent(`clutch-${pot.key}`, "⏳", `${pot.title}: clutch time`, true);
+      if (pot.timeLeftSeconds <= 0 && top && !winnerShownRef.current[pot.key]) {
+        winnerShownRef.current[pot.key] = true;
+        setWinnerReveal({ pot, winner: top });
+        navigator.vibrate?.([20, 40, 20, 40]);
+        setTimeout(() => setWinnerReveal(null), 3500);
+      }
     });
-  }, [data]);
+
+    const activePot = data.find((pot) => pot.key === activeTab);
+    if (activePot?.myRank) {
+      const previous = previousMyRankRef.current;
+      if (previous && activePot.myRank > previous) fireEvent("rival", "⚔️", "Sinut ohitettiin tässä potissa", true);
+      previousMyRankRef.current = activePot.myRank;
+    }
+  }, [data, activeTab]);
 
   const activePot = data.find((pot) => pot.key === activeTab) || data[0];
   const totalAmount = data.reduce((sum, pot) => sum + pot.amount, 0);
   const topLeader = data.map((pot) => pot.leaderboard[0]).filter(Boolean).sort((a, b) => b.score - a.score)[0];
+  const anyClutch = data.some((pot) => pot.isClutch);
 
   return (
     <div className="min-h-[100dvh] bg-[#050816] px-4 pb-28 pt-5 text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#12306e_0%,#050816_44%,#02030a_100%)]" />
       {liveEvent && <LiveEvent event={liveEvent} />}
+      {winnerReveal && <WinnerReveal reveal={winnerReveal} />}
+      {anyClutch && <ClutchOverlay />}
+      {boostActive && <BoostBadge />}
 
       <header className="mx-auto max-w-md">
         <div className="flex items-center justify-between gap-3">
@@ -203,12 +259,15 @@ export default function PotsPage() {
           <Link to="/war" className="rounded-2xl bg-yellow-300 px-4 py-3 text-xs font-black text-black">War</Link>
         </div>
         <h1 className="mt-5 text-5xl font-black tracking-tight">💰 Potit</h1>
-        <p className="mt-2 text-sm font-bold leading-relaxed text-white/55">Premium pottinäkymä: live-arvot, leaderboard ja oma sijoitus ilman häiritseviä varoitusbannereita.</p>
+        <p className="mt-2 text-sm font-bold leading-relaxed text-white/55">Pot v2: near-win glow, boost window, winner reveal ja live battle -tunnelma.</p>
       </header>
 
       <section className="mx-auto mt-5 max-w-md overflow-hidden rounded-[38px] border border-yellow-300/25 bg-gradient-to-br from-yellow-300/20 via-cyan-400/10 to-pink-500/10 p-[2px] shadow-2xl">
         <div className="rounded-[36px] bg-[#0b1225]/95 p-5">
-          <p className="text-xs font-black uppercase tracking-wide text-yellow-200">Kaikki potit yhteensä</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-wide text-yellow-200">Kaikki potit yhteensä</p>
+            <span className="rounded-full bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100">🔥 Streak x{streak}</span>
+          </div>
           <div className="mt-2 flex items-end justify-between gap-4">
             <div>
               <p className="text-6xl font-black text-yellow-300">€{totalAmount}</p>
@@ -230,7 +289,7 @@ export default function PotsPage() {
       {loading && <div className="mx-auto mt-5 max-w-md rounded-3xl border border-white/10 bg-white/10 p-5 font-black text-white/70">Päivitetään potteja...</div>}
 
       <main className="mx-auto mt-6 max-w-md space-y-5">
-        {activePot && <PotCard pot={activePot} user={user} premium />}
+        {activePot && <PotCard pot={activePot} user={user} boostActive={boostActive} />}
         <section className="grid grid-cols-2 gap-3">
           {data.filter((pot) => pot.key !== activeTab).map((pot) => <MiniPot key={pot.key} pot={pot} onClick={() => setActiveTab(pot.key)} />)}
         </section>
@@ -245,6 +304,28 @@ function LiveEvent({ event }) {
       <div className="rounded-[28px] border border-cyan-300/30 bg-black/75 px-5 py-4 text-center font-black text-white shadow-2xl backdrop-blur-xl">
         <div className="text-3xl">{event.emoji}</div>
         <div className="mt-1 text-sm leading-tight">{event.text}</div>
+      </div>
+    </div>
+  );
+}
+
+function BoostBadge() {
+  return <div className="fixed left-1/2 top-4 z-[95] -translate-x-1/2 rounded-full bg-yellow-300 px-5 py-3 text-sm font-black text-black shadow-2xl shadow-yellow-300/30 animate-bounce">🔥 2X BOOST</div>;
+}
+
+function ClutchOverlay() {
+  return <div className="pointer-events-none fixed inset-0 z-[85] grid place-items-center bg-black/25"><div className="rounded-[34px] border border-yellow-300/40 bg-black/75 px-8 py-6 text-center shadow-2xl backdrop-blur-xl animate-bounce"><div className="text-5xl">⏳</div><div className="mt-2 text-3xl font-black">CLUTCH TIME</div></div></div>;
+}
+
+function WinnerReveal({ reveal }) {
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/85 px-6 text-center text-white">
+      <div className="rounded-[38px] border border-yellow-300/40 bg-yellow-300/10 p-6 shadow-2xl shadow-yellow-300/20 animate-bounce">
+        <div className="text-7xl">🏆</div>
+        <p className="mt-3 text-xs font-black uppercase tracking-wide text-yellow-200">{reveal.pot.title} voittaja</p>
+        <h2 className="mt-2 text-3xl font-black">Winner Reveal</h2>
+        <p className="mt-3 line-clamp-4 text-sm font-bold text-white/70">{reveal.winner.content}</p>
+        <p className="mt-4 rounded-2xl bg-yellow-300 px-4 py-3 text-sm font-black text-black">Score {reveal.winner.score}</p>
       </div>
     </div>
   );
@@ -280,12 +361,15 @@ function LiveTicker({ activity }) {
   );
 }
 
-function PotCard({ pot, user }) {
+function PotCard({ pot, user, boostActive }) {
   const top = pot.leaderboard[0];
+  const shell = pot.isNearWin ? "border-yellow-300/70 bg-gradient-to-br from-red-500/25 via-yellow-300/20 to-pink-500/20 animate-pulse" : "border-white/10 bg-white/10";
 
   return (
-    <section className="overflow-hidden rounded-[38px] border border-white/10 bg-white/10 p-[2px] shadow-2xl backdrop-blur-xl">
+    <section className={`overflow-hidden rounded-[38px] border p-[2px] shadow-2xl backdrop-blur-xl ${shell}`}>
       <div className="rounded-[36px] bg-[#111827]/95 p-5">
+        {pot.oneLikeToWin && <div className="mb-4 rounded-[24px] bg-green-400 px-4 py-3 text-center text-sm font-black text-black animate-pulse">🚀 YKSI LIKE → VOITTO</div>}
+        {pot.isNearWin && <div className="mb-4 rounded-[24px] border border-yellow-300/30 bg-yellow-300/10 px-4 py-3 text-center text-sm font-black text-yellow-100">LIVE 🔥 ero kärjessä alle 15 pistettä</div>}
         <div className={`rounded-[30px] bg-gradient-to-br ${pot.accent} p-[2px]`}>
           <div className="rounded-[28px] bg-black/75 p-5">
             <div className="flex items-start justify-between gap-4">
@@ -302,6 +386,7 @@ function PotCard({ pot, user }) {
             <div className="mt-5 h-4 overflow-hidden rounded-full bg-black/40">
               <div className="h-full rounded-full bg-white" style={{ width: `${pot.fillRate}%` }} />
             </div>
+            {boostActive && <p className="mt-4 rounded-2xl bg-yellow-300 px-4 py-3 text-center text-sm font-black text-black">🔥 2X score boost aktiivinen</p>}
           </div>
         </div>
 
@@ -340,7 +425,7 @@ function PotCard({ pot, user }) {
 
 function MiniPot({ pot, onClick }) {
   return (
-    <button onClick={onClick} className="rounded-[28px] border border-white/10 bg-white/10 p-4 text-left shadow-xl backdrop-blur-xl transition active:scale-[0.98]">
+    <button onClick={onClick} className={`rounded-[28px] border p-4 text-left shadow-xl backdrop-blur-xl transition active:scale-[0.98] ${pot.isNearWin ? "border-yellow-300/60 bg-yellow-300/10 animate-pulse" : "border-white/10 bg-white/10"}`}>
       <div className="text-2xl">{pot.emoji}</div>
       <div className="mt-2 text-xs font-black uppercase text-white/45">{pot.title}</div>
       <div className="mt-1 text-2xl font-black text-yellow-300">€{pot.amount}</div>
@@ -373,6 +458,7 @@ function MyPosition({ pot, user }) {
           <p className="text-lg font-black text-yellow-200">{pot.myRank === 1 ? "Johdat" : `${pot.likesNeeded} ääntä`}</p>
         </div>
       </div>
+      {pot.oneLikeToWin && <p className="mt-3 rounded-2xl bg-green-400 px-3 py-2 text-center text-xs font-black text-black animate-pulse">🚀 Yksi like voi nostaa sinut voittoon</p>}
       {pot.overtakes > 0 && <p className="mt-3 rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-3 py-2 text-xs font-black text-yellow-100">🔥 1 like → ohitat {pot.overtakes} pelaajaa</p>}
     </div>
   );
