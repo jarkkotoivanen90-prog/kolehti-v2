@@ -41,6 +41,13 @@ function scorePost(post) {
   return Math.round(base * viralMultiplier);
 }
 
+function personalizedScorePost(post, userId, votedMap = {}) {
+  const base = scorePost(post);
+  const ownPenalty = userId && post.user_id === userId ? -50 : 0;
+  const votedPenalty = votedMap?.[post.id] ? -30 : 0;
+  return Math.max(0, base + ownPenalty + votedPenalty);
+}
+
 function rankBadge(index) {
   if (index === 0) return "🥇";
   if (index === 1) return "🥈";
@@ -152,7 +159,7 @@ export default function FeedPageMedia() {
       const prepared = (postData || [])
         .map((post) => normalizePost(post, voteMap[post.id] || 0))
         .filter(Boolean)
-        .map((post) => ({ ...post, score: scorePost(post) }))
+        .map((post) => ({ ...post, score: personalizedScorePost(post, currentUser?.id, votedMap), rawScore: scorePost(post) }))
         .sort((a, b) => b.score - a.score);
 
       setPosts(prepared);
@@ -296,6 +303,7 @@ export default function FeedPageMedia() {
               <div className="rounded-2xl bg-black/25 p-3"><div className="text-white/45">Postit</div><div className="mt-1 text-xl">{posts.length}</div></div>
               <div className="rounded-2xl bg-black/25 p-3"><div className="text-white/45">Top</div><div className="mt-1 text-xl">{topPost ? Math.round(topPost.score) : 0}</div></div>
             </div>
+            {topPost && <DailyLeader post={topPost} />}
             <p className="mt-5 rounded-2xl bg-black/25 p-4 text-sm font-black text-cyan-100">Swipe alas → jokainen kortti on oma kilpailu.</p>
           </div>
         </section>
@@ -322,13 +330,23 @@ export default function FeedPageMedia() {
   );
 }
 
+function DailyLeader({ post }) {
+  return (
+    <div className="mt-5 rounded-[28px] border border-yellow-300/30 bg-yellow-300/10 p-4 text-center">
+      <div className="text-xs font-black uppercase tracking-wide text-yellow-200">🏆 Päivän johtaja</div>
+      <div className="mt-2 line-clamp-2 text-lg font-black leading-tight text-white">{post.content}</div>
+      <div className="mt-2 text-sm font-black text-yellow-300">Score {Math.round(post.score || 0)} · {post.votes || 0} ääntä</div>
+    </div>
+  );
+}
+
 function PostCard({ post, index, voted, onVote, onShare, onImageStart, onImageWatch, onVideoTime, active }) {
   const mediaUrl = mediaUrlFor(post);
   const mediaType = mediaTypeFor(post);
   const viralMultiplier = (1 + Math.min(0.7, Number(post.shares || 0) * 0.04 + Number(post.watch_time_total || 0) * 0.01)).toFixed(2);
 
   return (
-    <article className={`relative w-full overflow-hidden rounded-[38px] border p-[2px] shadow-2xl transition-all duration-300 ${active ? "scale-100 opacity-100" : "scale-[0.97] opacity-80"} ${index === 0 ? "border-yellow-300/60 bg-gradient-to-br from-yellow-300 via-pink-500 to-cyan-300" : "border-cyan-300/20 bg-white/10"}`}>
+    <article onDoubleClick={() => !voted && onVote(post)} className={`relative w-full overflow-hidden rounded-[38px] border p-[2px] shadow-2xl transition-all duration-300 ${active ? "scale-100 opacity-100" : "scale-[0.97] opacity-80"} ${index === 0 ? "border-yellow-300/60 bg-gradient-to-br from-yellow-300 via-pink-500 to-cyan-300" : "border-cyan-300/20 bg-white/10"}`}>
       <div className="rounded-[36px] bg-[#111827]/95 p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-yellow-300 text-xl font-black text-black">{rankBadge(index)}</div>
@@ -362,6 +380,7 @@ function PostCard({ post, index, voted, onVote, onShare, onImageStart, onImageWa
           <button type="button" onClick={() => onVote(post)} disabled={voted} className="rounded-[24px] bg-cyan-500 px-4 py-4 text-base font-black text-white shadow-2xl shadow-cyan-500/25 transition active:scale-[0.98] disabled:bg-white/10 disabled:text-white/40">{voted ? "Äänestetty" : "Tykkää +XP"}</button>
           <button type="button" onClick={() => onShare(post)} className="rounded-[24px] bg-pink-500 px-4 py-4 text-base font-black text-white shadow-2xl shadow-pink-500/25 transition active:scale-[0.98]">Jaa +Boost</button>
         </div>
+        <p className="mt-3 text-center text-[10px] font-black uppercase tracking-wide text-white/35">Double tap = tykkää nopeasti</p>
       </div>
     </article>
   );
