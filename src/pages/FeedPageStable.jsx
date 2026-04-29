@@ -105,6 +105,16 @@ function RewardBurst({ reward }) {
   );
 }
 
+function FeedLiveTicker({ activity, hidden }) {
+  if (!activity.length || hidden) return null;
+  return (
+    <section className="fixed left-1/2 top-24 z-[55] w-[calc(100%-32px)] max-w-md -translate-x-1/2 rounded-[24px] border border-cyan-300/20 bg-cyan-500/10 p-3 shadow-2xl backdrop-blur-xl">
+      <div className="mb-2 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-wide text-cyan-100">Live feed</p><span className="h-2 w-2 animate-pulse rounded-full bg-green-400" /></div>
+      <div className="space-y-1">{activity.slice(0, 2).map((item) => <div key={item.id} className="rounded-2xl bg-black/20 px-3 py-2 text-[11px] font-black text-white/75">{item.text}</div>)}</div>
+    </section>
+  );
+}
+
 function PotHero({ livePot, likeXp, behaviorMode }) {
   return (
     <section className="overflow-hidden rounded-[34px] border border-yellow-300/30 bg-gradient-to-br from-yellow-300/10 via-black/30 to-pink-500/10 p-[2px] shadow-2xl">
@@ -175,7 +185,8 @@ export default function FeedPageStable() {
   const activeStartedAtRef = useRef(Date.now());
   const preloadRef = useRef({});
   const lastRewardTypeRef = useRef(null);
-  const behaviorRef = useRef({ fast: 0, slow: 0, reorderAt: 0, rewardAt: 0 });
+  const behaviorRef = useRef({ fast: 0, slow: 0, reorderAt: 0, rewardAt: 0, eventAt: 0 });
+  const previousLeaderRef = useRef(null);
   const [posts, setPosts] = useState([]);
   const [user, setUser] = useState(null);
   const [voted, setVoted] = useState({});
@@ -188,6 +199,7 @@ export default function FeedPageStable() {
   const [preloaded, setPreloaded] = useState({});
   const [behaviorMode, setBehaviorMode] = useState("balanced");
   const [reward, setReward] = useState(null);
+  const [activity, setActivity] = useState([]);
 
   const safePosts = useMemo(() => {
     const real = sanitizePosts(posts);
@@ -198,11 +210,33 @@ export default function FeedPageStable() {
   const livePot = calculateLivePot({ activePlayers, invitedPlayers: 25 });
   const likeXp = calculateInteractionXp({ action: "like", strongLikesUsed: 2, groupSize: activePlayers });
 
+  function pushFeedEvent(type, emoji, text, force = false) {
+    const now = Date.now();
+    if (!force && now - behaviorRef.current.eventAt < 4200) return;
+    behaviorRef.current.eventAt = now;
+    setActivity((prev) => [{ id: `${now}-${Math.random()}`, text: `${emoji} ${text}` }, ...prev.slice(0, 4)]);
+    navigator.vibrate?.([8, 18, 8]);
+  }
+
   useEffect(() => {
     loadFeed();
-    const channel = supabase.channel("safe-motivation-v3-feed").on("postgres_changes", { event: "*", schema: "public", table: "posts" }, loadFeed).on("postgres_changes", { event: "*", schema: "public", table: "votes" }, loadFeed).subscribe();
+    const channel = supabase
+      .channel("feed-dopamine-v3")
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => { pushFeedEvent("post", "📝", "Uusi perustelu feedissä", true); loadFeed(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => { pushFeedEvent("vote", "💗", "Uusi ääni muutti rankingia", true); loadFeed(); })
+      .subscribe();
     return () => supabase.removeChannel(channel);
   }, []);
+
+  useEffect(() => {
+    const leader = safePosts.find((post) => !post.is_starter);
+    if (!leader) return;
+    if (previousLeaderRef.current && previousLeaderRef.current !== leader.id) {
+      triggerReward("leaderChange", "🔥", "Johtaja vaihtui", "Feedin kärki muuttui juuri.");
+      pushFeedEvent("leader", "🔥", "Johtaja vaihtui feedissä", true);
+    }
+    previousLeaderRef.current = leader.id;
+  }, [safePosts]);
 
   useEffect(() => {
     const root = scrollerRef.current;
@@ -231,6 +265,7 @@ export default function FeedPageStable() {
           preloadNext(next);
           maybeAiReorder(next);
           maybeReward(next);
+          if (next > 0) pushFeedEvent("swipe", "⚡", "Kortti vaihtui — ranking elää");
         }
         return next;
       });
@@ -259,6 +294,7 @@ export default function FeedPageStable() {
     behaviorRef.current.rewardAt = now;
     lastRewardTypeRef.current = type;
     setReward({ id: `${now}-${Math.random()}`, emoji, title, text });
+    setActivity((prev) => [{ id: `${now}-${Math.random()}`, text: `${emoji} ${title}: ${text}` }, ...prev.slice(0, 4)]);
     navigator.vibrate?.([10, 25, 10]);
     setTimeout(() => { setReward(null); lastRewardTypeRef.current = null; }, 1800);
   }
@@ -291,6 +327,7 @@ export default function FeedPageStable() {
     if (now - behaviorRef.current.reorderAt < 5000) return;
     if (cardIndex < 2 || safePosts.length < 5) return;
     behaviorRef.current.reorderAt = now;
+    pushFeedEvent("ai", "🧠", `AI järjestää seuraavat kortit: ${mode}`, true);
     const postIndex = Math.max(0, cardIndex - 1);
     setPosts((prev) => {
       const safe = sanitizePosts(prev);
@@ -378,14 +415,15 @@ export default function FeedPageStable() {
       {toast && <div className="fixed left-1/2 top-5 z-[70] -translate-x-1/2 rounded-2xl border border-cyan-300/30 bg-cyan-500/20 px-5 py-3 text-sm font-black text-cyan-100 shadow-2xl backdrop-blur-xl">{toast}</div>}
       {pulse > 0 && <div key={pulse} className="pointer-events-none fixed inset-x-0 top-1/2 z-[60] mx-auto h-24 max-w-md -translate-y-1/2 rounded-full bg-cyan-300/10 blur-2xl animate-ping" />}
       <RewardBurst reward={reward} />
+      <FeedLiveTicker activity={activity} hidden={uiHidden || dragging} />
       <header className={`fixed left-0 right-0 top-0 z-50 border-b border-white/10 bg-[#050816]/80 px-4 py-4 shadow-lg shadow-black/20 backdrop-blur-xl transition-transform duration-300 ${uiHidden || dragging ? "-translate-y-full" : "translate-y-0"}`}>
-        <div className="mx-auto flex max-w-md items-center justify-between"><div><h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase tracking-wide text-white/50">motivation engine v3 · {behaviorMode}</p></div><Link to="/new" className="rounded-[24px] bg-cyan-500 px-5 py-4 text-sm font-black shadow-2xl shadow-cyan-500/25">Uusi</Link></div>
+        <div className="mx-auto flex max-w-md items-center justify-between"><div><h1 className="text-4xl font-black tracking-tight">KOLEHTI</h1><p className="text-[10px] font-black uppercase tracking-wide text-white/50">feed dopamine v3 · {behaviorMode}</p></div><Link to="/new" className="rounded-[24px] bg-cyan-500 px-5 py-4 text-sm font-black shadow-2xl shadow-cyan-500/25">Uusi</Link></div>
       </header>
       <div className="fixed right-3 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
         {Array.from({ length: Math.min(safePosts.length + 1, 8) }).map((_, i) => <button key={i} onClick={() => jumpTo(i)} className={`rounded-full transition-all ${activeIndex === i ? "h-2 w-6 bg-cyan-300" : "h-2 w-2 bg-white/25"}`} aria-label={`Siirry kohtaan ${i + 1}`} />)}
       </div>
       <main ref={scrollerRef} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`h-[100dvh] snap-y snap-mandatory overflow-y-scroll overscroll-y-contain scroll-smooth px-4 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden ${dragging ? "cursor-grabbing" : "cursor-grab"}`}>
-        <section data-feed-card data-feed-card-index="0" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center pt-24"><div className="w-full space-y-5"><PotHero livePot={livePot} likeXp={likeXp} behaviorMode={behaviorMode} /><div className="rounded-[34px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-xl"><p className="text-xs font-black uppercase text-cyan-200">Swipe alas</p><h2 className="mt-2 text-4xl font-black leading-tight">Ranking reagoi joka liikkeeseen</h2><p className="mt-3 text-sm font-bold leading-relaxed text-white/60">Near-win, strong-like scarcity ja ranking pressure näkyvät oikean datan perusteella.</p></div></div></section>
+        <section data-feed-card data-feed-card-index="0" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center pt-24"><div className="w-full space-y-5"><PotHero livePot={livePot} likeXp={likeXp} behaviorMode={behaviorMode} /><div className="rounded-[34px] border border-white/10 bg-white/10 p-6 shadow-2xl backdrop-blur-xl"><p className="text-xs font-black uppercase text-cyan-200">Swipe alas</p><h2 className="mt-2 text-4xl font-black leading-tight">Feed reagoi joka liikkeeseen</h2><p className="mt-3 text-sm font-bold leading-relaxed text-white/60">Live-eventit, near-win ja AI reorder tekevät feedistä kilpailun.</p></div></div></section>
         {loading ? <section data-feed-card data-feed-card-index="1" className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center"><div className="w-full rounded-[34px] border border-white/10 bg-white/10 p-8 text-center shadow-2xl backdrop-blur-xl"><div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-300 border-t-transparent" /><p className="font-black text-white/70">Feed latautuu...</p></div></section> : safePosts.map((post, index) => <section key={post.id || index} data-feed-card data-feed-card-index={index + 1} className="mx-auto flex min-h-[100dvh] max-w-md snap-start items-center py-5"><PostCard post={post} index={index} posts={safePosts} voted={Boolean(voted[post.id])} onVote={vote} likeXp={likeXp} active={activeIndex === index + 1} dragging={dragging} preloaded={Boolean(preloaded[post.id])} /></section>)}
       </main>
       <BottomNav hidden={uiHidden || dragging} />
