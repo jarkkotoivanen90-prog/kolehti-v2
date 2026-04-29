@@ -2,12 +2,13 @@ import { Link, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
-const helsinkiBg = "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=1400&q=90";
-const lakeBg = "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=90";
-const sunsetBg = "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?auto=format&fit=crop&w=1200&q=90";
-const nightBg = "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=90";
-const forestBg = "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1200&q=90";
-const roadBg = "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=90";
+const helsinkiBg = "https://source.unsplash.com/1400x1000/?helsinki,finland,sea,skyline";
+const sloganBg = "https://source.unsplash.com/1200x500/?finland,lake,sunset";
+const lakeBg = "https://source.unsplash.com/900x1100/?finland,lake,forest";
+const sunsetBg = "https://source.unsplash.com/900x1100/?finland,sunset,lake";
+const nightBg = "https://source.unsplash.com/900x1100/?lapland,finland,northern-lights";
+const forestBg = "https://source.unsplash.com/900x1100/?finland,forest,national-park";
+const roadBg = "https://source.unsplash.com/900x1100/?finland,road,forest";
 
 const slogans = [
   ["⚡", "KILPAILE. ÄÄNESTÄ. NOUSE.", "Joka ääni vie sua lähemmäs pottia."],
@@ -16,14 +17,32 @@ const slogans = [
   ["🏆", "TOP 5 MENEE FINAALIIN.", "Nouse leaderboardissa ennen kuin kierros sulkeutuu."],
 ];
 
+function KHeartMonogram() {
+  return (
+    <div className="relative h-[78px] w-[78px] shrink-0">
+      <div className="absolute inset-0 rounded-[30px] bg-gradient-to-br from-cyan-200 via-teal-300 to-blue-700 shadow-2xl shadow-cyan-400/40" />
+      <div className="absolute inset-[5px] rounded-[25px] border border-white/25 bg-[#031226]/15" />
+      <svg viewBox="0 0 120 120" className="absolute inset-[10px] h-[58px] w-[58px] drop-shadow-[0_0_16px_rgba(34,211,238,.85)]" aria-label="Kolehti K-heart logo">
+        <defs>
+          <linearGradient id="kheart" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="45%" stopColor="#e0faff" />
+            <stop offset="100%" stopColor="#fef08a" />
+          </linearGradient>
+        </defs>
+        <path d="M31 22C19 22 10 31 10 44c0 27 39 45 50 58 11-13 50-31 50-58 0-13-9-22-21-22-12 0-21 9-29 20-8-11-17-20-29-20Z" fill="url(#kheart)" opacity=".96" />
+        <path d="M39 31h17v26l27-26h24L76 60l33 37H84L56 64v33H39V31Z" fill="#061126" opacity=".96" />
+        <path d="M56 31v26l27-26h14L68 59l31 38H85L56 63v34H45V31h11Z" fill="url(#kheart)" opacity=".9" />
+      </svg>
+      <div className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border-4 border-[#050816] bg-yellow-300 text-[15px] shadow-xl shadow-yellow-300/30">✓</div>
+    </div>
+  );
+}
+
 function KolehtiLogo() {
   return (
     <div className="flex items-center gap-4">
-      <div className="relative grid h-[74px] w-[74px] place-items-center rounded-[30px] bg-gradient-to-br from-cyan-300 via-teal-300 to-blue-700 shadow-2xl shadow-cyan-400/30">
-        <div className="absolute inset-[7px] rounded-[24px] border border-white/20 bg-[#061126]/15" />
-        <div className="relative text-[42px] font-black leading-none text-white drop-shadow-[0_0_16px_rgba(34,211,238,.8)]">K</div>
-        <div className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border-4 border-[#050816] bg-yellow-300 text-sm shadow-xl">💙</div>
-      </div>
+      <KHeartMonogram />
       <div className="min-w-0">
         <h1 className="text-[46px] font-black leading-[0.82] tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-yellow-200 drop-shadow-[0_0_22px_rgba(34,211,238,.35)]">KOLEHTI</h1>
         <p className="mt-3 text-[13px] font-black uppercase tracking-[0.27em] text-cyan-200/75">Kilpaile. Auta. Nouse.</p>
@@ -35,11 +54,11 @@ function KolehtiLogo() {
 function BottomNav() {
   const location = useLocation();
   const items = [
-    { to: "/", icon: "⌂", label: "Koti" },
+    { to: "/", icon: "⌂", label: "Koti", pulse: true },
     { to: "/feed", icon: "🔥", label: "Feed", badge: "LIVE" },
     { to: "/new", icon: "+", label: "Uusi", fab: true },
-    { to: "/pots", icon: "🏆", label: "Potit", badge: "HOT" },
-    { to: "/profile", icon: "●", label: "Profiili" },
+    { to: "/pots", icon: "🏆", label: "Potit", badge: "HOT", gold: true },
+    { to: "/profile", icon: "◉", label: "Profiili", pulse: true },
   ];
   const tap = () => navigator.vibrate?.(12);
 
@@ -60,8 +79,11 @@ function BottomNav() {
             }
             return (
               <Link key={item.to} to={item.to} onClick={tap} className={`relative flex flex-col items-center gap-2 rounded-3xl px-1 py-2 transition active:scale-95 ${active ? "text-cyan-200" : "text-white/55"}`}>
-                {item.badge && <span className={`absolute -top-2 rounded-full px-2 py-0.5 text-[8px] font-black ${item.badge === "HOT" ? "bg-yellow-300 text-black" : "bg-pink-500 text-white"}`}>{item.badge}</span>}
-                <div className={`grid h-12 w-12 place-items-center rounded-3xl text-2xl ${active ? "bg-cyan-400/15 shadow-lg shadow-cyan-400/20" : "bg-white/5"}`}>{item.icon}</div>
+                {item.badge && <span className={`absolute -top-2 rounded-full px-2 py-0.5 text-[8px] font-black ${item.badge === "HOT" ? "bg-yellow-300 text-black shadow-lg shadow-yellow-300/30" : "bg-pink-500 text-white shadow-lg shadow-pink-500/30"}`}>{item.badge}</span>}
+                <div className={`relative grid h-12 w-12 place-items-center rounded-3xl text-2xl transition ${active ? "bg-cyan-400/15 shadow-lg shadow-cyan-400/20" : item.gold ? "bg-yellow-300/10 shadow-lg shadow-yellow-300/10" : "bg-white/5"} ${item.pulse ? "animate-pulse" : ""}`}>
+                  {item.pulse && <span className="absolute inset-0 rounded-3xl border border-cyan-300/20" />}
+                  {item.icon}
+                </div>
                 <div>{item.label}</div>
               </Link>
             );
@@ -74,7 +96,7 @@ function BottomNav() {
 
 function HeroCard() {
   return (
-    <section className="relative mt-5 overflow-hidden rounded-[34px] border border-cyan-300/25 shadow-2xl" style={{ backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.15), rgba(2,6,23,.35), rgba(2,6,23,.78)), url(${helsinkiBg})`, backgroundSize: "cover", backgroundPosition: "center" }}>
+    <section className="relative mt-5 overflow-hidden rounded-[34px] border border-cyan-300/25 shadow-2xl" style={{ backgroundImage: `linear-gradient(90deg, rgba(2,6,23,.08), rgba(2,6,23,.28), rgba(2,6,23,.80)), url(${helsinkiBg})`, backgroundSize: "cover", backgroundPosition: "center" }}>
       <div className="min-h-[310px] p-5">
         <div className="w-fit rounded-full border border-white/20 bg-black/45 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-100 backdrop-blur-md">🇫🇮 Suomalainen yhteisöpeli</div>
         <div className="mt-12 max-w-[86%]">
@@ -94,7 +116,7 @@ function HeroCard() {
 function RuleCard({ n, icon, title, text, image }) {
   return (
     <div className="relative min-h-[210px] overflow-hidden rounded-[26px] border border-white/10 p-4 shadow-xl">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.15), rgba(2,6,23,.88)), url(${image})` }} />
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.12), rgba(2,6,23,.88)), url(${image})` }} />
       <div className="relative flex h-full flex-col justify-between">
         <div className="flex items-start justify-between gap-2">
           <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-500 text-xl font-black text-white shadow-xl shadow-cyan-500/25">{n}</div>
@@ -111,21 +133,19 @@ function RuleCard({ n, icon, title, text, image }) {
 
 function BigMetricCard({ title, value, icon, text, footerLeft, footerRight, image, to, progress = 80 }) {
   return (
-    <Link to={to} className="relative block min-h-[230px] overflow-hidden rounded-[30px] border border-white/10 p-5 shadow-2xl transition active:scale-[0.98]">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.12), rgba(2,6,23,.86)), url(${image})` }} />
-      <div className="relative">
-        <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{title}</p>
-        <div className="mt-5 flex items-end gap-4">
-          <div className="text-5xl">{icon}</div>
-          <div className="text-[58px] font-black leading-none tracking-tight">{value}</div>
-        </div>
-        <p className="mt-4 text-base font-bold text-white/85">{text}</p>
-        <div className="mt-5 h-3 overflow-hidden rounded-full bg-black/40">
+    <Link to={to} className="relative block min-h-[250px] overflow-hidden rounded-[30px] border border-white/10 p-4 shadow-2xl transition active:scale-[0.98]">
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.10), rgba(2,6,23,.88)), url(${image})` }} />
+      <div className="relative flex min-h-[218px] flex-col">
+        <p className="text-[13px] font-black uppercase tracking-wide text-cyan-200">{title}</p>
+        <div className="mt-3 text-5xl leading-none">{icon}</div>
+        <div className="mt-1 max-w-full truncate text-[44px] font-black leading-none tracking-tight">{value}</div>
+        <p className="mt-3 min-h-[44px] text-[14px] font-bold leading-snug text-white/85">{text}</p>
+        <div className="mt-auto h-3 overflow-hidden rounded-full bg-black/45">
           <div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-emerald-300" style={{ width: `${progress}%` }} />
         </div>
-        <div className="mt-4 flex items-center justify-between text-sm font-black text-white/85">
-          <span>{footerLeft}</span>
-          <span>{footerRight}</span>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[12px] font-black text-white/85">
+          <span className="truncate">{footerLeft}</span>
+          <span className="truncate text-right">{footerRight}</span>
         </div>
       </div>
     </Link>
@@ -193,11 +213,12 @@ export default function HomePage() {
       <main className="mx-auto max-w-md px-4 py-5">
         <header className="flex items-center justify-between gap-4">
           <KolehtiLogo />
-          <Link to="/profile" className="grid h-16 w-16 shrink-0 place-items-center rounded-[28px] border border-cyan-300/20 bg-white/10 text-3xl shadow-xl backdrop-blur-xl">👤</Link>
+          <Link to="/profile" className="grid h-16 w-16 shrink-0 place-items-center rounded-[28px] border border-cyan-300/20 bg-white/10 text-3xl shadow-xl shadow-cyan-300/10 backdrop-blur-xl animate-pulse">👤</Link>
         </header>
 
-        <section className="mt-5 rounded-[24px] border border-cyan-300/20 bg-cyan-500/10 px-5 py-4 shadow-xl">
-          <div className="flex items-center gap-4">
+        <section className="relative mt-5 overflow-hidden rounded-[24px] border border-cyan-300/20 px-5 py-4 shadow-xl">
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.48), rgba(2,6,23,.84)), url(${sloganBg})` }} />
+          <div className="relative flex items-center gap-4">
             <div className="text-3xl">{slogan[0]}</div>
             <div>
               <div className="text-[20px] font-black leading-tight">{slogan[1]}</div>
@@ -214,7 +235,7 @@ export default function HomePage() {
               <p className="text-sm font-black uppercase tracking-wide text-cyan-200">🏆 Säännöt heti selväksi</p>
               <h2 className="text-[38px] font-black leading-none">Näin peli toimii</h2>
             </div>
-            <Link to="/pots" className="rounded-full bg-white/10 px-5 py-3 text-sm font-black text-white/70">Potit →</Link>
+            <Link to="/pots" className="rounded-full bg-gradient-to-r from-yellow-300 to-orange-400 px-5 py-3 text-sm font-black text-black shadow-xl shadow-yellow-300/20">Potit →</Link>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <RuleCard n="1" icon="✍️" title="Postaa kerran viikossa" text="Yksi hyvä perustelu viikossa pitää kilpailun reiluna." image={lakeBg} />
@@ -225,8 +246,8 @@ export default function HomePage() {
         </section>
 
         <section className="mt-5 grid grid-cols-2 gap-3">
-          <BigMetricCard title="Päivän potti" value={`${stats.pot}€`} icon="💰" text="Potti kasvaa jokaisesta äänestä!" footerLeft={`👥 ${stats.players} pelaajaa`} footerRight={`♡ ${stats.votes} ääntä`} image={roadBg} to="/pots" progress={Math.min(100, 30 + stats.votes * 8)} />
-          <BigMetricCard title="Oma sijoitus" value={`#${stats.myRank}`} icon="🏅" text={`${stats.top5Gap} ääntä top 5:een`} footerLeft="↗" footerRight={`Seuraavaan: ${stats.gap} ääntä`} image={sunsetBg} to="/war" progress={Math.min(100, 100 - stats.gap * 2)} />
+          <BigMetricCard title="Päivän potti" value={`${stats.pot}€`} icon="💰" text="Potti kasvaa jokaisesta äänestä!" footerLeft={`👥 ${stats.players}`} footerRight={`♡ ${stats.votes}`} image={roadBg} to="/pots" progress={Math.min(100, 30 + stats.votes * 8)} />
+          <BigMetricCard title="Oma sijoitus" value={`#${stats.myRank}`} icon="🏅" text={`${stats.top5Gap} ääntä top 5:een`} footerLeft="↗ Nousu" footerRight={`${stats.gap} ääntä`} image={sunsetBg} to="/war" progress={Math.min(100, 100 - stats.gap * 2)} />
         </section>
       </main>
       <BottomNav />
