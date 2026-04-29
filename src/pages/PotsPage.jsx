@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
@@ -78,14 +78,34 @@ export default function PotsPage() {
   const [now, setNow] = useState(Date.now());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [liveEvent, setLiveEvent] = useState(null);
+  const [activity, setActivity] = useState([]);
+  const previousTopRef = useRef({});
+  const rewardCooldownRef = useRef({});
+
+  function fireEvent(type, emoji, text) {
+    const current = Date.now();
+    if (rewardCooldownRef.current[type] && current - rewardCooldownRef.current[type] < 6500) return;
+    rewardCooldownRef.current[type] = current;
+    setLiveEvent({ id: `${current}-${Math.random()}`, emoji, text });
+    setActivity((prev) => [{ id: `${current}-${Math.random()}`, text: `${emoji} ${text}` }, ...prev.slice(0, 4)]);
+    navigator.vibrate?.([10, 25, 10]);
+    setTimeout(() => setLiveEvent(null), 2200);
+  }
 
   useEffect(() => {
     load();
     const timer = setInterval(() => setNow(Date.now()), 1000);
     const channel = supabase
-      .channel("safe-live-pots")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, load)
+      .channel("dopamine-v3-pots")
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => {
+        fireEvent("post", "📝", "Uusi perustelu mukana kilpailussa");
+        load();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => {
+        fireEvent("vote", "💗", "Uusi ääni muutti kilpailua");
+        load();
+      })
       .subscribe();
 
     return () => {
@@ -152,17 +172,33 @@ export default function PotsPage() {
     });
   }, [posts, votes, user?.id, now]);
 
+  useEffect(() => {
+    data.forEach((pot) => {
+      const top = pot.leaderboard[0];
+      if (top) {
+        const oldTop = previousTopRef.current[pot.key];
+        if (oldTop && oldTop !== top.id) fireEvent(`leader-${pot.key}`, "🔥", `${pot.title}: johtaja vaihtui`);
+        previousTopRef.current[pot.key] = top.id;
+      }
+      if (pot.nearWin) fireEvent(`near-${pot.key}`, "⚠️", `${pot.title}: tilanne kiristyy`);
+      if (pot.overtakes > 0) fireEvent(`overtake-${pot.key}`, "🎯", `${pot.title}: 1 like voi ohittaa ${pot.overtakes} pelaajaa`);
+    });
+  }, [data]);
+
   return (
     <div className="min-h-[100dvh] bg-[#050816] px-4 pb-28 pt-5 text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#12306e_0%,#050816_44%,#02030a_100%)]" />
+      {liveEvent && <LiveEvent event={liveEvent} />}
 
       <header className="mx-auto max-w-md">
         <Link to="/feed" className="text-xs font-black uppercase tracking-wide text-cyan-200/80">← Takaisin feediin</Link>
         <h1 className="mt-3 text-5xl font-black tracking-tight">💰 Potit</h1>
         <p className="mt-2 text-sm font-bold leading-relaxed text-white/55">
-          Live potit, leaderboardit, oma sijoitus ja ohitusennuste.
+          Dopamine v3: live eventit, near-win, oma sijoitus ja ohitusennuste.
         </p>
       </header>
+
+      <LiveTicker activity={activity} />
 
       {error && <div className="mx-auto mt-5 max-w-md rounded-2xl border border-red-400/25 bg-red-500/10 p-4 text-sm font-bold text-red-100">{error}</div>}
       {loading && <div className="mx-auto mt-5 max-w-md rounded-3xl border border-white/10 bg-white/10 p-5 font-black text-white/70">Päivitetään potteja...</div>}
@@ -173,6 +209,32 @@ export default function PotsPage() {
         ))}
       </main>
     </div>
+  );
+}
+
+function LiveEvent({ event }) {
+  return (
+    <div className="fixed left-1/2 top-20 z-[80] w-[calc(100%-32px)] max-w-sm -translate-x-1/2">
+      <div className="animate-bounce rounded-[28px] border border-yellow-300/40 bg-yellow-300 px-5 py-4 text-center font-black text-black shadow-2xl shadow-yellow-400/30">
+        <div className="text-3xl">{event.emoji}</div>
+        <div className="mt-1 text-lg leading-tight">{event.text}</div>
+      </div>
+    </div>
+  );
+}
+
+function LiveTicker({ activity }) {
+  if (!activity.length) return null;
+  return (
+    <section className="mx-auto mt-5 max-w-md rounded-[28px] border border-cyan-300/20 bg-cyan-400/10 p-4 shadow-xl backdrop-blur-xl">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-black uppercase text-cyan-100">Live kilpailu</h2>
+        <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
+      </div>
+      <div className="space-y-2">
+        {activity.map((item) => <div key={item.id} className="rounded-2xl bg-black/20 px-3 py-2 text-xs font-black text-white/75">{item.text}</div>)}
+      </div>
+    </section>
   );
 }
 
@@ -233,9 +295,7 @@ function PotCard({ pot, user }) {
 }
 
 function MyPosition({ pot, user }) {
-  if (!user) {
-    return <div className="mt-4 rounded-[24px] border border-cyan-300/20 bg-cyan-500/10 p-4 text-sm font-black text-cyan-100">👤 Kirjaudu sisään nähdäksesi oman sijoituksen.</div>;
-  }
+  if (!user) return <div className="mt-4 rounded-[24px] border border-cyan-300/20 bg-cyan-500/10 p-4 text-sm font-black text-cyan-100">👤 Kirjaudu sisään nähdäksesi oman sijoituksen.</div>;
 
   if (!pot.myRank) {
     return (
