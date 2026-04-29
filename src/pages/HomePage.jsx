@@ -3,13 +3,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 const IMG = {
-  helsinki: "/finland/helsinki.svg",
-  slogan: "/finland/lake.svg",
-  lake: "/finland/lake.svg",
-  forest: "/finland/forest.svg",
-  lapland: "/finland/forest.svg",
-  road: "/finland/forest.svg",
-  archipelago: "/finland/lake.svg",
+  helsinki: "https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_skyline_(Sep_2024_-_01).jpg?width=1600",
+  slogan: "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1400",
+  lake: "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1200",
+  forest: "https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1200",
+  lapland: "https://commons.wikimedia.org/wiki/Special:FilePath/Aurora_borealis_(21868630118).jpg?width=1200",
+  road: "https://commons.wikimedia.org/wiki/Special:FilePath/Road_in_Finland.jpg?width=1200",
+  archipelago: "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200",
 };
 
 const slogans = [
@@ -30,6 +30,15 @@ function MotionStyles() {
       @keyframes heroSweep{0%{transform:translateX(-140%) skewX(-18deg);opacity:0}22%{opacity:.45}58%{transform:translateX(150%) skewX(-18deg);opacity:0}100%{transform:translateX(150%) skewX(-18deg);opacity:0}}
       .logo-idle{animation:logoBreath 3.2s ease-in-out infinite}.logo-action{animation:logoBurst .42s ease both}.logo-reward{animation:logoBurst .8s ease both,logoBreath 1.1s ease-in-out infinite}.shine{position:relative;overflow:hidden}.shine:after{content:"";position:absolute;inset:-8px -40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);animation:shine 4.8s ease-in-out infinite}.nav-life{animation:softPulse 2.6s ease-in-out infinite}.floaty{animation:floaty 3.2s ease-in-out infinite}.hero-sweep:after{content:"";position:absolute;inset:-40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);animation:heroSweep 5.2s ease-in-out infinite;pointer-events:none}
     `}</style>
+  );
+}
+
+function PhotoLayer({ src, overlay = "linear-gradient(rgba(2,6,23,.18),rgba(2,6,23,.9))", position = "center" }) {
+  return (
+    <>
+      <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: position }} loading="eager" decoding="async" />
+      <div className="absolute inset-0" style={{ background: overlay }} />
+    </>
   );
 }
 
@@ -63,7 +72,7 @@ function BrandLogo({ mode = "idle", onPulse }) {
 function SloganCard({ slogan, onPulse }) {
   return (
     <button type="button" onClick={onPulse} className="relative mt-5 w-full overflow-hidden rounded-[28px] border border-cyan-300/25 p-4 text-left shadow-2xl shadow-cyan-400/5 active:scale-[0.99]">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg,rgba(2,6,23,.55),rgba(2,6,23,.86)),url(${IMG.slogan})` }} />
+      <PhotoLayer src={IMG.slogan} overlay="linear-gradient(90deg,rgba(2,6,23,.45),rgba(2,6,23,.86))" />
       <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/70 to-transparent" />
       <div className="relative flex items-center gap-4"><div className="floaty text-4xl">{slogan[0]}</div><div><div className="text-[21px] font-black leading-tight text-white">{slogan[1]}</div><div className="mt-1 text-sm font-bold text-white/72">{slogan[2]}</div></div></div>
     </button>
@@ -73,7 +82,7 @@ function SloganCard({ slogan, onPulse }) {
 function HeroCard({ onPulse }) {
   return (
     <section className="hero-sweep relative mt-5 overflow-hidden rounded-[38px] border border-cyan-300/25 shadow-2xl shadow-cyan-500/10">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(90deg,rgba(2,6,23,.12),rgba(2,6,23,.42),rgba(2,6,23,.9)),url(${IMG.helsinki})` }} />
+      <PhotoLayer src={IMG.helsinki} overlay="linear-gradient(90deg,rgba(2,6,23,.10),rgba(2,6,23,.38),rgba(2,6,23,.88))" position="center" />
       <div className="absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/90 to-transparent" />
       <div className="relative min-h-[370px] p-5">
         <div className="flex items-center justify-between gap-3"><div className="w-fit rounded-full border border-white/20 bg-black/45 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-100 backdrop-blur-md">🇫🇮 Suomalainen yhteisöpeli</div><div className="rounded-full bg-green-400 px-3 py-1 text-[10px] font-black text-black shadow-lg shadow-green-400/25">LIVE</div></div>
@@ -85,11 +94,11 @@ function HeroCard({ onPulse }) {
 }
 
 function RuleCard({ n, icon, title, text, image, onPulse }) {
-  return <button type="button" onClick={onPulse} className="relative min-h-[226px] overflow-hidden rounded-[30px] border border-white/10 p-4 text-left shadow-2xl transition active:scale-[0.97]"><div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.18),rgba(2,6,23,.9)),url(${image})` }} /><div className="absolute left-5 top-5 h-14 w-14 rounded-2xl bg-cyan-400/25 blur-xl"/><div className="relative flex min-h-[194px] flex-col justify-between"><div className="flex items-start justify-between"><div className="grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500 text-2xl font-black text-white shadow-xl shadow-cyan-500/35">{n}</div><div className="text-4xl drop-shadow-lg">{icon}</div></div><div><h3 className="text-[22px] font-black leading-tight text-white">{title}</h3><p className="mt-2 text-[13px] font-bold leading-snug text-white/74">{text}</p></div></div></button>;
+  return <button type="button" onClick={onPulse} className="relative min-h-[226px] overflow-hidden rounded-[30px] border border-white/10 p-4 text-left shadow-2xl transition active:scale-[0.97]"><PhotoLayer src={image} /><div className="absolute left-5 top-5 h-14 w-14 rounded-2xl bg-cyan-400/25 blur-xl"/><div className="relative flex min-h-[194px] flex-col justify-between"><div className="flex items-start justify-between"><div className="grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500 text-2xl font-black text-white shadow-xl shadow-cyan-500/35">{n}</div><div className="text-4xl drop-shadow-lg">{icon}</div></div><div><h3 className="text-[22px] font-black leading-tight text-white">{title}</h3><p className="mt-2 text-[13px] font-bold leading-snug text-white/74">{text}</p></div></div></button>;
 }
 
 function MetricCard({ title, value, icon, text, footerLeft, footerRight, image, to, progress, hot, onPulse }) {
-  return <Tap onPulse={onPulse} to={to} className={`relative block min-h-[250px] overflow-hidden rounded-[32px] border p-4 shadow-2xl active:scale-[0.98] ${hot ? "border-yellow-300/35 shadow-yellow-300/10" : "border-white/10"}`}><div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `linear-gradient(rgba(2,6,23,.16),rgba(2,6,23,.93)),url(${image})` }} /><div className="relative flex min-h-[218px] flex-col"><div className="flex items-center justify-between"><p className="text-[12px] font-black uppercase tracking-wide text-cyan-200">{title}</p>{hot && <span className="rounded-full bg-yellow-300 px-2 py-1 text-[9px] font-black text-black">HOT</span>}</div><div className="mt-3 text-5xl leading-none">{icon}</div><div className="mt-1 truncate text-[44px] font-black leading-none text-white">{value}</div><p className="mt-3 min-h-[36px] text-[13px] font-bold leading-snug text-white/76">{text}</p><div className="mt-auto h-3 overflow-hidden rounded-full bg-black/45"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-emerald-300" style={{ width: `${Math.max(8,Math.min(100,progress))}%` }}/></div><div className="mt-3 grid grid-cols-2 gap-2 text-[12px] font-black text-white/82"><span className="truncate">{footerLeft}</span><span className="truncate text-right">{footerRight}</span></div></div></Tap>;
+  return <Tap onPulse={onPulse} to={to} className={`relative block min-h-[250px] overflow-hidden rounded-[32px] border p-4 shadow-2xl active:scale-[0.98] ${hot ? "border-yellow-300/35 shadow-yellow-300/10" : "border-white/10"}`}><PhotoLayer src={image} overlay="linear-gradient(rgba(2,6,23,.12),rgba(2,6,23,.9))" /><div className="relative flex min-h-[218px] flex-col"><div className="flex items-center justify-between"><p className="text-[12px] font-black uppercase tracking-wide text-cyan-200">{title}</p>{hot && <span className="rounded-full bg-yellow-300 px-2 py-1 text-[9px] font-black text-black">HOT</span>}</div><div className="mt-3 text-5xl leading-none">{icon}</div><div className="mt-1 truncate text-[44px] font-black leading-none text-white">{value}</div><p className="mt-3 min-h-[36px] text-[13px] font-bold leading-snug text-white/76">{text}</p><div className="mt-auto h-3 overflow-hidden rounded-full bg-black/45"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-emerald-300" style={{ width: `${Math.max(8,Math.min(100,progress))}%` }}/></div><div className="mt-3 grid grid-cols-2 gap-2 text-[12px] font-black text-white/82"><span className="truncate">{footerLeft}</span><span className="truncate text-right">{footerRight}</span></div></div></Tap>;
 }
 
 function BottomNav({ onPulse }) {
