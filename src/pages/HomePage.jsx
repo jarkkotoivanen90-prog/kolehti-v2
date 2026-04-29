@@ -17,9 +17,43 @@ const slogans = [
   ["🏆", "TOP 5 MENEE FINAALIIN.", "Nouse leaderboardissa ennen kuin kierros sulkeutuu."],
 ];
 
+function LogoMotionStyles() {
+  return (
+    <style>{`
+      @keyframes kolehtiBreath {
+        0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(34,211,238,.45)); }
+        50% { transform: scale(1.035); filter: drop-shadow(0 0 24px rgba(34,211,238,.9)); }
+      }
+      @keyframes kolehtiHeartBeat {
+        0%, 100% { transform: scale(1); }
+        12% { transform: scale(1.12); }
+        24% { transform: scale(.98); }
+        36% { transform: scale(1.08); }
+        48% { transform: scale(1); }
+      }
+      @keyframes kolehtiShine {
+        0% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+        18% { opacity: .75; }
+        42% { transform: translateX(140%) skewX(-18deg); opacity: 0; }
+        100% { transform: translateX(140%) skewX(-18deg); opacity: 0; }
+      }
+      .kolehti-breath { animation: kolehtiBreath 3.4s ease-in-out infinite; transform-origin: center; }
+      .kolehti-heartbeat { animation: kolehtiHeartBeat 2.8s ease-in-out infinite; transform-origin: center; }
+      .kolehti-shine::after {
+        content: "";
+        position: absolute;
+        inset: -8px -30px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+        animation: kolehtiShine 4.2s ease-in-out infinite;
+        pointer-events: none;
+      }
+    `}</style>
+  );
+}
+
 function KHeartMonogram() {
   return (
-    <div className="relative h-[78px] w-[78px] shrink-0">
+    <div className="kolehti-breath relative h-[78px] w-[78px] shrink-0">
       <div className="absolute inset-0 rounded-[30px] bg-gradient-to-br from-cyan-200 via-teal-300 to-blue-700 shadow-2xl shadow-cyan-400/40" />
       <div className="absolute inset-[5px] rounded-[25px] border border-white/25 bg-[#031226]/15" />
       <svg viewBox="0 0 120 120" className="absolute inset-[10px] h-[58px] w-[58px] drop-shadow-[0_0_16px_rgba(34,211,238,.85)]" aria-label="Kolehti K-heart logo">
@@ -30,11 +64,11 @@ function KHeartMonogram() {
             <stop offset="100%" stopColor="#fef08a" />
           </linearGradient>
         </defs>
-        <path d="M31 22C19 22 10 31 10 44c0 27 39 45 50 58 11-13 50-31 50-58 0-13-9-22-21-22-12 0-21 9-29 20-8-11-17-20-29-20Z" fill="url(#kheart)" opacity=".96" />
+        <path className="kolehti-heartbeat" d="M31 22C19 22 10 31 10 44c0 27 39 45 50 58 11-13 50-31 50-58 0-13-9-22-21-22-12 0-21 9-29 20-8-11-17-20-29-20Z" fill="url(#kheart)" opacity=".96" />
         <path d="M39 31h17v26l27-26h24L76 60l33 37H84L56 64v33H39V31Z" fill="#061126" opacity=".96" />
         <path d="M56 31v26l27-26h14L68 59l31 38H85L56 63v34H45V31h11Z" fill="url(#kheart)" opacity=".9" />
       </svg>
-      <div className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border-4 border-[#050816] bg-yellow-300 text-[15px] shadow-xl shadow-yellow-300/30">✓</div>
+      <div className="kolehti-heartbeat absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border-4 border-[#050816] bg-yellow-300 text-[15px] shadow-xl shadow-yellow-300/30">✓</div>
     </div>
   );
 }
@@ -44,7 +78,9 @@ function KolehtiLogo() {
     <div className="flex items-center gap-4">
       <KHeartMonogram />
       <div className="min-w-0">
-        <h1 className="text-[46px] font-black leading-[0.82] tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-yellow-200 drop-shadow-[0_0_22px_rgba(34,211,238,.35)]">KOLEHTI</h1>
+        <div className="kolehti-shine relative overflow-hidden">
+          <h1 className="text-[46px] font-black leading-[0.82] tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-yellow-200 drop-shadow-[0_0_22px_rgba(34,211,238,.35)]">KOLEHTI</h1>
+        </div>
         <p className="mt-3 text-[13px] font-black uppercase tracking-[0.27em] text-cyan-200/75">Kilpaile. Auta. Nouse.</p>
       </div>
     </div>
@@ -209,6 +245,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#050816] pb-36 text-white">
+      <LogoMotionStyles />
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#082f49_0%,#050816_44%,#02030a_100%)]" />
       <main className="mx-auto max-w-md px-4 py-5">
         <header className="flex items-center justify-between gap-4">
