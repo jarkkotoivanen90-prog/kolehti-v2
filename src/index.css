@@ -3,21 +3,32 @@
 @tailwind utilities;
 
 :root {
-  --bg: #05070f;
-  --reactive-glow: .14;
-  --kolehti-shell: rgba(6,17,38,.88);
-  --kolehti-shell-strong: rgba(6,17,38,.94);
-  --kolehti-card: rgba(255,255,255,.065);
-  --kolehti-border: rgba(255,255,255,.10);
-  --kolehti-cyan: #67e8f9;
+  --bg: #030712;
+  --brand-black: #030712;
+  --brand-navy: #061126;
+  --brand-navy-2: #0b1b3f;
+  --brand-blue: #075cff;
+  --brand-blue-2: #0ea5ff;
+  --brand-cyan: #8beeff;
+  --brand-white: #f8fbff;
+  --brand-gold: #ffe66d;
+  --reactive-glow: .18;
+  --kolehti-shell: rgba(3,7,18,.94);
+  --kolehti-shell-strong: rgba(3,7,18,.98);
+  --kolehti-card: rgba(8,23,55,.72);
+  --kolehti-border: rgba(139,238,255,.20);
+  --kolehti-cyan: #8beeff;
 }
 
 html, body, #root { min-height: 100%; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  color: white;
-  background: radial-gradient(circle at top, #172554 0%, #071124 36%, #05070f 100%);
+  color: var(--brand-white);
+  background:
+    radial-gradient(circle at 24% -10%, rgba(14,165,255,.24) 0%, transparent 32%),
+    radial-gradient(circle at 80% 8%, rgba(7,92,255,.20) 0%, transparent 28%),
+    linear-gradient(180deg, #061126 0%, #030712 60%, #01030a 100%);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: -0.01em;
   overscroll-behavior-y: contain;
@@ -29,13 +40,14 @@ body {
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 img, video { background-attachment: scroll !important; }
 main, #feed-scroll-root { -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
-nav { isolation: isolate; }
+nav, header, section, article, button, a { isolation: isolate; }
 
 @keyframes pulseSoft { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
-@keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 rgba(59,130,246,0); } 50% { box-shadow: 0 0 22px rgba(59,130,246,.24); } }
+@keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 rgba(14,165,255,0); } 50% { box-shadow: 0 0 28px rgba(14,165,255,.34); } }
 @keyframes likeBurst { 0% { transform: scale(.92); opacity: .72; } 50% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-@keyframes rewardFlash { 0% { filter: brightness(1); } 40% { filter: brightness(1.12); } 100% { filter: brightness(1); } }
-@keyframes nearWin { 0%,100% { box-shadow: 0 14px 36px rgba(0,0,0,.25), 0 0 12px rgba(250,204,21,.12); } 50% { box-shadow: 0 18px 44px rgba(0,0,0,.28), 0 0 26px rgba(250,204,21,.24); } }
+@keyframes rewardFlash { 0% { filter: brightness(1); } 40% { filter: brightness(1.16) saturate(1.1); } 100% { filter: brightness(1); } }
+@keyframes nearWin { 0%,100% { box-shadow: 0 16px 42px rgba(0,0,0,.34), 0 0 16px rgba(255,230,109,.16); } 50% { box-shadow: 0 20px 54px rgba(0,0,0,.38), 0 0 32px rgba(255,230,109,.30); } }
+@keyframes blueBreath { 0%,100% { filter: drop-shadow(0 0 10px rgba(14,165,255,.34)); } 50% { filter: drop-shadow(0 0 22px rgba(139,238,255,.72)); } }
 
 [data-motion="like"] .suomi-card { animation: likeBurst .32s ease; }
 [data-motion="superlike"] .suomi-card { animation: likeBurst .4s ease, glowPulse 1s ease; }
@@ -48,18 +60,52 @@ nav { isolation: isolate; }
 }
 
 @layer components {
-  .kolehti-shell {
-    background: linear-gradient(180deg, rgba(6,17,38,.96), rgba(6,17,38,.90));
-    border-color: rgba(103,232,249,.14);
+  .kolehti-shell,
+  .suomi-card,
+  .premium-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 30px;
+    border: 1px solid rgba(139,238,255,.22) !important;
+    background:
+      linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.035) 38%, rgba(7,92,255,.10)),
+      linear-gradient(180deg, rgba(7,18,43,.86), rgba(3,7,18,.82)) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.22),
+      inset 0 -1px 0 rgba(14,165,255,.10),
+      0 18px 46px rgba(0,0,0,.42),
+      0 0 22px rgba(14,165,255,.12) !important;
     backdrop-filter: blur(10px);
-    box-shadow: 0 12px 30px rgba(0,0,0,.28);
+    -webkit-backdrop-filter: blur(10px);
+    transition: transform .14s ease, box-shadow .18s ease, border-color .18s ease, filter .18s ease;
+    isolation: isolate;
   }
 
+  .kolehti-shell::after,
+  .suomi-card::after,
+  .premium-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 18% 0%, rgba(255,255,255,.20), transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(14,165,255,.16), transparent 30%);
+    opacity: .88;
+    z-index: 0;
+  }
+
+  .kolehti-shell > *,
+  .suomi-card > *,
+  .premium-card > * { position: relative; z-index: 1; }
+
   .kolehti-header {
-    background: linear-gradient(180deg, #071124 0%, #081329 100%) !important;
-    border-bottom: 1px solid rgba(103,232,249,.12) !important;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(14,165,255,.26), transparent 34%),
+      linear-gradient(180deg, #07152e 0%, #050b1a 100%) !important;
+    border-bottom: 1px solid rgba(139,238,255,.18) !important;
     backdrop-filter: none !important;
-    box-shadow: 0 10px 26px rgba(0,0,0,.34) !important;
+    box-shadow: 0 12px 30px rgba(0,0,0,.42), 0 0 24px rgba(14,165,255,.10) !important;
     isolation: isolate;
   }
 
@@ -67,12 +113,16 @@ nav { isolation: isolate; }
     position: relative;
     overflow: hidden;
     isolation: isolate;
-    background: #061126 !important;
-    background-image: linear-gradient(180deg, rgba(10,24,48,.98), rgba(5,12,28,.98)) !important;
-    border: 1px solid rgba(103,232,249,.20) !important;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(14,165,255,.22), transparent 45%),
+      linear-gradient(180deg, rgba(9,21,48,.995), rgba(4,9,23,.995)) !important;
+    border: 1px solid rgba(139,238,255,.24) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    box-shadow: 0 18px 42px rgba(0,0,0,.55), 0 0 18px rgba(34,211,238,.10) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.14),
+      0 18px 46px rgba(0,0,0,.62),
+      0 0 22px rgba(14,165,255,.18) !important;
   }
 
   .kolehti-bottom-shell::before {
@@ -80,7 +130,7 @@ nav { isolation: isolate; }
     position: absolute;
     inset: 0;
     z-index: -1;
-    background: #061126;
+    background: #050b1a;
   }
 
   .kolehti-bottom-shell::after {
@@ -88,54 +138,55 @@ nav { isolation: isolate; }
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: radial-gradient(circle at 50% 0%, rgba(34,211,238,.13), transparent 48%);
+    background:
+      linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent),
+      radial-gradient(circle at 50% 0%, rgba(139,238,255,.14), transparent 46%);
   }
 
   .kolehti-bottom-shell > * { position: relative; z-index: 1; }
-
-  .suomi-card {
-    position: relative;
-    overflow: hidden;
-    border-radius: 28px;
-    border: 1px solid var(--kolehti-border);
-    background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.045));
-    backdrop-filter: blur(8px);
-    box-shadow: 0 14px 36px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06);
-    transition: transform .14s ease, box-shadow .18s ease, border-color .18s ease;
-    isolation: isolate;
-  }
 
   .suomi-card::before {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(3,7,18,.18), rgba(3,7,18,.48));
-    opacity: .72;
+    background: linear-gradient(180deg, rgba(3,7,18,.10), rgba(3,7,18,.48));
+    opacity: .80;
     pointer-events: none;
     z-index: 0;
   }
 
-  .suomi-card > * { position: relative; z-index: 1; }
-  .suomi-card:active { transform: scale(.988); }
+  .suomi-card:active,
+  .premium-card:active { transform: scale(.988); }
 
   .suomi-no-shine::before { display: none; }
   .suomi-helsinki, .suomi-lake, .suomi-forest, .suomi-aurora, .suomi-road, .suomi-archipelago {
-    background-color: rgba(255,255,255,.06) !important;
+    background-color: rgba(3,7,18,.34) !important;
     background-blend-mode: soft-light;
   }
 
-  .premium-card {
-    border: 1px solid rgba(103,232,249,.22);
-    background: rgba(255,255,255,.065);
-    box-shadow: 0 16px 40px rgba(0,0,0,.28), 0 0 16px rgba(34,211,238,.10);
+  .cta-button,
+  button[class*="bg-cyan"],
+  a[class*="bg-cyan"],
+  button[class*="from-cyan"],
+  a[class*="from-cyan"] {
+    border: 1px solid rgba(255,255,255,.20) !important;
+    background: linear-gradient(135deg, #a7f3ff 0%, #0ea5ff 42%, #075cff 100%) !important;
+    color: white !important;
+    text-shadow: 0 1px 10px rgba(0,0,0,.32);
+    box-shadow: 0 12px 28px rgba(7,92,255,.30), 0 0 24px rgba(14,165,255,.20) !important;
   }
 
-  .cta-button {
-    border-radius: 18px;
-    padding: 14px;
-    font-weight: 900;
-    background: linear-gradient(135deg,#22d3ee,#3b82f6);
-    box-shadow: 0 14px 30px rgba(34,211,238,.18);
+  button[class*="bg-yellow"],
+  a[class*="bg-yellow"] {
+    background: linear-gradient(135deg, #fff6a3 0%, #ffe66d 50%, #fbbf24 100%) !important;
+    color: #050b1a !important;
+    box-shadow: 0 10px 24px rgba(255,230,109,.22) !important;
+  }
+
+  .premium-chip,
+  span[class*="rounded-full"],
+  div[class*="rounded-full"] {
+    border-color: rgba(139,238,255,.18);
   }
 
   .premium-chip {
@@ -143,19 +194,32 @@ nav { isolation: isolate; }
     align-items: center;
     gap: .35rem;
     border-radius: 999px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(6,17,38,.78);
+    border: 1px solid rgba(139,238,255,.20);
+    background: rgba(5,11,26,.84);
     padding: .35rem .65rem;
     font-size: .68rem;
     font-weight: 900;
-    color: rgba(255,255,255,.78);
+    color: rgba(248,251,255,.82);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 0 12px rgba(14,165,255,.08);
   }
 }
 
-#root textarea, #root input {
-  background-color: rgba(3,7,18,.60) !important;
-  border-color: rgba(255,255,255,.14) !important;
+#root textarea, #root input, #root select {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025)),
+    rgba(3,7,18,.78) !important;
+  border: 1px solid rgba(139,238,255,.18) !important;
   color: white !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(14,165,255,.06) !important;
 }
 
+#root textarea::placeholder,
+#root input::placeholder { color: rgba(248,251,255,.38) !important; }
+
+#root h1, #root h2, #root h3 { letter-spacing: -0.045em; }
+#root p, #root span, #root div { text-rendering: optimizeLegibility; }
 #root button:active, #root a:active, #root [role="button"]:active { transform: scale(.988); }
+
+/* Strong-glass logo/brand refinement */
+svg path[fill="white"], svg text[fill="white"] { filter: drop-shadow(0 0 8px rgba(255,255,255,.22)); }
+[class*="shadow-cyan"], [class*="shadow-blue"] { filter: saturate(1.08); }
