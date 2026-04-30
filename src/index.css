@@ -4,94 +4,127 @@
 
 :root {
   --bg: #05070f;
-  --reactive-glow: .18;
+  --reactive-glow: .14;
+  --kolehti-shell: rgba(6,17,38,.88);
+  --kolehti-shell-strong: rgba(6,17,38,.94);
+  --kolehti-card: rgba(255,255,255,.065);
+  --kolehti-border: rgba(255,255,255,.10);
+  --kolehti-cyan: #67e8f9;
 }
 
 html, body, #root { min-height: 100%; }
+html { scroll-behavior: smooth; }
 body {
   margin: 0;
   color: white;
-  background: radial-gradient(circle at top, #22306a 0%, #0b1020 35%, #05070f 100%);
-  font-family: Inter, ui-sans-serif, system-ui;
+  background: radial-gradient(circle at top, #172554 0%, #071124 36%, #05070f 100%);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.01em;
   overscroll-behavior-y: contain;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* 🔥 MOTION SYSTEM */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+img, video { background-attachment: scroll !important; }
+main, #feed-scroll-root { -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; }
 
-@keyframes pulseSoft {
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.02); }
+@keyframes pulseSoft { 0%,100% { transform: scale(1); } 50% { transform: scale(1.012); } }
+@keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 rgba(59,130,246,0); } 50% { box-shadow: 0 0 22px rgba(59,130,246,.24); } }
+@keyframes likeBurst { 0% { transform: scale(.92); opacity: .72; } 50% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes rewardFlash { 0% { filter: brightness(1); } 40% { filter: brightness(1.12); } 100% { filter: brightness(1); } }
+@keyframes nearWin { 0%,100% { box-shadow: 0 14px 36px rgba(0,0,0,.25), 0 0 12px rgba(250,204,21,.12); } 50% { box-shadow: 0 18px 44px rgba(0,0,0,.28), 0 0 26px rgba(250,204,21,.24); } }
+
+[data-motion="like"] .suomi-card { animation: likeBurst .32s ease; }
+[data-motion="superlike"] .suomi-card { animation: likeBurst .4s ease, glowPulse 1s ease; }
+[data-motion="reward"] .suomi-card { animation: rewardFlash .42s ease; }
+[data-motion="nearwin"] .suomi-card { animation: nearWin 1.8s ease-in-out infinite; }
+[data-motion="momentum"] .suomi-card { animation: pulseSoft .48s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 }
-
-@keyframes glowPulse {
-  0%,100% { box-shadow: 0 0 0 rgba(59,130,246,0); }
-  50% { box-shadow: 0 0 32px rgba(59,130,246,.35); }
-}
-
-@keyframes likeBurst {
-  0% { transform: scale(.8); opacity: .6; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes rewardFlash {
-  0% { filter: brightness(1); }
-  40% { filter: brightness(1.25); }
-  100% { filter: brightness(1); }
-}
-
-@keyframes nearWin {
-  0%,100% { box-shadow: 0 0 18px rgba(250,204,21,.15); }
-  50% { box-shadow: 0 0 48px rgba(250,204,21,.35); }
-}
-
-/* APPLY STATES */
-
-[data-motion="like"] .suomi-card {
-  animation: likeBurst .35s ease;
-}
-
-[data-motion="superlike"] .suomi-card {
-  animation: likeBurst .45s ease, glowPulse 1.2s ease;
-}
-
-[data-motion="reward"] .suomi-card {
-  animation: rewardFlash .5s ease;
-}
-
-[data-motion="nearwin"] .suomi-card {
-  animation: nearWin 1.8s infinite;
-}
-
-[data-motion="momentum"] .suomi-card {
-  animation: pulseSoft .6s ease;
-}
-
-/* BASE COMPONENTS */
 
 @layer components {
-  .suomi-card {
-    border-radius: 28px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(255,255,255,.08);
-    backdrop-filter: blur(10px);
-    transition: transform .15s ease, box-shadow .2s ease;
+  .kolehti-shell {
+    background: linear-gradient(180deg, rgba(6,17,38,.94), rgba(6,17,38,.78));
+    border-color: rgba(103,232,249,.14);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 12px 30px rgba(0,0,0,.28);
   }
 
-  .suomi-card:active {
-    transform: scale(.985);
+  .kolehti-bottom-shell {
+    background: rgba(10,20,40,.78) !important;
+    border: 1px solid rgba(103,232,249,.18) !important;
+    backdrop-filter: blur(14px) !important;
+    box-shadow: 0 16px 38px rgba(0,0,0,.34), 0 0 18px rgba(34,211,238,.10) !important;
+  }
+
+  .suomi-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid var(--kolehti-border);
+    background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.045));
+    backdrop-filter: blur(10px);
+    box-shadow: 0 14px 36px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.06);
+    transition: transform .14s ease, box-shadow .18s ease, border-color .18s ease;
+    isolation: isolate;
+  }
+
+  .suomi-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(3,7,18,.18), rgba(3,7,18,.48));
+    opacity: .72;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .suomi-card > * { position: relative; z-index: 1; }
+  .suomi-card:active { transform: scale(.988); }
+
+  .suomi-no-shine::before { display: none; }
+  .suomi-helsinki, .suomi-lake, .suomi-forest, .suomi-aurora, .suomi-road, .suomi-archipelago {
+    background-color: rgba(255,255,255,.06) !important;
+    background-blend-mode: soft-light;
   }
 
   .premium-card {
-    border: 1px solid rgba(59,130,246,.4);
-    box-shadow: 0 20px 50px rgba(0,0,0,.35), 0 0 20px rgba(59,130,246,.15);
+    border: 1px solid rgba(103,232,249,.22);
+    background: rgba(255,255,255,.065);
+    box-shadow: 0 16px 40px rgba(0,0,0,.28), 0 0 16px rgba(34,211,238,.10);
   }
 
   .cta-button {
-    border-radius: 16px;
+    border-radius: 18px;
     padding: 14px;
-    font-weight: bold;
+    font-weight: 900;
     background: linear-gradient(135deg,#22d3ee,#3b82f6);
-    animation: glowPulse 3s infinite;
+    box-shadow: 0 14px 30px rgba(34,211,238,.18);
+  }
+
+  .premium-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(6,17,38,.44);
+    padding: .35rem .65rem;
+    font-size: .68rem;
+    font-weight: 900;
+    color: rgba(255,255,255,.78);
+    backdrop-filter: blur(8px);
   }
 }
+
+#root textarea, #root input {
+  background-color: rgba(3,7,18,.60) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  color: white !important;
+}
+
+#root button:active, #root a:active, #root [role="button"]:active { transform: scale(.988); }
