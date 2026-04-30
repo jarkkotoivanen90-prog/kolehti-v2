@@ -15,6 +15,15 @@ function groupXp(groupId, posts, votes) {
   return Math.round(postScore + voteScore);
 }
 
+function userContribution(groupId, userId, posts, votes) {
+  if (!userId) return 0;
+  const userPosts = (posts || []).filter((p) => p.group_id === groupId && p.user_id === userId);
+  const ids = new Set(userPosts.map((p) => p.id));
+  const voteScore = (votes || []).filter((v) => ids.has(v.post_id)).reduce((sum, v) => sum + Number(v.value || 1) * 12, 0);
+  const postScore = userPosts.reduce((sum, p) => sum + 20 + Number(p.ai_score || 50) + Number(p.boost_score || 0) * 2 + Number(p.watch_time_total || 0) * 2 + Number(p.shares || 0) * 4, 0);
+  return Math.round(postScore + voteScore);
+}
+
 export default function GroupPage() {
   const [user, setUser] = useState(null);
   const [groups, setGroups] = useState([]);
@@ -87,12 +96,14 @@ export default function GroupPage() {
     }
 
     localStorage.setItem("kolehti_group_id", groupId);
+    localStorage.setItem("primary_group", groupId);
     showToast("Liityit porukkaan 🔥");
     await init();
   }
 
   function openGroup(groupId) {
     localStorage.setItem("kolehti_group_id", groupId);
+    localStorage.setItem("primary_group", groupId);
     haptic("tap");
     navigate("/feed");
   }
@@ -102,25 +113,39 @@ export default function GroupPage() {
     const { error } = await supabase.from("group_members").update({ active: false }).eq("group_id", groupId).eq("user_id", user.id);
     if (error) { showToast(error.message, "warning"); return; }
     if (localStorage.getItem("kolehti_group_id") === groupId) localStorage.removeItem("kolehti_group_id");
+    if (localStorage.getItem("primary_group") === groupId) localStorage.removeItem("primary_group");
     showToast("Poistuit porukasta");
     await init();
   }
 
   const rankedGroups = useMemo(() => {
-    return [...groups].map((group) => {
+    const base = [...groups].map((group) => {
       const xp = groupXp(group.id, posts, votes);
       const count = memberCount(group.id);
       const groupPosts = posts.filter((p) => p.group_id === group.id);
       const topPost = groupPosts.sort((a, b) => Number(b.ai_score || 0) - Number(a.ai_score || 0))[0];
-      return { ...group, xp, count, topPost };
+      const contribution = userContribution(group.id, user?.id, posts, votes);
+      return { ...group, xp, count, topPost, contribution };
     }).sort((a, b) => b.xp - a.xp);
-  }, [groups, posts, votes, members]);
+
+    return base.map((group, index) => {
+      const prev = base[index - 1];
+      const next = base[index + 1];
+      const diffToAbove = prev ? Math.max(1, prev.xp - group.xp) : 0;
+      const diffToBelow = next ? Math.max(1, group.xp - next.xp) : 0;
+      return { ...group, diffToAbove, diffToBelow };
+    });
+  }, [groups, posts, votes, members, user?.id]);
+
+  const myGroup = rankedGroups.find((g) => isJoined(g.id));
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
       <style>{`
         @keyframes toastIn{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}
-        .toast-in{animation:toastIn 1.6s ease both}
+        @keyframes liveDot{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.18)}}
+        @keyframes threatGlow{0%,100%{box-shadow:0 18px 48px rgba(0,0,0,.3),0 0 14px rgba(250,204,21,.12)}50%{box-shadow:0 22px 58px rgba(0,0,0,.35),0 0 34px rgba(250,204,21,.28)}}
+        .toast-in{animation:toastIn 1.6s ease both}.live-dot{animation:liveDot 1.4s ease-in-out infinite}.threat-glow{animation:threatGlow 2.4s ease-in-out infinite}
       `}</style>
 
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" loading="eager" decoding="async" />
@@ -135,19 +160,23 @@ export default function GroupPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-200/78">🇫🇮 Suomi · porukat</p>
               <h1 className="mt-2 text-[44px] font-black leading-none tracking-tight">Porukat</h1>
-              <p className="mt-2 text-sm font-bold text-white/60">Valitse porukka, nosta XP:tä ja kilpaile finaalipaikasta.</p>
+              <p className="mt-2 text-sm font-bold text-white/60">Porukka ei ole lista — se on kilpailu finaalipaikasta.</p>
             </div>
             <Link data-haptic="tap" to="/feed" className="rounded-2xl border border-white/15 bg-black/28 px-4 py-3 text-sm font-black text-white/85 backdrop-blur-xl">Feed</Link>
           </div>
         </header>
 
         <section className="mt-6 rounded-[34px] border border-white/15 bg-black/42 p-5 shadow-2xl shadow-black/35 backdrop-blur-2xl">
-          <p className="text-sm font-black uppercase tracking-wide text-cyan-200">Porukka ranking</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-black uppercase tracking-wide text-cyan-200">Porukka ranking</p>
+            <span className="flex items-center gap-2 rounded-full bg-green-400/14 px-3 py-1 text-[10px] font-black text-green-200"><span className="live-dot h-2 w-2 rounded-full bg-green-300" /> LIVE</span>
+          </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-black">
             <div className="rounded-2xl bg-black/35 p-3"><div className="text-white/45">Porukat</div><div className="mt-1 text-2xl">{groups.length}</div></div>
             <div className="rounded-2xl bg-black/35 p-3"><div className="text-white/45">Jäsenet</div><div className="mt-1 text-2xl">{members.length}</div></div>
             <div className="rounded-2xl bg-black/35 p-3"><div className="text-white/45">XP</div><div className="mt-1 text-2xl">{rankedGroups.reduce((s, g) => s + g.xp, 0)}</div></div>
           </div>
+          {myGroup && <div className="mt-4 rounded-[24px] border border-yellow-300/24 bg-yellow-300/10 p-4 text-sm font-black text-yellow-100">🔒 Sinun porukka: {myGroup.name} · vaikutuksesi +{myGroup.contribution} XP</div>}
         </section>
 
         {loading && <div className="mt-4 rounded-[30px] border border-white/15 bg-black/42 p-5 text-center font-black backdrop-blur-2xl">Ladataan porukoita...</div>}
@@ -181,16 +210,20 @@ export default function GroupPage() {
 function GroupCard({ group, index, joined, onJoin, onOpen, onLeave }) {
   const rank = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
   const progress = Math.min(100, Math.max(8, group.xp / 25));
+  const closeToAbove = group.diffToAbove > 0 && group.diffToAbove < 50;
+  const threatBehind = group.diffToBelow > 0 && group.diffToBelow < 50;
+  const targetText = index === 0 ? "Pidä johto — seuraava postaus voi ratkaista." : `Tavoite: +${group.diffToAbove} XP → sijoitus #${index}`;
 
   return (
-    <article className={`rounded-[34px] border p-5 shadow-2xl backdrop-blur-2xl ${joined ? "border-cyan-300/35 bg-cyan-300/10 shadow-cyan-300/12" : "border-white/15 bg-black/42 shadow-black/30"}`}>
+    <article className={`rounded-[34px] border p-5 shadow-2xl backdrop-blur-2xl ${joined ? "border-cyan-300/35 bg-cyan-300/10 shadow-cyan-300/12" : "border-white/15 bg-black/42 shadow-black/30"} ${(closeToAbove || threatBehind || joined) ? "threat-glow" : ""}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white/10 text-sm font-black">{rank}</span>
             <h2 className="truncate text-2xl font-black text-white">{group.name}</h2>
           </div>
-          <p className="mt-2 text-sm font-bold text-white/58">{joined ? "Olet mukana tässä porukassa." : "Voit liittyä tähän porukkaan."}</p>
+          <p className="mt-2 text-sm font-bold text-white/72">{joined ? "🔥 Te olette taistelussa kärjestä." : "⚔️ Liity ja vaikuta rankingiin."}</p>
+          {joined && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-yellow-200">🔒 Tämä on sinun porukka</p>}
         </div>
         <div className="shrink-0 rounded-[22px] border border-white/12 bg-black/35 px-3 py-2 text-center">
           <div className="text-xl font-black text-cyan-100">{group.count}</div>
@@ -203,8 +236,18 @@ function GroupCard({ group, index, joined, onJoin, onOpen, onLeave }) {
         <div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-blue-500 transition-all duration-500" style={{ width: `${progress}%` }} />
       </div>
 
+      <div className="mt-4 grid gap-2 text-xs font-black">
+        {closeToAbove && <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-yellow-100">⚠️ Vain {group.diffToAbove} XP edellä olevaan porukkaan</div>}
+        {threatBehind && <div className="rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-red-100">🩸 Uhka takaa: vain {group.diffToBelow} XP eroa</div>}
+        {joined && <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-cyan-100">💥 Sinun vaikutus: +{group.contribution} XP</div>}
+        {joined && <div className="rounded-2xl border border-white/10 bg-black/32 px-4 py-3 text-white/80">🎯 {targetText}</div>}
+      </div>
+
       <div className="mt-4 rounded-[24px] border border-white/10 bg-black/32 p-4">
-        <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Leaderboard preview</p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Leaderboard preview</p>
+          <span className="flex items-center gap-1 text-[10px] font-black text-green-200"><span className="live-dot h-1.5 w-1.5 rounded-full bg-green-300" /> LIVE</span>
+        </div>
         <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-white/75">🔥 Top postaus: {group.topPost?.content || "Ei vielä postauksia"}</p>
       </div>
 
