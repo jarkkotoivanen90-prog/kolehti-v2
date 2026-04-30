@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
-import { installGlobalHaptics } from "./lib/effects";
+import { installGlobalHaptics, installReactiveUI } from "./lib/effects";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -22,7 +22,12 @@ function AppShell() {
   const location = useLocation();
 
   useEffect(() => {
-    return installGlobalHaptics();
+    const cleanHaptics = installGlobalHaptics();
+    const cleanReactive = installReactiveUI();
+    return () => {
+      cleanHaptics();
+      cleanReactive();
+    };
   }, []);
 
   useEffect(() => {
