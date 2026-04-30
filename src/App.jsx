@@ -7,7 +7,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import FeedPage from "./pages/FeedPageClean";
 import VotePage from "./pages/VotePage";
 import NewPostPage from "./pages/NewPostPage";
-import ProfilePage from "./pages/ProfilePage";
+import ProfilePage from "./pages/ProfilePageClean";
 import GroupPage from "./pages/GroupPage";
 import GrowthPage from "./pages/GrowthPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
