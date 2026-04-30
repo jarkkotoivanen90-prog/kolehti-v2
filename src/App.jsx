@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { installGlobalHaptics } from "./lib/effects";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -19,6 +20,10 @@ import Navbar from "./components/Navbar";
 
 function AppShell() {
   const location = useLocation();
+
+  useEffect(() => {
+    return installGlobalHaptics();
+  }, []);
 
   useEffect(() => {
     try {
