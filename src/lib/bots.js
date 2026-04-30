@@ -10,6 +10,7 @@ export const GAME_BOTS = [
 ];
 
 const MEMORY_KEY = "kolehti_bot_memory_v1";
+const DIALOGUE_KEY = "kolehti_bot_dialogue_v1";
 
 const DEFAULT_MEMORY = {
   encounters: 0,
@@ -35,6 +36,21 @@ export function writeBotMemory(next) {
   } catch {}
 }
 
+export function readBotDialogueMemory() {
+  try {
+    const raw = localStorage.getItem(DIALOGUE_KEY);
+    return raw ? JSON.parse(raw) : { seen: {}, lastDialogueAt: 0 };
+  } catch {
+    return { seen: {}, lastDialogueAt: 0 };
+  }
+}
+
+export function writeBotDialogueMemory(next) {
+  try {
+    localStorage.setItem(DIALOGUE_KEY, JSON.stringify({ seen: {}, lastDialogueAt: Date.now(), ...next }));
+  } catch {}
+}
+
 export function recordBotEncounter({ userWon = false, botId = "bot-myrsky", gap = 0 } = {}) {
   const memory = readBotMemory();
   const history = memory.botHistory || {};
@@ -48,15 +64,7 @@ export function recordBotEncounter({ userWon = false, botId = "bot-myrsky", gap 
     lastGap: gap,
     lastSeenAt: Date.now(),
   };
-
-  writeBotMemory({
-    ...memory,
-    encounters: memory.encounters + 1,
-    playerWins: memory.playerWins + (userWon ? 1 : 0),
-    botWins: memory.botWins + (userWon ? 0 : 1),
-    rivalId: updated.grudge > 35 ? botId : memory.rivalId,
-    botHistory: { ...history, [botId]: updated },
-  });
+  writeBotMemory({ ...memory, encounters: memory.encounters + 1, playerWins: memory.playerWins + (userWon ? 1 : 0), botWins: memory.botWins + (userWon ? 0 : 1), rivalId: updated.grudge > 35 ? botId : memory.rivalId, botHistory: { ...history, [botId]: updated } });
 }
 
 function getBotMemoryState(bot) {
@@ -115,31 +123,7 @@ export function makeBotPosts(count = 18) {
     const baseText = bank[index % bank.length];
     const rhythmOffset = Math.round(seed * 1000 * 60 * 4 * bot.rhythm);
 
-    return {
-      id: `bot-post-${seed}`,
-      user_id: bot.id,
-      bot: true,
-      bot_disclosure: "Pelibotti",
-      bot_name: bot.name,
-      bot_avatar: bot.avatar,
-      bot_style: bot.style,
-      bot_mood: bot.mood,
-      bot_favorite: bot.favorite,
-      bot_rival: memoryState.isRival,
-      bot_memory: memoryState.history,
-      content: humanizeText(baseText, bot, index),
-      created_at: new Date(now - rhythmOffset).toISOString(),
-      votes: Math.round((18 + seed * 5 + nearWinBoost + attackBoost + memoryBoost + seeded(seed, 6)) * aggression),
-      ai_score: Math.round((58 + seed * 4 + nearWinBoost + attackBoost + memoryBoost + seeded(seed + 2, 5)) * Math.min(1.22, aggression)),
-      growth_score: Math.round((55 + seed * 5 + attackBoost + memoryBoost + seeded(seed + 3, 7)) * Math.min(1.24, aggression)),
-      boost_score: Math.round((seed % 5) + nearWinBoost / 8 + attackBoost / 10 + memoryBoost / 14),
-      watch_time_total: Math.round((24 + seed * 4 + pulse + attackBoost / 3 + seeded(seed + 5, 8)) * aggression),
-      shares: Math.round((seed % 6) + nearWinBoost / 12 + attackBoost / 16 + memoryBoost / 28),
-      score: 0,
-      bot_heat: Math.min(100, 42 + seed * 5 + nearWinBoost + attackBoost + memoryBoost),
-      near_win: nearWinBoost > 0,
-      attacking_user: attackBoost > 0 || memoryState.isRival,
-    };
+    return { id: `bot-post-${seed}`, user_id: bot.id, bot: true, bot_disclosure: "Pelibotti", bot_name: bot.name, bot_avatar: bot.avatar, bot_style: bot.style, bot_mood: bot.mood, bot_favorite: bot.favorite, bot_rival: memoryState.isRival, bot_memory: memoryState.history, content: humanizeText(baseText, bot, index), created_at: new Date(now - rhythmOffset).toISOString(), votes: Math.round((18 + seed * 5 + nearWinBoost + attackBoost + memoryBoost + seeded(seed, 6)) * aggression), ai_score: Math.round((58 + seed * 4 + nearWinBoost + attackBoost + memoryBoost + seeded(seed + 2, 5)) * Math.min(1.22, aggression)), growth_score: Math.round((55 + seed * 5 + attackBoost + memoryBoost + seeded(seed + 3, 7)) * Math.min(1.24, aggression)), boost_score: Math.round((seed % 5) + nearWinBoost / 8 + attackBoost / 10 + memoryBoost / 14), watch_time_total: Math.round((24 + seed * 4 + pulse + attackBoost / 3 + seeded(seed + 5, 8)) * aggression), shares: Math.round((seed % 6) + nearWinBoost / 12 + attackBoost / 16 + memoryBoost / 28), score: 0, bot_heat: Math.min(100, 42 + seed * 5 + nearWinBoost + attackBoost + memoryBoost), near_win: nearWinBoost > 0, attacking_user: attackBoost > 0 || memoryState.isRival };
   });
 }
 
@@ -159,16 +143,7 @@ export function botTicker() {
   const rival = GAME_BOTS.find((b) => b.id === memory.rivalId) || GAME_BOTS[0];
   const bot = Math.random() > .45 ? rival : GAME_BOTS[Math.floor(Date.now() / 2200) % GAME_BOTS.length];
   const history = memory.botHistory?.[bot.id];
-  const actions = [
-    `${bot.name} muistaa edellisen kohtaamisen`,
-    `${bot.name} miettii seuraavaa siirtoa`,
-    `${bot.name} reagoi sinun sijoitukseen`,
-    `${bot.name} nosti painetta kärkeen`,
-    `${bot.name} seuraa sinun XP:tä`,
-    `${bot.name} huomasi uuden ohituspaikan`,
-    history?.losses ? `${bot.name} hakee revanssia` : `${bot.name} aktivoi bot-kierroksen`,
-    `${bot.name} nosti XP-lämmön yli ${70 + (Math.floor(Date.now() / 1000) % 25)}%`,
-  ];
+  const actions = [`${bot.name} muistaa edellisen kohtaamisen`, `${bot.name} miettii seuraavaa siirtoa`, `${bot.name} reagoi sinun sijoitukseen`, `${bot.name} nosti painetta kärkeen`, `${bot.name} seuraa sinun XP:tä`, `${bot.name} huomasi uuden ohituspaikan`, history?.losses ? `${bot.name} hakee revanssia` : `${bot.name} aktivoi bot-kierroksen`, `${bot.name} nosti XP-lämmön yli ${70 + (Math.floor(Date.now() / 1000) % 25)}%`];
   return actions[Math.floor(Date.now() / 2800) % actions.length];
 }
 
@@ -178,6 +153,47 @@ export function botAttackTicker() {
   const line = ATTACK_LINES[Math.floor(Date.now() / 2300) % ATTACK_LINES.length];
   const pressure = 64 + (Math.floor(Date.now() / 1000) % 32) + Math.round((memory.botHistory?.[bot.id]?.grudge || 0) / 5);
   return { bot, pressure, text: `${bot.name} ${line}` };
+}
+
+export function makeBotDialogue({ context = "feed", userRank = null, gap = null, postContent = "", threat = null } = {}) {
+  const memory = readBotMemory();
+  const dialogueMemory = readBotDialogueMemory();
+  const rival = GAME_BOTS.find((b) => b.id === memory.rivalId) || GAME_BOTS[0];
+  const bot = threat?.attacker?.bot_name ? GAME_BOTS.find((b) => b.name === threat.attacker.bot_name) || rival : rival;
+  const state = getBotMemoryState(bot);
+  const seenCount = dialogueMemory.seen?.[bot.id] || 0;
+  const templates = {
+    feed: [
+      `Näin tämän feedissä. ${userRank ? `Olet sijalla #${userRank}, mutta se ei ole turvassa.` : "Sinulla ei ole vielä turvallista paikkaa leaderboardissa."}`,
+      `${postContent ? "Tuo postaus antaa sinulle vähän momentumia." : "Tarvitset uuden perustelun, jos aiot pysyä mukana."}`,
+      `Minä seuraan sinun nousua. ${gap ? `${gap} XP ei ole iso ero.` : "Ero voi kadota nopeasti."}`,
+    ],
+    pots: [
+      `Potti kasvaa, mutta minä en aio jäädä katsomaan sivusta.`,
+      `Jos annat minulle ${gap || 40} XP tilaa, otan sen.`,
+      `Tämä kierros tuntuu sellaiselta, että joku ohittaa viime metreillä.`,
+    ],
+    profile: [
+      `Huomasin sinun XP-tason. Ei paha, mutta ei vielä riitä minua vastaan.`,
+      `Sinun profiili näyttää paremmalta kuin viimeksi. Minäkin nostan vauhtia.`,
+      `Muistan edellisen eron. Nyt pelaan tiukemmin.`,
+    ],
+    win: [
+      `Hyvä. Voitit tämän kerran. Muistan sen seuraavalla kierroksella.`,
+      `Tuo oli vahva nousu. En anna seuraavaa yhtä helposti.`,
+    ],
+    lose: [
+      `Sain sinut kiinni. Nyt sinun pitää vastata.`,
+      `Tämä oli minun kierros. Katsotaan korjaatko tilanteen.`,
+    ],
+  };
+  const pool = templates[context] || templates.feed;
+  let text = pool[(seenCount + Math.floor(Date.now() / 5000)) % pool.length];
+  if (state.isRival && state.history.grudge > 35) text += " Tämä on jo henkilökohtaista pelin sisällä.";
+  if (bot.mood === "pehmeä") text = text.replace("minua vastaan", "minua vastaan 💙");
+  if (bot.mood === "aggressiivinen") text += " Nyt painetaan.";
+  writeBotDialogueMemory({ ...dialogueMemory, seen: { ...(dialogueMemory.seen || {}), [bot.id]: seenCount + 1 }, lastDialogueAt: Date.now() });
+  return { bot, text, context, pressure: Math.min(100, 55 + Number(state.history.grudge || 0) + (state.isRival ? 18 : 0)), disclosure: "Pelibotti" };
 }
 
 export function getUserThreat(posts = [], userId = null) {
