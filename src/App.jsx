@@ -18,6 +18,7 @@ import LeaderboardWarPage from "./pages/LeaderboardWarPage";
 
 import AuthGate from "./components/auth/AuthGate";
 import Navbar from "./components/Navbar";
+import BrandFX from "./components/BrandFX";
 
 function AppShell() {
   const location = useLocation();
@@ -47,6 +48,7 @@ function AppShell() {
 
   return (
     <>
+      <BrandFX />
       {!hideNavbar && <Navbar />}
 
       <Routes>
