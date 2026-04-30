@@ -3,16 +3,17 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import AppBottomNav from "../components/AppBottomNav";
 import { haptic } from "../lib/effects";
+import { mergeWithBots, botDrama } from "../lib/bots";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
 const panel = "premium-card rounded-[34px] p-5";
 const innerPanel = "rounded-[24px] border border-cyan-100/10 bg-[#030816]/58 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]";
 
 const POTS = [
-  { key: "daily", title: "Päiväpotti", label: "Päivä", icon: "☀️", base: 25, multiplier: 0.24 },
-  { key: "weekly", title: "Viikkopotti", label: "Viikko", icon: "📅", base: 150, multiplier: 0.72 },
-  { key: "monthly", title: "Kuukausipotti", label: "Kuukausi", icon: "🏆", base: 500, multiplier: 1.55 },
-  { key: "final", title: "Finaalipotti", label: "Finaali", icon: "💎", base: 2000, multiplier: 3.75 },
+  { key: "daily", title: "Päiväpotti", label: "Päivä", icon: "☀️", base: 25, multiplier: 0.24, botMultiplier: 0.18 },
+  { key: "weekly", title: "Viikkopotti", label: "Viikko", icon: "📅", base: 150, multiplier: 0.72, botMultiplier: 0.36 },
+  { key: "monthly", title: "Kuukausipotti", label: "Kuukausi", icon: "🏆", base: 500, multiplier: 1.55, botMultiplier: 0.72 },
+  { key: "final", title: "Finaalipotti", label: "Finaali", icon: "💎", base: 2000, multiplier: 3.75, botMultiplier: 1.35 },
 ];
 
 function getVoteCountMap(votes) {
@@ -30,20 +31,27 @@ function normalizePost(post, voteMap) {
   const content = String(post.content || post.text || post.body || "").trim();
   if (!id || !content) return null;
   return {
+    ...post,
     id,
     content,
     user_id: post.user_id || "unknown-user",
     votes: Number(voteMap[id] || post.vote_count || post.votes || 0),
     ai_score: Number(post.ai_score || post.growth_score || 50),
+    growth_score: Number(post.growth_score || post.ai_score || 50),
     boost_score: Number(post.boost_score || 0),
     watch_time_total: Number(post.watch_time_total || 0),
     shares: Number(post.shares || 0),
+    bot: Boolean(post.bot),
+    bot_name: post.bot_name,
+    bot_heat: Number(post.bot_heat || 0),
+    near_win: Boolean(post.near_win),
   };
 }
 
 function scorePost(post, potKey) {
   const potBoost = potKey === "final" ? 1.35 : potKey === "monthly" ? 1.18 : potKey === "weekly" ? 1.08 : 1;
-  return Math.round((Number(post.votes || 0) * 12 + Number(post.ai_score || 0) + Number(post.boost_score || 0) * 2 + Number(post.watch_time_total || 0) * 2 + Number(post.shares || 0) * 4) * potBoost);
+  const botBoost = post.bot ? 1.08 : 1;
+  return Math.round((Number(post.votes || 0) * 12 + Number(post.ai_score || 0) + Number(post.growth_score || 0) * 0.55 + Number(post.boost_score || 0) * 4 + Number(post.watch_time_total || 0) * 2 + Number(post.shares || 0) * 6 + (post.near_win ? 45 : 0)) * potBoost * botBoost);
 }
 
 export default function PotsPage() {
@@ -60,7 +68,10 @@ export default function PotsPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => handleLive("Uusi postaus mukana poteissa", "success"))
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => handleLive("Ääni muutti leaderboardia", "heavy"))
       .subscribe();
-    const interval = setInterval(() => setLiveTick((v) => (v + 1) % 9), 3500);
+    const interval = setInterval(() => {
+      setLiveTick((v) => (v + 1) % 19);
+      if (Math.random() > 0.45) setReward({ id: Date.now(), text: "Botit nostavat potin painetta" });
+    }, 3200);
     return () => { clearInterval(interval); supabase.removeChannel(channel); };
   }, []);
 
@@ -87,18 +98,37 @@ export default function PotsPage() {
 
   const potData = useMemo(() => {
     const voteMap = getVoteCountMap(votes);
-    const normalized = (posts || []).map((post) => normalizePost(post, voteMap)).filter(Boolean);
+    const realNormalized = (posts || []).map((post) => normalizePost(post, voteMap)).filter(Boolean);
+    const normalized = mergeWithBots(realNormalized, 16).map((post) => normalizePost(post, voteMap)).filter(Boolean);
+    const botPosts = normalized.filter((p) => p.bot);
     const playerCount = Math.max(1, new Set([...normalized.map((p) => p.user_id), ...votes.map((v) => v.user_id).filter(Boolean)]).size);
+    const botHeat = botPosts.reduce((sum, post) => sum + Number(post.bot_heat || 0), 0);
+    const drama = botDrama(normalized);
+
     return POTS.map((pot, index) => {
       const leaderboard = [...normalized].map((post) => ({ ...post, score: scorePost(post, pot.key) })).sort((a, b) => b.score - a.score).slice(0, 5);
-      const liveBump = (liveTick + index) % 5;
-      const activity = leaderboard.reduce((sum, post) => sum + Number(post.votes || 0) + Number(post.shares || 0), 0);
-      const amount = Math.round(pot.base + playerCount * pot.multiplier + activity * (index + 1) * 0.12 + liveBump);
-      return { ...pot, amount, players: playerCount, leaderboard, fillRate: Math.min(100, Math.max(8, Math.round(playerCount + activity / 2))), liveBump };
+      const liveBump = (liveTick + index) % 9;
+      const realActivity = leaderboard.filter((p) => !p.bot).reduce((sum, post) => sum + Number(post.votes || 0) + Number(post.shares || 0), 0);
+      const botActivity = leaderboard.filter((p) => p.bot).reduce((sum, post) => sum + Number(post.votes || 0) + Number(post.shares || 0) + Number(post.watch_time_total || 0) / 2, 0);
+      const botPotBoost = Math.round((botActivity * pot.botMultiplier + botHeat * 0.015) * (index + 1));
+      const amount = Math.round(pot.base + playerCount * pot.multiplier + realActivity * (index + 1) * 0.12 + botPotBoost + liveBump);
+      const activity = realActivity + botActivity;
+      return {
+        ...pot,
+        amount,
+        players: playerCount,
+        bots: botPosts.length,
+        leaderboard,
+        fillRate: Math.min(100, Math.max(8, Math.round(playerCount + activity / 2))),
+        liveBump,
+        botPotBoost,
+        drama,
+      };
     });
   }, [posts, votes, liveTick]);
 
   const total = potData.reduce((sum, pot) => sum + pot.amount, 0);
+  const drama = potData[0]?.drama;
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
@@ -106,17 +136,18 @@ export default function PotsPage() {
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" loading="eager" decoding="async" />
       <div className="fixed inset-0 bg-gradient-to-b from-black/42 via-[#061126]/76 to-black/95" />
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(21,131,255,.13),transparent_34%)]" />
-      {reward && <div className="reward-toast fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">{reward.text}</div>}
+      {reward && <div className="reward-toast fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">🤖 {reward.text}</div>}
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <header className="text-center">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Live-palkinnot</p>
           <h1 className="mt-2 text-[56px] font-black leading-none tracking-tight text-white">Potit</h1>
-          <p className="mx-auto mt-2 max-w-[290px] text-sm font-bold leading-snug text-white/62">Kaikki potit, pelaajamäärät ja leaderboardit reaaliajassa.</p>
+          <p className="mx-auto mt-2 max-w-[290px] text-sm font-bold leading-snug text-white/62">Botit nostavat painetta, pelaajat ratkaisevat leaderboardin.</p>
         </header>
         <section className={`${panel} mt-6 text-center`}>
           <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Kaikki potit yhteensä</p>
           <div key={total} className="live-pop mt-2 text-[64px] font-black leading-none text-white">€{total}</div>
-          <p className="mt-2 text-sm font-bold text-white/62">{potData[0]?.players || 1} pelaajaa mukana</p>
+          <p className="mt-2 text-sm font-bold text-white/62">{potData[0]?.players || 1} osallistujaa · {potData[0]?.bots || 0} bottia nostamassa painetta</p>
+          {drama && <div className={`${innerPanel} mt-4 p-3 text-left text-xs font-black text-cyan-100`}><div>{drama.title}</div><div className="mt-1 text-white/70">{drama.text}</div></div>}
         </section>
         {loading && <div className={`${panel} mt-4 text-center font-black`}>Päivitetään potteja...</div>}
         <section className="mt-4 space-y-4">{potData.map((pot) => <PotCard key={pot.key} pot={pot} />)}</section>
@@ -138,7 +169,7 @@ function PotCard({ pot }) {
         <div>
           <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{pot.icon} {pot.title}</p>
           <div key={`${pot.key}-${pot.amount}`} className="live-pop mt-2 text-[46px] font-black leading-none text-white">€{pot.amount}</div>
-          <p className="mt-2 text-xs font-bold text-white/58">LIVE +€{pot.liveBump} · {pot.players} pelaajaa</p>
+          <p className="mt-2 text-xs font-bold text-white/58">LIVE +€{pot.liveBump} · bot boost +€{pot.botPotBoost}</p>
         </div>
         <div className={`${innerPanel} px-4 py-3 text-center`}>
           <div className="text-2xl font-black text-white">{pot.fillRate}%</div>
@@ -154,5 +185,5 @@ function PotCard({ pot }) {
 
 function LeaderRow({ post, index }) {
   const rank = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
-  return <div className={`${innerPanel} p-3`}><div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/[.055] text-sm font-black">{rank}</div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-black uppercase text-cyan-100/80">{index === 0 ? "Johtaja" : "Haastaja"}</p><p className="text-xs font-black text-white/55">{Math.round(post.score)} pts</p></div><p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white/78">{post.content}</p><div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black text-white/50"><span>♥ {post.votes}</span><span>AI {Math.round(post.ai_score)}</span><span>👀 {post.watch_time_total}</span><span>↗ {post.shares}</span></div></div></div></div>;
+  return <div className={`${innerPanel} p-3`}><div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/[.055] text-sm font-black">{rank}</div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-black uppercase text-cyan-100/80">{post.bot ? `🤖 ${post.bot_name}` : index === 0 ? "Johtaja" : "Haastaja"}</p><p className="text-xs font-black text-white/55">{Math.round(post.score)} pts</p></div><p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white/78">{post.content}</p><div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black text-white/50"><span>♥ {post.votes}</span><span>AI {Math.round(post.ai_score)}</span><span>👀 {post.watch_time_total}</span><span>↗ {post.shares}</span>{post.near_win && <span className="text-cyan-100">near win</span>}</div></div></div></div>;
 }
