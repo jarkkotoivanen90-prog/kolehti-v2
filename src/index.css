@@ -4,6 +4,8 @@
 
 :root {
   --bg: #05070f;
+  --parallax-y: 0px;
+  --parallax-soft: 0px;
   --finland-helsinki: url("https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_skyline_(Sep_2024_-_01).jpg?width=1400");
   --finland-lake: url("https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1400");
   --finland-forest: url("https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1400");
@@ -27,12 +29,26 @@ body {
 body::before {
   content: "";
   position: fixed;
-  inset: 0;
+  inset: -7vh 0;
   z-index: -20;
   background:
-    linear-gradient(180deg, rgba(5,8,22,.62), rgba(5,8,22,.94)),
+    linear-gradient(180deg, rgba(5,8,22,.54), rgba(5,8,22,.94)),
     var(--finland-aurora) center/cover no-repeat;
-  opacity: .42;
+  opacity: .46;
+  transform: translate3d(0, calc(var(--parallax-soft) * -1), 0) scale(1.06);
+  transition: transform .08s linear;
+  pointer-events: none;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -19;
+  background:
+    radial-gradient(circle at 20% 12%, rgba(34,211,238,.18), transparent 28%),
+    radial-gradient(circle at 82% 6%, rgba(250,204,21,.10), transparent 24%),
+    linear-gradient(180deg, transparent, rgba(2,6,23,.45));
   pointer-events: none;
 }
 
@@ -53,6 +69,24 @@ body::before {
   28% { opacity: .55; }
   62% { transform: translateX(150%) skewX(-18deg); opacity: 0; }
   100% { transform: translateX(150%) skewX(-18deg); opacity: 0; }
+}
+
+@keyframes suomiFloat {
+  0%, 100% { transform: translate3d(0,0,0); }
+  50% { transform: translate3d(0,-4px,0); }
+}
+
+@keyframes suomiBreath {
+  0%, 100% { filter: saturate(1) brightness(1); }
+  50% { filter: saturate(1.14) brightness(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
 }
 
 @layer components {
@@ -88,16 +122,20 @@ body::before {
     background: rgba(255,255,255,.075);
     backdrop-filter: blur(18px);
     animation: suomiFade .42s ease both, suomiGlow 4.5s ease-in-out infinite;
+    isolation: isolate;
   }
   .suomi-card::before {
     content: "";
     position: absolute;
-    inset: 0;
-    background-image: linear-gradient(180deg, rgba(3,7,18,.36), rgba(3,7,18,.82)), var(--finland-lake);
+    inset: -18px 0;
+    background-image: linear-gradient(180deg, rgba(3,7,18,.30), rgba(3,7,18,.83)), var(--finland-lake);
     background-size: cover;
-    background-position: center;
-    opacity: .82;
+    background-position: center calc(50% + var(--parallax-y));
+    opacity: .84;
+    transform: translate3d(0, calc(var(--parallax-y) * -.32), 0) scale(1.08);
+    transition: transform .08s linear, background-position .08s linear;
     pointer-events: none;
+    z-index: -2;
   }
   .suomi-card::after {
     content: "";
@@ -106,17 +144,27 @@ body::before {
     background: linear-gradient(90deg, transparent, rgba(255,255,255,.17), transparent);
     animation: suomiShine 5.6s ease-in-out infinite;
     pointer-events: none;
+    z-index: -1;
   }
   .suomi-card > * {
     position: relative;
     z-index: 1;
   }
-  .suomi-helsinki::before { background-image: linear-gradient(180deg, rgba(3,7,18,.24), rgba(3,7,18,.84)), var(--finland-helsinki); }
-  .suomi-lake::before { background-image: linear-gradient(180deg, rgba(3,7,18,.28), rgba(3,7,18,.84)), var(--finland-lake); }
-  .suomi-forest::before { background-image: linear-gradient(180deg, rgba(3,7,18,.28), rgba(3,7,18,.86)), var(--finland-forest); }
-  .suomi-aurora::before { background-image: linear-gradient(180deg, rgba(3,7,18,.18), rgba(3,7,18,.86)), var(--finland-aurora); }
-  .suomi-road::before { background-image: linear-gradient(180deg, rgba(3,7,18,.25), rgba(3,7,18,.86)), var(--finland-road); }
-  .suomi-archipelago::before { background-image: linear-gradient(180deg, rgba(3,7,18,.25), rgba(3,7,18,.84)), var(--finland-archipelago); }
+  .suomi-helsinki::before { background-image: linear-gradient(180deg, rgba(3,7,18,.20), rgba(3,7,18,.84)), var(--finland-helsinki); }
+  .suomi-lake::before { background-image: linear-gradient(180deg, rgba(3,7,18,.24), rgba(3,7,18,.84)), var(--finland-lake); }
+  .suomi-forest::before { background-image: linear-gradient(180deg, rgba(3,7,18,.25), rgba(3,7,18,.86)), var(--finland-forest); }
+  .suomi-aurora::before { background-image: linear-gradient(180deg, rgba(3,7,18,.14), rgba(3,7,18,.86)), var(--finland-aurora); }
+  .suomi-road::before { background-image: linear-gradient(180deg, rgba(3,7,18,.22), rgba(3,7,18,.86)), var(--finland-road); }
+  .suomi-archipelago::before { background-image: linear-gradient(180deg, rgba(3,7,18,.22), rgba(3,7,18,.84)), var(--finland-archipelago); }
   .suomi-no-shine::after { display: none; }
-  .suomi-soft::before { opacity: .55; }
+  .suomi-soft::before { opacity: .58; }
+  .suomi-premium {
+    border-color: rgba(250,204,21,.32);
+    box-shadow: 0 24px 72px rgba(0,0,0,.38), 0 0 42px rgba(250,204,21,.14), inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  .suomi-float { animation: suomiFloat 3.8s ease-in-out infinite; }
+  .suomi-breath { animation: suomiBreath 3.2s ease-in-out infinite; }
+  .suomi-interactive { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+  .suomi-interactive:active { transform: scale(.985); }
+  .suomi-interactive:hover { border-color: rgba(103,232,249,.35); box-shadow: 0 24px 72px rgba(0,0,0,.36), 0 0 38px rgba(34,211,238,.18); }
 }
