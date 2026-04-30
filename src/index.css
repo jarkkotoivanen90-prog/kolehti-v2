@@ -6,17 +6,16 @@
   --bg: #05070f;
   --parallax-y: 0px;
   --parallax-soft: 0px;
-  --finland-helsinki: url("https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_skyline_(Sep_2024_-_01).jpg?width=1400");
-  --finland-lake: url("https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1400");
-  --finland-forest: url("https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1400");
-  --finland-aurora: url("https://commons.wikimedia.org/wiki/Special:FilePath/Aurora_borealis_(21868630118).jpg?width=1400");
-  --finland-road: url("https://commons.wikimedia.org/wiki/Special:FilePath/Road_in_Finland.jpg?width=1400");
-  --finland-archipelago: url("https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1400");
+  --reactive-glow: .22;
+  --finland-helsinki: url("https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_skyline_(Sep_2024_-_01).jpg?width=900");
+  --finland-lake: url("https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=900");
+  --finland-forest: url("https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=900");
+  --finland-aurora: url("https://commons.wikimedia.org/wiki/Special:FilePath/Aurora_borealis_(21868630118).jpg?width=900");
+  --finland-road: url("https://commons.wikimedia.org/wiki/Special:FilePath/Road_in_Finland.jpg?width=900");
+  --finland-archipelago: url("https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=900");
 }
 
-html, body, #root {
-  min-height: 100%;
-}
+html, body, #root { min-height: 100%; }
 
 body {
   margin: 0;
@@ -29,14 +28,10 @@ body {
 body::before {
   content: "";
   position: fixed;
-  inset: -7vh 0;
+  inset: 0;
   z-index: -20;
-  background:
-    linear-gradient(180deg, rgba(5,8,22,.54), rgba(5,8,22,.94)),
-    var(--finland-aurora) center/cover no-repeat;
-  opacity: .46;
-  transform: translate3d(0, calc(var(--parallax-soft) * -1), 0) scale(1.06);
-  transition: transform .08s linear;
+  background: linear-gradient(180deg, rgba(5,8,22,.70), rgba(5,8,22,.95)), var(--finland-aurora) center/cover no-repeat;
+  opacity: .34;
   pointer-events: none;
 }
 
@@ -45,126 +40,61 @@ body::after {
   position: fixed;
   inset: 0;
   z-index: -19;
-  background:
-    radial-gradient(circle at 20% 12%, rgba(34,211,238,.18), transparent 28%),
-    radial-gradient(circle at 82% 6%, rgba(250,204,21,.10), transparent 24%),
-    linear-gradient(180deg, transparent, rgba(2,6,23,.45));
+  background: radial-gradient(circle at 20% 12%, rgba(34,211,238,.14), transparent 28%), radial-gradient(circle at 82% 6%, rgba(250,204,21,.08), transparent 24%);
   pointer-events: none;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-@keyframes suomiFade {
-  from { opacity: 0; transform: translateY(8px) scale(.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
+@keyframes suomiFade { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes suomiGlow { 0%,100% { box-shadow: 0 18px 50px rgba(0,0,0,.28), 0 0 calc(16px + 20px * var(--reactive-glow)) rgba(34,211,238,.11); } 50% { box-shadow: 0 22px 60px rgba(0,0,0,.32), 0 0 calc(22px + 26px * var(--reactive-glow)) rgba(34,211,238,.19); } }
+@keyframes suomiFloat { 0%,100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-3px,0); } }
+@keyframes suomiBreath { 0%,100% { filter: saturate(1) brightness(1); } 50% { filter: saturate(1.08) brightness(1.04); } }
 
-@keyframes suomiGlow {
-  0%, 100% { box-shadow: 0 18px 50px rgba(0,0,0,.28), 0 0 22px rgba(34,211,238,.10); }
-  50% { box-shadow: 0 22px 68px rgba(0,0,0,.34), 0 0 36px rgba(34,211,238,.24); }
-}
-
-@keyframes suomiShine {
-  0% { transform: translateX(-150%) skewX(-18deg); opacity: 0; }
-  28% { opacity: .55; }
-  62% { transform: translateX(150%) skewX(-18deg); opacity: 0; }
-  100% { transform: translateX(150%) skewX(-18deg); opacity: 0; }
-}
-
-@keyframes suomiFloat {
-  0%, 100% { transform: translate3d(0,0,0); }
-  50% { transform: translate3d(0,-4px,0); }
-}
-
-@keyframes suomiBreath {
-  0%, 100% { filter: saturate(1) brightness(1); }
-  50% { filter: saturate(1.14) brightness(1.08); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
-  }
-}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; } }
 
 @layer components {
-  .glass-card {
-    @apply rounded-[28px] border border-white/10 bg-white/10 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.28)];
-  }
-  .glass-card-strong {
-    @apply rounded-[32px] border border-white/20 bg-white/10 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.34)];
-  }
-  .section-title {
-    @apply text-[13px] font-black uppercase tracking-[0.18em] text-white/60;
-  }
-  .headline-xl {
-    @apply text-3xl md:text-4xl font-black tracking-tight;
-  }
-  .headline-lg {
-    @apply text-xl md:text-2xl font-black tracking-tight;
-  }
-  .pill {
-    @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80;
-  }
-  .surface-button {
-    @apply rounded-2xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/15;
-  }
-  .premium-divider {
-    @apply h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent;
-  }
+  .glass-card { @apply rounded-[28px] border border-white/10 bg-white/10 backdrop-blur-xl shadow-[0_18px_50px_rgba(0,0,0,0.28)]; }
+  .glass-card-strong { @apply rounded-[32px] border border-white/20 bg-white/10 backdrop-blur-2xl shadow-[0_24px_64px_rgba(0,0,0,0.34)]; }
+  .section-title { @apply text-[13px] font-black uppercase tracking-[0.18em] text-white/60; }
+  .headline-xl { @apply text-3xl md:text-4xl font-black tracking-tight; }
+  .headline-lg { @apply text-xl md:text-2xl font-black tracking-tight; }
+  .pill { @apply inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80; }
+  .surface-button { @apply rounded-2xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/15; }
+  .premium-divider { @apply h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent; }
 
   .suomi-card {
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(255,255,255,.12);
-    background: rgba(255,255,255,.075);
-    backdrop-filter: blur(18px);
-    animation: suomiFade .42s ease both, suomiGlow 4.5s ease-in-out infinite;
+    background-color: rgba(255,255,255,.075);
+    background-image: linear-gradient(180deg, rgba(3,7,18,.34), rgba(3,7,18,.82)), var(--finland-lake);
+    background-size: cover;
+    background-position: center;
+    backdrop-filter: blur(14px);
+    animation: suomiFade .34s ease both, suomiGlow 5s ease-in-out infinite;
     isolation: isolate;
   }
   .suomi-card::before {
     content: "";
     position: absolute;
-    inset: -18px 0;
-    background-image: linear-gradient(180deg, rgba(3,7,18,.30), rgba(3,7,18,.83)), var(--finland-lake);
-    background-size: cover;
-    background-position: center calc(50% + var(--parallax-y));
-    opacity: .84;
-    transform: translate3d(0, calc(var(--parallax-y) * -.32), 0) scale(1.08);
-    transition: transform .08s linear, background-position .08s linear;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(34,211,238,.13), transparent 38%, rgba(250,204,21,.08));
     pointer-events: none;
-    z-index: -2;
+    z-index: 0;
   }
-  .suomi-card::after {
-    content: "";
-    position: absolute;
-    inset: -40px;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.17), transparent);
-    animation: suomiShine 5.6s ease-in-out infinite;
-    pointer-events: none;
-    z-index: -1;
-  }
-  .suomi-card > * {
-    position: relative;
-    z-index: 1;
-  }
-  .suomi-helsinki::before { background-image: linear-gradient(180deg, rgba(3,7,18,.20), rgba(3,7,18,.84)), var(--finland-helsinki); }
-  .suomi-lake::before { background-image: linear-gradient(180deg, rgba(3,7,18,.24), rgba(3,7,18,.84)), var(--finland-lake); }
-  .suomi-forest::before { background-image: linear-gradient(180deg, rgba(3,7,18,.25), rgba(3,7,18,.86)), var(--finland-forest); }
-  .suomi-aurora::before { background-image: linear-gradient(180deg, rgba(3,7,18,.14), rgba(3,7,18,.86)), var(--finland-aurora); }
-  .suomi-road::before { background-image: linear-gradient(180deg, rgba(3,7,18,.22), rgba(3,7,18,.86)), var(--finland-road); }
-  .suomi-archipelago::before { background-image: linear-gradient(180deg, rgba(3,7,18,.22), rgba(3,7,18,.84)), var(--finland-archipelago); }
-  .suomi-no-shine::after { display: none; }
-  .suomi-soft::before { opacity: .58; }
-  .suomi-premium {
-    border-color: rgba(250,204,21,.32);
-    box-shadow: 0 24px 72px rgba(0,0,0,.38), 0 0 42px rgba(250,204,21,.14), inset 0 1px 0 rgba(255,255,255,.18);
-  }
+  .suomi-card > * { position: relative; z-index: 1; }
+  .suomi-helsinki { background-image: linear-gradient(180deg, rgba(3,7,18,.25), rgba(3,7,18,.84)), var(--finland-helsinki); }
+  .suomi-lake { background-image: linear-gradient(180deg, rgba(3,7,18,.28), rgba(3,7,18,.84)), var(--finland-lake); }
+  .suomi-forest { background-image: linear-gradient(180deg, rgba(3,7,18,.30), rgba(3,7,18,.86)), var(--finland-forest); }
+  .suomi-aurora { background-image: linear-gradient(180deg, rgba(3,7,18,.22), rgba(3,7,18,.86)), var(--finland-aurora); }
+  .suomi-road { background-image: linear-gradient(180deg, rgba(3,7,18,.28), rgba(3,7,18,.86)), var(--finland-road); }
+  .suomi-archipelago { background-image: linear-gradient(180deg, rgba(3,7,18,.28), rgba(3,7,18,.84)), var(--finland-archipelago); }
+  .suomi-soft { opacity: .98; }
+  .suomi-premium { border-color: rgba(250,204,21,.32); box-shadow: 0 24px 72px rgba(0,0,0,.38), 0 0 36px rgba(250,204,21,.13), inset 0 1px 0 rgba(255,255,255,.18); }
   .suomi-float { animation: suomiFloat 3.8s ease-in-out infinite; }
   .suomi-breath { animation: suomiBreath 3.2s ease-in-out infinite; }
-  .suomi-interactive { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+  .suomi-interactive { transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
   .suomi-interactive:active { transform: scale(.985); }
-  .suomi-interactive:hover { border-color: rgba(103,232,249,.35); box-shadow: 0 24px 72px rgba(0,0,0,.36), 0 0 38px rgba(34,211,238,.18); }
+  .suomi-interactive:hover { border-color: rgba(103,232,249,.35); box-shadow: 0 24px 66px rgba(0,0,0,.35), 0 0 32px rgba(34,211,238,.17); }
 }
