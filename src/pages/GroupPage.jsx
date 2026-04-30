@@ -5,6 +5,8 @@ import AppBottomNav from "../components/AppBottomNav";
 import { haptic } from "../lib/effects";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1200";
+const panel = "premium-card rounded-[34px] p-5";
+const innerPanel = "rounded-[24px] border border-cyan-100/10 bg-[#030816]/58 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]";
 
 function groupXp(groupId, posts, votes) {
   const groupPosts = (posts || []).filter((p) => p.group_id === groupId);
@@ -77,16 +79,8 @@ export default function GroupPage() {
 
   async function joinGroup(groupId) {
     if (!user) { navigate("/login"); return; }
-
-    const { data: existing, error: existingError } = await supabase
-      .from("group_members")
-      .select("id")
-      .eq("group_id", groupId)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
+    const { data: existing, error: existingError } = await supabase.from("group_members").select("id").eq("group_id", groupId).eq("user_id", user.id).maybeSingle();
     if (existingError) { showToast(existingError.message, "warning"); return; }
-
     if (existing?.id) {
       const { error } = await supabase.from("group_members").update({ role: "member", active: true }).eq("id", existing.id);
       if (error) { showToast(error.message, "warning"); return; }
@@ -94,10 +88,9 @@ export default function GroupPage() {
       const { error } = await supabase.from("group_members").insert({ group_id: groupId, user_id: user.id, role: "member", active: true });
       if (error) { showToast(error.message, "warning"); return; }
     }
-
     localStorage.setItem("kolehti_group_id", groupId);
     localStorage.setItem("primary_group", groupId);
-    showToast("Liityit porukkaan 🔥");
+    showToast("Liityit porukkaan");
     await init();
   }
 
@@ -138,66 +131,54 @@ export default function GroupPage() {
   }, [groups, posts, votes, members, user?.id]);
 
   const myGroup = rankedGroups.find((g) => isJoined(g.id));
+  const totalXp = rankedGroups.reduce((s, g) => s + g.xp, 0);
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
       <style>{`
         @keyframes toastIn{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}
         @keyframes liveDot{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.18)}}
-        @keyframes threatGlow{0%,100%{box-shadow:0 18px 48px rgba(0,0,0,.3),0 0 14px rgba(250,204,21,.12)}50%{box-shadow:0 22px 58px rgba(0,0,0,.35),0 0 34px rgba(250,204,21,.28)}}
-        .toast-in{animation:toastIn 1.6s ease both}.live-dot{animation:liveDot 1.4s ease-in-out infinite}.threat-glow{animation:threatGlow 2.4s ease-in-out infinite}
+        .toast-in{animation:toastIn 1.6s ease both}.live-dot{animation:liveDot 1.8s ease-in-out infinite}
       `}</style>
 
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" loading="eager" decoding="async" />
-      <div className="fixed inset-0 bg-gradient-to-b from-black/35 via-[#061126]/72 to-black/94" />
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.18),transparent_36%)]" />
+      <div className="fixed inset-0 bg-gradient-to-b from-black/42 via-[#061126]/76 to-black/95" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(21,131,255,.13),transparent_34%)]" />
 
-      {toast && <div className="toast-in fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-300/30 bg-black/80 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-cyan-300/20 backdrop-blur-xl">{toast}</div>}
+      {toast && <div className="toast-in fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">{toast}</div>}
 
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <header>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-200/78">🇫🇮 Suomi · porukat</p>
-              <h1 className="mt-2 text-[44px] font-black leading-none tracking-tight">Porukat</h1>
-              <p className="mt-2 text-sm font-bold text-white/60">Porukka ei ole lista — se on kilpailu finaalipaikasta.</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Yhteisöt</p>
+              <h1 className="mt-2 text-[48px] font-black leading-none tracking-tight">Porukat</h1>
+              <p className="mt-2 max-w-[280px] text-sm font-bold leading-snug text-white/62">Porukka ei ole lista — se on kilpailu finaalipaikasta.</p>
             </div>
-            <Link data-haptic="tap" to="/feed" className="rounded-2xl border border-white/15 bg-black/28 px-4 py-3 text-sm font-black text-white/85 backdrop-blur-xl">Feed</Link>
+            <Link data-haptic="tap" to="/feed" className={`${innerPanel} px-4 py-3 text-sm font-black text-white/85`}>Feed</Link>
           </div>
         </header>
 
-        <section className="mt-6 rounded-[34px] border border-white/15 bg-black/42 p-5 shadow-2xl shadow-black/35 backdrop-blur-2xl">
+        <section className={`${panel} mt-6`}>
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-black uppercase tracking-wide text-cyan-200">Porukka ranking</p>
-            <span className="flex items-center gap-2 rounded-full bg-green-400/14 px-3 py-1 text-[10px] font-black text-green-200"><span className="live-dot h-2 w-2 rounded-full bg-green-300" /> LIVE</span>
+            <span className="flex items-center gap-2 rounded-full border border-cyan-100/12 bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100"><span className="live-dot h-2 w-2 rounded-full bg-cyan-200" /> LIVE</span>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-black">
-            <div className="rounded-2xl bg-black/35 p-3"><div className="text-white/45">Porukat</div><div className="mt-1 text-2xl">{groups.length}</div></div>
-            <div className="rounded-2xl bg-black/35 p-3"><div className="text-white/45">Jäsenet</div><div className="mt-1 text-2xl">{members.length}</div></div>
-            <div className="rounded-2xl bg-black/35 p-3"><div className="text-white/45">XP</div><div className="mt-1 text-2xl">{rankedGroups.reduce((s, g) => s + g.xp, 0)}</div></div>
+            <div className={`${innerPanel} p-3`}><div className="text-white/45">Porukat</div><div className="mt-1 text-2xl text-white">{groups.length}</div></div>
+            <div className={`${innerPanel} p-3`}><div className="text-white/45">Jäsenet</div><div className="mt-1 text-2xl text-white">{members.length}</div></div>
+            <div className={`${innerPanel} p-3`}><div className="text-white/45">XP</div><div className="mt-1 text-2xl text-white">{totalXp}</div></div>
           </div>
-          {myGroup && <div className="mt-4 rounded-[24px] border border-yellow-300/24 bg-yellow-300/10 p-4 text-sm font-black text-yellow-100">🔒 Sinun porukka: {myGroup.name} · vaikutuksesi +{myGroup.contribution} XP</div>}
+          {myGroup && <div className={`${innerPanel} mt-4 p-4 text-sm font-black text-cyan-100`}>Sinun porukka: {myGroup.name} · vaikutuksesi +{myGroup.contribution} XP</div>}
         </section>
 
-        {loading && <div className="mt-4 rounded-[30px] border border-white/15 bg-black/42 p-5 text-center font-black backdrop-blur-2xl">Ladataan porukoita...</div>}
+        {loading && <div className={`${panel} mt-4 text-center font-black`}>Ladataan porukoita...</div>}
 
         <section className="mt-4 space-y-4">
           {!loading && rankedGroups.length === 0 ? (
-            <div className="rounded-[34px] border border-white/15 bg-black/42 p-6 text-center shadow-2xl backdrop-blur-2xl">
-              <div className="text-5xl">✨</div>
-              <p className="mt-3 text-xl font-black">Ei vielä porukoita</p>
-              <p className="mt-2 text-sm font-bold text-white/58">Porukat lisätään adminin kautta myöhemmin.</p>
-            </div>
+            <div className={`${panel} text-center`}><div className="text-5xl">✨</div><p className="mt-3 text-xl font-black">Ei vielä porukoita</p><p className="mt-2 text-sm font-bold text-white/58">Porukat lisätään adminin kautta myöhemmin.</p></div>
           ) : rankedGroups.map((group, index) => (
-            <GroupCard
-              key={group.id}
-              group={group}
-              index={index}
-              joined={isJoined(group.id)}
-              onJoin={() => joinGroup(group.id)}
-              onOpen={() => openGroup(group.id)}
-              onLeave={() => leaveGroup(group.id)}
-            />
+            <GroupCard key={group.id} group={group} index={index} joined={isJoined(group.id)} onJoin={() => joinGroup(group.id)} onOpen={() => openGroup(group.id)} onLeave={() => leaveGroup(group.id)} />
           ))}
         </section>
       </main>
@@ -215,51 +196,36 @@ function GroupCard({ group, index, joined, onJoin, onOpen, onLeave }) {
   const targetText = index === 0 ? "Pidä johto — seuraava postaus voi ratkaista." : `Tavoite: +${group.diffToAbove} XP → sijoitus #${index}`;
 
   return (
-    <article className={`rounded-[34px] border p-5 shadow-2xl backdrop-blur-2xl ${joined ? "border-cyan-300/35 bg-cyan-300/10 shadow-cyan-300/12" : "border-white/15 bg-black/42 shadow-black/30"} ${(closeToAbove || threatBehind || joined) ? "threat-glow" : ""}`}>
+    <article className={`${panel} ${joined ? "border-cyan-200/34" : ""}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white/10 text-sm font-black">{rank}</span>
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white/[.055] text-sm font-black">{rank}</span>
             <h2 className="truncate text-2xl font-black text-white">{group.name}</h2>
           </div>
-          <p className="mt-2 text-sm font-bold text-white/72">{joined ? "🔥 Te olette taistelussa kärjestä." : "⚔️ Liity ja vaikuta rankingiin."}</p>
-          {joined && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-yellow-200">🔒 Tämä on sinun porukka</p>}
+          <p className="mt-2 text-sm font-bold text-white/72">{joined ? "Olet mukana tässä porukassa." : "Liity ja vaikuta rankingiin."}</p>
+          {joined && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-cyan-200">Oma porukka</p>}
         </div>
-        <div className="shrink-0 rounded-[22px] border border-white/12 bg-black/35 px-3 py-2 text-center">
-          <div className="text-xl font-black text-cyan-100">{group.count}</div>
-          <div className="text-[10px] font-black uppercase text-white/45">jäsentä</div>
-        </div>
+        <div className={`${innerPanel} shrink-0 px-3 py-2 text-center`}><div className="text-xl font-black text-cyan-100">{group.count}</div><div className="text-[10px] font-black uppercase text-white/45">jäsentä</div></div>
       </div>
 
-      <div className="mt-4 text-[42px] font-black leading-none text-yellow-300">{group.xp} XP</div>
-      <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/45">
-        <div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-blue-500 transition-all duration-500" style={{ width: `${progress}%` }} />
-      </div>
+      <div className="mt-4 text-[42px] font-black leading-none text-white">{group.xp} XP</div>
+      <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/45"><div className="h-full rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} /></div>
 
       <div className="mt-4 grid gap-2 text-xs font-black">
-        {closeToAbove && <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-yellow-100">⚠️ Vain {group.diffToAbove} XP edellä olevaan porukkaan</div>}
-        {threatBehind && <div className="rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-red-100">🩸 Uhka takaa: vain {group.diffToBelow} XP eroa</div>}
-        {joined && <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-cyan-100">💥 Sinun vaikutus: +{group.contribution} XP</div>}
-        {joined && <div className="rounded-2xl border border-white/10 bg-black/32 px-4 py-3 text-white/80">🎯 {targetText}</div>}
+        {closeToAbove && <div className={`${innerPanel} px-4 py-3 text-cyan-100`}>Vain {group.diffToAbove} XP edellä olevaan porukkaan</div>}
+        {threatBehind && <div className={`${innerPanel} px-4 py-3 text-white/78`}>Takaa tuleva ero: {group.diffToBelow} XP</div>}
+        {joined && <div className={`${innerPanel} px-4 py-3 text-cyan-100`}>Sinun vaikutus: +{group.contribution} XP</div>}
+        {joined && <div className={`${innerPanel} px-4 py-3 text-white/80`}>{targetText}</div>}
       </div>
 
-      <div className="mt-4 rounded-[24px] border border-white/10 bg-black/32 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Leaderboard preview</p>
-          <span className="flex items-center gap-1 text-[10px] font-black text-green-200"><span className="live-dot h-1.5 w-1.5 rounded-full bg-green-300" /> LIVE</span>
-        </div>
-        <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-white/75">🔥 Top postaus: {group.topPost?.content || "Ei vielä postauksia"}</p>
+      <div className={`${innerPanel} mt-4 p-4`}>
+        <div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-cyan-200">Leaderboard preview</p><span className="flex items-center gap-1 text-[10px] font-black text-cyan-100"><span className="live-dot h-1.5 w-1.5 rounded-full bg-cyan-200" /> LIVE</span></div>
+        <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-white/75">Top postaus: {group.topPost?.content || "Ei vielä postauksia"}</p>
       </div>
 
       <div className="mt-4 flex gap-3">
-        {joined ? (
-          <>
-            <button data-haptic="tap" onClick={onOpen} className="flex-1 rounded-[24px] bg-pink-500 px-4 py-3 font-black text-white shadow-xl shadow-pink-500/20 active:scale-[0.98]">Avaa</button>
-            <button data-haptic="warning" onClick={onLeave} className="flex-1 rounded-[24px] border border-white/12 bg-black/35 px-4 py-3 font-black text-white active:scale-[0.98]">Poistu</button>
-          </>
-        ) : (
-          <button data-haptic="success" onClick={onJoin} className="premium-cta w-full rounded-[24px] bg-gradient-to-r from-cyan-400 to-blue-600 px-4 py-4 font-black text-white shadow-xl shadow-cyan-500/25 active:scale-[0.98]">Liity porukkaan</button>
-        )}
+        {joined ? <><button data-haptic="tap" onClick={onOpen} className="flex-1 rounded-[24px] bg-cyan-500 px-4 py-3 font-black text-white active:scale-[0.98]">Avaa</button><button data-haptic="warning" onClick={onLeave} className={`${innerPanel} flex-1 px-4 py-3 font-black text-white active:scale-[0.98]`}>Poistu</button></> : <button data-haptic="success" onClick={onJoin} className="w-full rounded-[24px] bg-cyan-500 px-4 py-4 font-black text-white active:scale-[0.98]">Liity porukkaan</button>}
       </div>
     </article>
   );
