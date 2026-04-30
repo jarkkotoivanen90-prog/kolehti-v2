@@ -2,26 +2,25 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
+const BUILD_MARKER = "BUILD 2026-04-30-BUST-2";
+
 function KHeartgramLogo({ compact = false }) {
   return (
     <div className={`relative grid shrink-0 place-items-center ${compact ? "h-11 w-11" : "h-14 w-14"}`}>
-      <div className="absolute inset-0 rounded-[22px] bg-gradient-to-br from-cyan-200 via-white to-blue-700 shadow-[0_0_28px_rgba(34,211,238,.35)]" />
-      <div className="absolute inset-[4px] rounded-[18px] border border-white/35 bg-[#061126]/35" />
-      <div className="absolute left-1/2 top-[7px] h-[calc(100%-14px)] w-[3px] -translate-x-1/2 rounded-full bg-white/70" />
-      <div className="absolute left-[7px] top-1/2 h-[3px] w-[calc(100%-14px)] -translate-y-1/2 rounded-full bg-white/45" />
+      <div className="absolute inset-0 rounded-[22px] bg-gradient-to-br from-cyan-200 via-blue-400 to-blue-800 shadow-[0_0_28px_rgba(34,211,238,.35)]" />
+      <div className="absolute inset-[4px] rounded-[18px] border border-white/35 bg-[#061126]/25" />
       <svg viewBox="0 0 120 120" className="relative h-[72%] w-[72%] drop-shadow-[0_0_14px_rgba(255,255,255,.55)]">
-        <path d="M60 103C48 89 12 72 12 45c0-14 10-24 23-24 11 0 19 7 25 17 6-10 14-17 25-17 13 0 23 10 23 24 0 27-36 44-48 58Z" fill="white" opacity=".96" />
-        <path d="M35 30h17v28l29-28h23L74 60l34 38H82L52 63v35H35V30Z" fill="#061126" />
-        <path d="M51 31v27l28-27h14L65 59l31 38H82L51 62v35h-9V31h9Z" fill="url(#kGradNav)" />
         <defs>
-          <linearGradient id="kGradNav" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id="heartBlueNav" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#e0fbff" />
-            <stop offset="55%" stopColor="#67e8f9" />
-            <stop offset="100%" stopColor="#fef3c7" />
+            <stop offset="42%" stopColor="#38bdf8" />
+            <stop offset="100%" stopColor="#1d4ed8" />
           </linearGradient>
         </defs>
+        <path d="M60 103C48 89 12 72 12 45c0-14 10-24 23-24 11 0 19 7 25 17 6-10 14-17 25-17 13 0 23 10 23 24 0 27-36 44-48 58Z" fill="url(#heartBlueNav)" opacity=".98" />
+        <path d="M35 30h17v28l29-28h23L74 60l34 38H82L52 63v35H35V30Z" fill="white" />
+        <rect x="40" y="31" width="10" height="66" rx="4" fill="#0ea5e9" />
       </svg>
-      <div className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full border-4 border-[#061126] bg-yellow-300 text-[12px] font-black text-black">✓</div>
     </div>
   );
 }
@@ -85,11 +84,8 @@ export default function Navbar() {
           <KHeartgramLogo />
           <div className="min-w-0">
             <div className="truncate bg-gradient-to-r from-cyan-100 via-white to-yellow-100 bg-clip-text text-2xl font-black leading-none tracking-tight text-transparent">KOLEHTI</div>
-            <div className="mt-1 flex flex-wrap gap-1.5 text-[9px] font-black uppercase tracking-[0.14em]">
-              <span className="rounded-full bg-cyan-300/15 px-2 py-1 text-cyan-100">🇫🇮 Suomi</span>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-white/75">Porukka</span>
-              <span className="rounded-full bg-yellow-300/15 px-2 py-1 text-yellow-100">Potti</span>
-            </div>
+            <div className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-100/85">Äänestä · Nosta · Voita</div>
+            <div className="mt-1 text-[8px] font-black uppercase tracking-wide text-white/28">{BUILD_MARKER}</div>
           </div>
         </Link>
 
