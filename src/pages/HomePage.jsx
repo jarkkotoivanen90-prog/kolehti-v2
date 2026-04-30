@@ -13,7 +13,7 @@ const IMG = {
 };
 
 const slogans = [
-  ["⚡", "KILPAILE. ÄÄNESTÄ. NOUSE.", "Joka ääni vie sinua lähemmäs pottia."],
+  ["⚡", "ÄÄNESTÄ. NOSTA. VOITA.", "Joka ääni vie sinua lähemmäs pottia."],
   ["🔥", "PÄIVÄN POTTI ELÄÄ.", "Katselut, jaot ja tykkäykset nostavat kierrosta."],
   ["👥", "PORUKKA RATKAISEE.", "Yhdessä kerätty XP vie kohti finaalia."],
   ["🏆", "TOP 5 MENEE FINAALIIN.", "Nouse leaderboardissa ennen kierroksen sulkeutumista."],
@@ -22,8 +22,8 @@ const slogans = [
 function MotionStyles() {
   return (
     <style>{`
-      @keyframes logoBreath{0%,100%{transform:scale(1);filter:drop-shadow(0 0 12px rgba(34,211,238,.45))}50%{transform:scale(1.035);filter:drop-shadow(0 0 34px rgba(34,211,238,.95)) drop-shadow(0 0 18px rgba(250,204,21,.45))}}
-      @keyframes logoBurst{0%{transform:scale(1)}45%{transform:scale(1.12) rotate(-2deg)}100%{transform:scale(1)}}
+      @keyframes logoBreath{0%,100%{transform:scale(1);filter:drop-shadow(0 0 12px rgba(34,211,238,.45))}50%{transform:scale(1.025);filter:drop-shadow(0 0 28px rgba(34,211,238,.85))}}
+      @keyframes logoBurst{0%{transform:scale(1)}45%{transform:scale(1.08) rotate(-1deg)}100%{transform:scale(1)}}
       @keyframes shine{0%{transform:translateX(-150%) skewX(-18deg);opacity:0}24%{opacity:.85}52%{transform:translateX(150%) skewX(-18deg);opacity:0}100%{transform:translateX(150%) skewX(-18deg);opacity:0}}
       @keyframes softPulse{0%,100%{transform:scale(1);opacity:.72}50%{transform:scale(1.07);opacity:1}}
       @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
@@ -59,11 +59,10 @@ function BrandLogo({ mode = "idle", onPulse }) {
           <path d="M38 31h17v28l28-28h23L76 60l33 37H84L55 64v33H38V31Z" fill="#031126" opacity=".96" />
           <path d="M53 31v28l29-28h13L66 59l31 38H84L53 62v35H44V31h9Z" fill="url(#heartLogo)" />
         </svg>
-        <div className="absolute -bottom-2 -right-2 grid h-8 w-8 place-items-center rounded-full border-4 border-[#050816] bg-yellow-300 text-sm font-black text-black shadow-xl shadow-yellow-300/40">✓</div>
       </div>
       <div className="min-w-0">
         <div className="shine"><h1 className="text-[42px] font-black leading-none tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 via-white to-yellow-200 drop-shadow-[0_0_22px_rgba(34,211,238,.35)]">KOLEHTI</h1></div>
-        <p className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-cyan-200/75">Kilpaile. Auta. Nouse.</p>
+        <p className="mt-1 text-[11px] font-black uppercase tracking-[0.25em] text-cyan-200/78 drop-shadow-[0_0_6px_rgba(255,255,255,.18)]">ÄÄNESTÄ · NOSTA · VOITA</p>
       </div>
     </button>
   );
