@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { installGlobalHaptics, installReactiveUI } from "./lib/effects";
+import { startVersionCheck } from "./lib/versionCheck";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -24,6 +25,7 @@ function AppShell() {
   useEffect(() => {
     const cleanHaptics = installGlobalHaptics();
     const cleanReactive = installReactiveUI();
+    startVersionCheck();
     return () => {
       cleanHaptics();
       cleanReactive();
