@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
-const BUILD_MARKER = "BUILD 2026-04-30-BUST-2";
+const BUILD_MARKER = "BUILD 2026-04-30-BUST-3";
 
 function KHeartgramLogo({ compact = false }) {
   return (
     <div className={`relative grid shrink-0 place-items-center ${compact ? "h-11 w-11" : "h-14 w-14"}`}>
-      <div className="absolute inset-0 rounded-[22px] bg-gradient-to-br from-cyan-200 via-blue-400 to-blue-800 shadow-[0_0_28px_rgba(34,211,238,.35)]" />
+      <div className="absolute inset-0 rounded-[22px] bg-gradient-to-br from-cyan-200 via-blue-400 to-blue-800 shadow-[0_0_18px_rgba(34,211,238,.28)]" />
       <div className="absolute inset-[4px] rounded-[18px] border border-white/35 bg-[#061126]/25" />
-      <svg viewBox="0 0 120 120" className="relative h-[72%] w-[72%] drop-shadow-[0_0_14px_rgba(255,255,255,.55)]">
+      <svg viewBox="0 0 120 120" className="relative h-[72%] w-[72%] drop-shadow-[0_0_10px_rgba(255,255,255,.45)]">
         <defs>
           <linearGradient id="heartBlueNav" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#e0fbff" />
@@ -78,14 +78,14 @@ export default function Navbar() {
   }
 
   return (
-    <header className={`sticky top-0 z-50 border-b border-cyan-200/10 bg-[#071124]/92 text-white shadow-lg shadow-black/25 backdrop-blur-2xl transition-transform duration-300 ease-out ${hidden ? "-translate-y-[92%]" : "translate-y-0"}`}>
+    <header className={`kolehti-header sticky top-0 z-50 border-b border-cyan-200/10 text-white transition-transform duration-300 ease-out ${hidden ? "-translate-y-[92%]" : "translate-y-0"}`}>
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link to="/" className="flex min-w-0 items-center gap-3" onClick={() => setOpen(false)}>
           <KHeartgramLogo />
           <div className="min-w-0">
             <div className="truncate bg-gradient-to-r from-cyan-100 via-white to-yellow-100 bg-clip-text text-2xl font-black leading-none tracking-tight text-transparent">KOLEHTI</div>
             <div className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-100/85">Äänestä · Nosta · Voita</div>
-            <div className="mt-1 text-[8px] font-black uppercase tracking-wide text-white/28">{BUILD_MARKER}</div>
+            <div className="mt-1 text-[8px] font-black uppercase tracking-wide text-white/25">{BUILD_MARKER}</div>
           </div>
         </Link>
 
@@ -96,7 +96,7 @@ export default function Navbar() {
           <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-pink-500/20">Ulos</button>
         </nav>
 
-        <button onClick={() => setOpen(!open)} className="grid h-14 w-14 place-items-center rounded-[24px] border border-white/10 bg-white/10 text-3xl font-black shadow-xl shadow-black/20 md:hidden" aria-label="Avaa valikko">
+        <button onClick={() => setOpen(!open)} className="grid h-14 w-14 place-items-center rounded-[24px] border border-white/10 bg-white/10 text-3xl font-black shadow-lg shadow-black/20 md:hidden" aria-label="Avaa valikko">
           {open ? "×" : "☰"}
         </button>
       </div>
