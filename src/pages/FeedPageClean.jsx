@@ -108,15 +108,12 @@ function BottomNav({ hidden, onPulse }) {
   ];
   return (
     <nav className={`fixed bottom-0 left-0 right-0 z-[70] mx-auto max-w-md px-5 pb-[max(14px,env(safe-area-inset-bottom))] text-white transition-transform duration-300 ease-out ${hidden ? "translate-y-[132%]" : "translate-y-0"}`}>
-      <div className="relative overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#061126]/90 px-4 pb-4 pt-3 shadow-2xl shadow-cyan-500/15 backdrop-blur-2xl">
-        <img src={FIN_BG[3]} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" loading="lazy" decoding="async" />
-        <div className="absolute inset-0 bg-[#061126]/72" />
-        <div className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/80 to-transparent" />
+      <div className="kolehti-bottom-shell relative rounded-[30px] px-4 pb-4 pt-3">
         <div className="relative z-10 grid grid-cols-5 items-end text-center text-[11px] font-black">
           {items.map((item) => {
             const active = location.pathname === item.to;
-            if (item.fab) return <Tap hapticType="heavy" onPulse={onPulse} key={item.to} to={item.to} className="-mt-12 flex flex-col items-center active:scale-95"><div className="plus-pulse grid h-[86px] w-[86px] place-items-center rounded-full border-[7px] border-[#061126] bg-gradient-to-br from-cyan-100 via-sky-400 to-blue-700 text-[62px] font-black leading-none shadow-2xl shadow-cyan-400/50">+</div><div className="mt-0.5 text-white">{item.label}</div></Tap>;
-            return <Tap hapticType={item.haptic || "tap"} onPulse={onPulse} key={item.to} to={item.to} className={`relative flex flex-col items-center gap-1.5 rounded-3xl px-1 py-2 active:scale-95 ${active ? "text-cyan-100" : "text-white/52"}`}>{item.badge && <span className={`absolute -top-2 rounded-full px-2 py-0.5 text-[8px] font-black ${item.gold ? "bg-yellow-300 text-black" : "bg-pink-500 text-white"}`}>{item.badge}</span>}<div className={`grid h-11 w-11 place-items-center rounded-3xl text-2xl ${active ? "bg-cyan-300/15 shadow-lg shadow-cyan-300/25" : item.gold ? "bg-yellow-300/10" : "bg-white/5"} ${item.alive ? "nav-alive" : ""}`}>{item.icon}</div><div>{item.label}</div></Tap>;
+            if (item.fab) return <Tap hapticType="heavy" onPulse={onPulse} key={item.to} to={item.to} className="-mt-10 flex flex-col items-center active:scale-95"><div className="grid h-[78px] w-[78px] place-items-center rounded-full border-[6px] border-[#061126] bg-gradient-to-br from-cyan-200 via-sky-400 to-blue-700 text-[54px] font-black leading-none shadow-lg">+</div><div className="mt-1 text-white">{item.label}</div></Tap>;
+            return <Tap hapticType={item.haptic || "tap"} onPulse={onPulse} key={item.to} to={item.to} className={`relative flex flex-col items-center gap-1 rounded-3xl px-1 py-2 active:scale-95 ${active ? "text-cyan-200" : "text-white/55"}`}>{item.badge && <span className={`absolute -top-2 rounded-full px-2 py-0.5 text-[8px] font-black ${item.gold ? "bg-yellow-300 text-black" : "bg-pink-500 text-white"}`}>{item.badge}</span>}<div className={`grid h-10 w-10 place-items-center rounded-2xl text-2xl ${active ? "bg-cyan-300/15" : item.gold ? "bg-yellow-300/10" : "bg-white/5"} ${item.alive ? "nav-alive" : ""}`}>{item.icon}</div><div>{item.label}</div></Tap>;
           })}
         </div>
       </div>
