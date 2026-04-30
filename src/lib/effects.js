@@ -16,13 +16,37 @@ export function haptic(type = "tap") {
     if (!navigator?.vibrate) return;
     const patterns = {
       tap: 7,
+      light: 6,
       soft: 9,
       success: [9, 20, 9],
       heavy: [14, 28, 14],
       warning: [18, 30, 18],
+      reward: [8, 18, 12, 28, 18],
+      heartbeat: [10, 35, 10],
+      super: [8, 16, 8, 16, 28],
     };
     navigator.vibrate(patterns[type] || patterns.tap);
   } catch {}
+}
+
+export function triggerMotion(type = "tap", payload = {}) {
+  if (typeof window === "undefined") return;
+  const root = document.documentElement;
+  const now = Date.now();
+  root.dataset.motion = type;
+  root.style.setProperty("--motion-x", `${payload.x ?? 50}%`);
+  root.style.setProperty("--motion-y", `${payload.y ?? 50}%`);
+  root.style.setProperty("--motion-seed", String(now));
+  window.dispatchEvent(new CustomEvent("kolehti:motion", { detail: { type, ...payload, at: now } }));
+  window.setTimeout(() => {
+    if (root.dataset.motion === type) root.dataset.motion = "idle";
+  }, payload.duration || 900);
+}
+
+export function reward(type = "success", payload = {}) {
+  const hapticType = type === "superlike" ? "super" : type === "rankup" ? "reward" : type === "nearwin" ? "heartbeat" : "success";
+  haptic(hapticType);
+  triggerMotion(type, payload);
 }
 
 export function installGlobalHaptics() {
@@ -39,6 +63,7 @@ export function installGlobalHaptics() {
 
     haptic(target.dataset?.haptic || "tap");
     document.documentElement.style.setProperty("--reactive-press", "1");
+    triggerMotion("press", { x: event.clientX, y: event.clientY, duration: 240 });
     window.setTimeout(() => document.documentElement.style.setProperty("--reactive-press", "0"), 120);
   };
 
@@ -51,6 +76,7 @@ export function installReactiveUI() {
 
   const root = document.documentElement;
   let lastY = window.scrollY || 0;
+  let lastMotionAt = 0;
   let ticking = false;
 
   function readScrollY() {
@@ -64,10 +90,16 @@ export function installReactiveUI() {
     const delta = Math.abs(rawDelta);
     lastY = y;
 
-    const momentum = Math.max(0, Math.min(1, delta / 120));
+    const momentum = Math.max(0, Math.min(1, delta / 140));
     root.style.setProperty("--scroll-momentum", momentum.toFixed(3));
-    root.style.setProperty("--reactive-glow", (0.10 + momentum * 0.22).toFixed(3));
+    root.style.setProperty("--reactive-glow", (0.08 + momentum * 0.18).toFixed(3));
     root.dataset.scrollDirection = rawDelta >= 0 ? "down" : "up";
+
+    const now = Date.now();
+    if (momentum > 0.72 && now - lastMotionAt > 1200) {
+      lastMotionAt = now;
+      triggerMotion("momentum", { duration: 520 });
+    }
 
     ticking = false;
   }
