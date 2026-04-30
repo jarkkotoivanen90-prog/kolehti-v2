@@ -62,6 +62,7 @@ export default function NewPostPage() {
   const [posting, setPosting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [rewardFx, setRewardFx] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -78,6 +79,12 @@ export default function NewPostPage() {
   const remaining = Math.max(0, 1000 - String(content || "").length);
   const cleanMediaUrl = String(mediaUrl || "").trim();
   const resolvedMediaType = detectMediaType(cleanMediaUrl, mediaType);
+  const progress = Math.min(100, Math.round(String(content || "").length / 10));
+
+  function updateContent(value) {
+    setContent(value);
+    if (value.length > 0 && value.length % 40 === 0) haptic("tap");
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -123,8 +130,9 @@ export default function NewPostPage() {
       setContent("");
       setMediaUrl("");
       setSuccessMessage(cleanMediaUrl ? "Media-postaus julkaistu." : "Perustelu julkaistu.");
+      setRewardFx(true);
       haptic("heavy");
-      navigate("/feed");
+      setTimeout(() => navigate("/feed"), 1450);
     } catch (err) {
       await logClientError(supabase, {
         source: "new_post_media",
@@ -141,9 +149,26 @@ export default function NewPostPage() {
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
+      <style>{`
+        @keyframes rewardLaunch{0%{transform:scale(.88) translateY(10px);opacity:0}20%,82%{transform:scale(1) translateY(0);opacity:1}100%{transform:scale(.96) translateY(-10px);opacity:0}}
+        @keyframes rewardRing{0%{transform:scale(.75);opacity:.8}100%{transform:scale(1.65);opacity:0}}
+        .reward-launch{animation:rewardLaunch 1.45s ease both}.reward-ring{animation:rewardRing 1.15s ease-out infinite}
+      `}</style>
+
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" loading="eager" decoding="async" />
       <div className="fixed inset-0 bg-gradient-to-b from-black/35 via-[#061126]/70 to-black/94" />
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.18),transparent_36%)]" />
+
+      {rewardFx && (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/58 px-6 text-center backdrop-blur-xl pointer-events-none">
+          <div className="reward-launch relative rounded-[40px] border border-cyan-200/25 bg-black/45 px-8 py-9 shadow-2xl shadow-cyan-400/25">
+            <div className="reward-ring absolute inset-7 rounded-full border border-cyan-300/45" />
+            <div className="relative text-[70px]">🚀</div>
+            <h2 className="relative mt-3 text-4xl font-black text-white">Post live!</h2>
+            <p className="relative mt-2 text-sm font-black uppercase tracking-wide text-cyan-200">+XP · mukana potissa · feediin nyt</p>
+          </div>
+        </div>
+      )}
 
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <header>
@@ -152,17 +177,19 @@ export default function NewPostPage() {
               <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-200/78">🇫🇮 Suomi · uusi perustelu</p>
               <h1 className="mt-2 text-[44px] font-black leading-none tracking-tight">Uusi postaus</h1>
             </div>
-            <Link data-haptic="tap" to="/feed" className="rounded-2xl border border-white/15 bg-black/28 px-4 py-3 text-sm font-black text-white/85 backdrop-blur-xl">
-              Feed
-            </Link>
+            <Link data-haptic="tap" to="/feed" className="rounded-2xl border border-white/15 bg-black/28 px-4 py-3 text-sm font-black text-white/85 backdrop-blur-xl">Feed</Link>
           </div>
         </header>
 
         <form onSubmit={handleSubmit} className="mt-6 rounded-[34px] border border-white/15 bg-black/42 p-5 shadow-2xl shadow-black/35 backdrop-blur-2xl">
+          <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-black/45">
+            <div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-blue-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+          </div>
+
           <label className="text-sm font-black uppercase tracking-wide text-cyan-200">Kerro perustelusi</label>
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => updateContent(e.target.value)}
             placeholder="Kirjoita selkeä perustelu. Miksi juuri tätä pitäisi tukea?"
             className="mt-4 min-h-[220px] w-full resize-none rounded-[28px] border border-white/12 bg-black/38 p-5 text-lg font-bold leading-relaxed text-white outline-none placeholder:text-white/30 focus:border-cyan-300/60"
             maxLength={1000}
@@ -172,6 +199,7 @@ export default function NewPostPage() {
             <span>{content.length}/1000 merkkiä</span>
             <span>{remaining} jäljellä</span>
           </div>
+          {content.length > 20 && <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-xs font-black text-cyan-100">⚡ +XP kertyy hyvästä perustelusta</div>}
 
           <section className="mt-5 rounded-[26px] border border-pink-300/20 bg-black/32 p-4 backdrop-blur-xl">
             <p className="text-xs font-black uppercase tracking-wide text-pink-200">Kuva tai video feediin</p>
@@ -193,6 +221,18 @@ export default function NewPostPage() {
             <p className="mt-3 text-xs font-bold leading-relaxed text-white/58">Kuva tai video näkyy TikTok-tyylisessä feedissä koko ruudun taustana.</p>
           </section>
 
+          {content && (
+            <section className="mt-5 overflow-hidden rounded-[26px] border border-white/12 bg-black/34 p-4 backdrop-blur-xl">
+              <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Live feed preview</p>
+              <p className="mt-2 line-clamp-4 text-lg font-black leading-tight text-white">{content.slice(0, 180)}</p>
+              <div className="mt-3 flex gap-2 text-[11px] font-black text-white/65">
+                <span className="rounded-full bg-white/10 px-3 py-1">AI {aiPreview.score}</span>
+                <span className="rounded-full bg-white/10 px-3 py-1">+XP</span>
+                <span className="rounded-full bg-white/10 px-3 py-1">Potti</span>
+              </div>
+            </section>
+          )}
+
           <section className="mt-5 rounded-[26px] border border-cyan-300/20 bg-cyan-500/10 p-4 backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -207,12 +247,7 @@ export default function NewPostPage() {
           {errorMessage && <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm font-black text-red-100">{errorMessage}</div>}
           {successMessage && <div className="mt-4 rounded-2xl border border-green-400/30 bg-green-500/15 px-4 py-3 text-sm font-black text-green-100">{successMessage}</div>}
 
-          <button
-            data-haptic="success"
-            type="submit"
-            disabled={posting || !validation.ok}
-            className="premium-cta mt-5 w-full rounded-[28px] bg-gradient-to-r from-cyan-400 to-blue-600 px-6 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/28 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <button data-haptic="success" type="submit" disabled={posting || !validation.ok} className="premium-cta mt-5 w-full rounded-[28px] bg-gradient-to-r from-cyan-400 to-blue-600 px-6 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/28 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">
             {posting ? "Julkaistaan..." : validation.ok ? "Julkaise 🔥" : "Kirjoita perustelu"}
           </button>
         </form>
