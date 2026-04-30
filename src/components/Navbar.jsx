@@ -43,24 +43,20 @@ export default function Navbar() {
 
   useEffect(() => {
     let lastY = 0;
-
     function readScrollY() {
       const feedScroller = document.getElementById("feed-scroll-root");
       return feedScroller ? feedScroller.scrollTop : window.scrollY;
     }
-
     function update() {
       const y = readScrollY();
       const goingDown = y > lastY;
       setHidden(location.pathname === "/feed" && goingDown && y > 90 && !open);
       lastY = Math.max(0, y);
     }
-
     const feedScroller = document.getElementById("feed-scroll-root");
     const target = feedScroller || window;
     target.addEventListener("scroll", update, { passive: true });
     window.addEventListener("touchmove", update, { passive: true });
-
     return () => {
       target.removeEventListener("scroll", update);
       window.removeEventListener("touchmove", update);
@@ -89,35 +85,22 @@ export default function Navbar() {
           <KHeartgramLogo />
           <div className="min-w-0">
             <div className="truncate bg-gradient-to-r from-cyan-100 via-white to-yellow-100 bg-clip-text text-2xl font-black leading-none tracking-tight text-transparent">KOLEHTI</div>
-            <div className="truncate text-[11px] font-black uppercase tracking-[0.22em] text-cyan-100/60">Suomi · porukka · potti</div>
+            <div className="mt-1 flex flex-wrap gap-1.5 text-[9px] font-black uppercase tracking-[0.14em]">
+              <span className="rounded-full bg-cyan-300/15 px-2 py-1 text-cyan-100">🇫🇮 Suomi</span>
+              <span className="rounded-full bg-white/10 px-2 py-1 text-white/75">Porukka</span>
+              <span className="rounded-full bg-yellow-300/15 px-2 py-1 text-yellow-100">Potti</span>
+            </div>
           </div>
         </Link>
 
         <nav className="hidden items-center gap-2 md:flex">
           {links.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-                isActive(link.to)
-                  ? "bg-cyan-400 text-[#061126] shadow-lg shadow-cyan-400/20"
-                  : "border border-white/10 bg-white/8 text-white/78 hover:bg-white/15"
-              }`}
-            >
-              {link.label}
-            </Link>
+            <Link key={link.to} to={link.to} className={`rounded-2xl px-4 py-2 text-sm font-black transition ${isActive(link.to) ? "bg-cyan-400 text-[#061126] shadow-lg shadow-cyan-400/20" : "border border-white/10 bg-white/8 text-white/78 hover:bg-white/15"}`}>{link.label}</Link>
           ))}
-
-          <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-pink-500/20">
-            Ulos
-          </button>
+          <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-pink-500/20">Ulos</button>
         </nav>
 
-        <button
-          onClick={() => setOpen(!open)}
-          className="grid h-14 w-14 place-items-center rounded-[24px] border border-white/10 bg-white/10 text-3xl font-black shadow-xl shadow-black/20 md:hidden"
-          aria-label="Avaa valikko"
-        >
+        <button onClick={() => setOpen(!open)} className="grid h-14 w-14 place-items-center rounded-[24px] border border-white/10 bg-white/10 text-3xl font-black shadow-xl shadow-black/20 md:hidden" aria-label="Avaa valikko">
           {open ? "×" : "☰"}
         </button>
       </div>
@@ -126,23 +109,9 @@ export default function Navbar() {
         <div className="border-t border-white/10 bg-[#071124]/98 px-4 pb-4 md:hidden">
           <div className="mx-auto grid max-w-6xl gap-2 pt-3">
             {links.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                onClick={() => setOpen(false)}
-                className={`rounded-2xl px-4 py-3 text-sm font-black transition ${
-                  isActive(link.to)
-                    ? "bg-cyan-400 text-[#061126]"
-                    : "border border-white/10 bg-white/10 text-white/80"
-                }`}
-              >
-                {link.label}
-              </Link>
+              <Link key={link.to} to={link.to} onClick={() => setOpen(false)} className={`rounded-2xl px-4 py-3 text-sm font-black transition ${isActive(link.to) ? "bg-cyan-400 text-[#061126]" : "border border-white/10 bg-white/10 text-white/80"}`}>{link.label}</Link>
             ))}
-
-            <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-3 text-left text-sm font-black text-white">
-              Kirjaudu ulos
-            </button>
+            <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-3 text-left text-sm font-black text-white">Kirjaudu ulos</button>
           </div>
         </div>
       )}
