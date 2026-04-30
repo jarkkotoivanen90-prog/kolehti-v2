@@ -86,7 +86,9 @@ function Styles() {
       @keyframes xpPop{0%{transform:translate(-50%,-10px) scale(.94);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-10px) scale(.94);opacity:0}}
       @keyframes sidePulse{0%,100%{transform:scale(1);box-shadow:0 14px 30px rgba(0,0,0,.25)}50%{transform:scale(1.055);box-shadow:0 18px 42px rgba(34,211,238,.22)}}
       @keyframes heartFloat{0%{transform:translateY(0) scale(.8);opacity:0}18%{opacity:1}100%{transform:translateY(-92px) scale(1.35);opacity:0}}
-      .nav-alive{animation:navAlive 2.5s ease-in-out infinite}.plus-pulse{animation:plusPulse 2.25s ease-in-out infinite}.xp-pop{animation:xpPop 1.8s ease both}.snap-card{scroll-snap-align:start;scroll-snap-stop:always}.action-pulse{animation:sidePulse 3s ease-in-out infinite}.safe-text{min-width:0;overflow:hidden;text-overflow:ellipsis}.heart-float{animation:heartFloat .9s ease-out both}
+      @keyframes doubleTapHint{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
+      @keyframes nearWinRing{0%,100%{box-shadow:0 0 0 rgba(250,204,21,0)}50%{box-shadow:0 0 42px rgba(250,204,21,.42)}}
+      .nav-alive{animation:navAlive 2.5s ease-in-out infinite}.plus-pulse{animation:plusPulse 2.25s ease-in-out infinite}.xp-pop{animation:xpPop 1.8s ease both}.snap-card{scroll-snap-align:start;scroll-snap-stop:always}.action-pulse{animation:sidePulse 3s ease-in-out infinite}.safe-text{min-width:0;overflow:hidden;text-overflow:ellipsis}.heart-float{animation:heartFloat .9s ease-out both}.double-tap-hint{animation:doubleTapHint 2.8s ease-in-out infinite}.near-win-ring{animation:nearWinRing 1.8s ease-in-out infinite}
     `}</style>
   );
 }
@@ -159,6 +161,7 @@ export default function FeedPageClean() {
   const watchRef = useRef({});
   const eventAtRef = useRef(0);
   const lastScrollRef = useRef(0);
+  const nearWinAtRef = useRef({});
 
   useEffect(() => {
     setStreak(getStreak());
@@ -199,6 +202,29 @@ export default function FeedPageClean() {
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
   }, [posts.length]);
+
+  useEffect(() => {
+    const postIndex = activeIndex - 1;
+    if (postIndex < 0 || !posts[postIndex]) return;
+    const post = posts[postIndex];
+    const previous = posts[postIndex - 1];
+    const top = posts[0];
+    const now = Date.now();
+    if (nearWinAtRef.current[post.id] && now - nearWinAtRef.current[post.id] < 15000) return;
+
+    const gapToPrevious = previous ? Math.max(0, Math.round((previous.score || 0) - (post.score || 0))) : 0;
+    const gapToTop = top && top.id !== post.id ? Math.max(0, Math.round((top.score || 0) - (post.score || 0))) : 0;
+
+    if (postIndex > 0 && postIndex <= 5 && gapToPrevious > 0 && gapToPrevious <= 36) {
+      nearWinAtRef.current[post.id] = now;
+      reward("nearwin");
+      pushEvent(`⚠️ Near win: vain ${Math.ceil(gapToPrevious / 12)} ääntä seuraavaan sijaan`, true);
+    } else if (postIndex > 0 && postIndex <= 10 && gapToTop > 0 && gapToTop <= 84) {
+      nearWinAtRef.current[post.id] = now;
+      reward("nearwin");
+      pushEvent(`🔥 Kärki lähellä: ${Math.ceil(gapToTop / 12)} ääntä topiin`, true);
+    }
+  }, [activeIndex, posts]);
 
   async function loadFeed() {
     setLoading(true);
@@ -267,15 +293,15 @@ export default function FeedPageClean() {
     if (Number(event?.target?.currentTime || 0) >= 3) rewardWatch(post);
   }
 
-  async function vote(post) {
+  async function vote(post, source = "button") {
     if (!user) { pushEvent("Kirjaudu ensin sisään", true); return; }
     if (voted[post.id]) { pushEvent("Olet jo äänestänyt tämän", true); return; }
     const { error } = await supabase.from("votes").insert({ post_id: post.id, user_id: user.id, value: 1 });
     if (error) { pushEvent(error.message || "Äänestys epäonnistui", true); return; }
     setVoted((prev) => ({ ...prev, [post.id]: true }));
-    reward("like");
+    reward(source === "doubletap" ? "superlike" : "like");
     showFloatingHeart();
-    pushEvent("💙 +XP · ääni annettu", true);
+    pushEvent(source === "doubletap" ? "💙 Double tap · +XP ääni annettu" : "💙 +XP · ääni annettu", true);
     await loadFeed();
   }
 
@@ -311,21 +337,33 @@ export default function FeedPageClean() {
         <IntroSlide watchPot={watchPot} activePlayers={activePlayers} postCount={posts.length} totalWatches={totalWatches} topPost={topPost} />
         {loading && <section data-feed-card className="snap-card grid h-[100dvh] place-items-center bg-[#050816] px-5"><div className="suomi-card suomi-lake w-full max-w-sm rounded-[34px] p-8 text-center font-black shadow-2xl">Feed latautuu...</div></section>}
         {!loading && posts.length === 0 && <section data-feed-card className="snap-card grid h-[100dvh] place-items-center bg-[#050816] px-5"><div className="suomi-card suomi-aurora w-full max-w-sm rounded-[34px] p-8 text-center shadow-2xl"><div className="text-5xl">✨</div><h2 className="mt-3 text-3xl font-black">Ei vielä postauksia</h2><Link to="/new" className="mt-5 block rounded-[24px] bg-cyan-500 px-5 py-4 text-sm font-black">Luo postaus</Link></div></section>}
-        {!loading && posts.map((post, index) => <TikTokCard key={post.id} post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} onShare={sharePost} onImageWatch={rewardWatch} onImageStart={startWatch} onVideoTime={handleVideoTime} active={activeIndex === index + 1} />)}
+        {!loading && posts.map((post, index) => <TikTokCard key={post.id} post={post} index={index} voted={Boolean(voted[post.id])} onVote={vote} onDoubleTap={(p) => vote(p, "doubletap")} onShare={sharePost} onImageWatch={rewardWatch} onImageStart={startWatch} onVideoTime={handleVideoTime} active={activeIndex === index + 1} />)}
       </main>
       <BottomNav hidden={hiddenChrome} onPulse={() => pushEvent("⚡ Navigointi", false)} />
     </div>
   );
 }
 
-function TikTokCard({ post, index, voted, onVote, onShare, onImageStart, onImageWatch, onVideoTime, active }) {
+function TikTokCard({ post, index, voted, onVote, onDoubleTap, onShare, onImageStart, onImageWatch, onVideoTime, active }) {
   const mediaUrl = mediaUrlFor(post);
   const mediaType = mediaTypeFor(post);
   const fallback = FIN_BG[index % FIN_BG.length];
   const viralMultiplier = (1 + Math.min(0.7, Number(post.shares || 0) * 0.04 + Number(post.watch_time_total || 0) * 0.01)).toFixed(2);
+  const lastTapRef = useRef(0);
+
+  function handlePointerUp(event) {
+    if (event.target?.closest?.("button,a")) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 310) {
+      lastTapRef.current = 0;
+      onDoubleTap(post);
+      return;
+    }
+    lastTapRef.current = now;
+  }
 
   return (
-    <section data-feed-card className="snap-card relative h-[100dvh] overflow-hidden bg-black">
+    <section data-feed-card onPointerUp={handlePointerUp} className={`snap-card relative h-[100dvh] overflow-hidden bg-black ${active ? "near-win-ring" : ""}`}>
       {mediaUrl && mediaType === "video" ? (
         <video src={mediaUrl} className="absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline controls={false} onPlay={() => onImageStart(post)} onTimeUpdate={(event) => onVideoTime(event, post)} />
       ) : (
@@ -357,7 +395,7 @@ function TikTokCard({ post, index, voted, onVote, onShare, onImageStart, onImage
         <p className="max-h-[210px] overflow-hidden whitespace-pre-wrap break-words text-[24px] font-black leading-tight text-white drop-shadow-2xl">{post.content}</p>
         <div className="mt-4 flex gap-2 text-[11px] font-black text-white/72">
           <span className="rounded-full bg-black/35 px-3 py-1.5 backdrop-blur-xl">#{index + 1}</span>
-          <span className="rounded-full bg-black/35 px-3 py-1.5 backdrop-blur-xl">Double tap = tykkää</span>
+          <span className="double-tap-hint rounded-full bg-black/35 px-3 py-1.5 backdrop-blur-xl">Double tap = 💙 ääni</span>
         </div>
       </div>
     </section>
