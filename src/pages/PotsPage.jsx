@@ -46,21 +46,52 @@ function scorePost(post) {
   );
 }
 
+function getPressureText(pot) {
+  const leader = pot?.leaderboard?.[0];
+  const second = pot?.leaderboard?.[1];
+  if (!leader) return "Ensimmäinen perustelu voi ottaa potin haltuun.";
+  if (second) {
+    const gap = Math.max(1, Math.abs(Number(leader.score || 0) - Number(second.score || 0)));
+    if (gap <= 15) return "🔥 Kärki on auki — yksi ääni voi muuttaa kaiken.";
+    if (gap <= 40) return `⚡ Ero kärkeen vain ${gap} pistettä.`;
+  }
+  return "🏆 Johtaja pitää pottia — haasta kärki nyt.";
+}
+
 export default function PotsPage() {
   const [posts, setPosts] = useState([]);
   const [votes, setVotes] = useState([]);
   const [activeTab, setActiveTab] = useState("daily");
   const [loading, setLoading] = useState(true);
+  const [pulse, setPulse] = useState(0);
+  const [liveAmountBump, setLiveAmountBump] = useState(0);
+  const [pressureIndex, setPressureIndex] = useState(0);
 
   useEffect(() => {
     load();
     const channel = supabase
-      .channel("pots-page-clean-premium")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, load)
+      .channel("pots-page-addictive-mode")
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => {
+        setPulse((v) => v + 1);
+        setLiveAmountBump((v) => v + 1);
+        load();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => {
+        setPulse((v) => v + 1);
+        setLiveAmountBump((v) => v + 1);
+        load();
+      })
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    const drip = setInterval(() => {
+      setPressureIndex((v) => v + 1);
+      setLiveAmountBump((v) => (v + 1) % 4);
+    }, 4500);
+
+    return () => {
+      clearInterval(drip);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function load() {
@@ -101,15 +132,24 @@ export default function PotsPage() {
   }, [posts, votes]);
 
   const activePot = data.find((pot) => pot.key === activeTab) || data[0];
-  const totalAmount = data.reduce((sum, pot) => sum + pot.amount, 0);
+  const totalAmount = data.reduce((sum, pot) => sum + pot.amount, 0) + liveAmountBump;
   const topLeader = activePot?.leaderboard?.[0];
+  const pressureMessages = [
+    getPressureText(activePot),
+    `👀 ${activePot?.activePlayers || 1} pelaajaa seuraa pottia.`,
+    "💥 Jokainen ääni nostaa painetta leaderboardissa.",
+    "🎯 Hyvä perustelu voi hypätä suoraan kärkeen.",
+  ];
+  const pressure = pressureMessages[pressureIndex % pressureMessages.length];
 
   return (
     <div className="min-h-[100dvh] bg-[#050816] px-4 pb-[150px] pt-5 text-white">
       <style>{`
         @keyframes potPulse{0%,100%{transform:scale(1);box-shadow:0 0 30px rgba(250,204,21,.34)}50%{transform:scale(1.04);box-shadow:0 0 58px rgba(250,204,21,.68)}}
         @keyframes shine{0%{transform:translateX(-140%) skewX(-18deg);opacity:0}32%{opacity:.55}64%{transform:translateX(150%) skewX(-18deg);opacity:0}100%{transform:translateX(150%) skewX(-18deg);opacity:0}}
-        .pot-logo{animation:potPulse 2.7s ease-in-out infinite}.shine{position:relative;overflow:hidden}.shine:after{content:"";position:absolute;inset:-40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);animation:shine 4.8s ease-in-out infinite;pointer-events:none}
+        @keyframes livePop{0%{transform:scale(.96);opacity:.65}45%{transform:scale(1.035);opacity:1}100%{transform:scale(1);opacity:1}}
+        @keyframes pressureGlow{0%,100%{box-shadow:0 0 16px rgba(34,211,238,.16)}50%{box-shadow:0 0 32px rgba(34,211,238,.34)}}
+        .pot-logo{animation:potPulse 2.7s ease-in-out infinite}.shine{position:relative;overflow:hidden}.shine:after{content:"";position:absolute;inset:-40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);animation:shine 4.8s ease-in-out infinite;pointer-events:none}.live-pop{animation:livePop .42s ease both}.pressure-glow{animation:pressureGlow 2.4s ease-in-out infinite}
       `}</style>
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#14366f_0%,#050816_44%,#02030a_100%)]" />
 
@@ -131,10 +171,13 @@ export default function PotsPage() {
 
         <section className="shine mt-6 overflow-hidden rounded-[38px] border border-yellow-300/30 bg-gradient-to-br from-yellow-300/18 via-cyan-400/10 to-blue-900/40 p-[2px] shadow-2xl shadow-yellow-300/10">
           <div className="rounded-[36px] bg-[#0b1225]/94 p-5">
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-200">Kaikki potit yhteensä</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-yellow-200">Kaikki potit yhteensä</p>
+              <span key={pulse} className="live-pop rounded-full bg-green-400 px-3 py-1 text-[10px] font-black text-black">LIVE +€{liveAmountBump}</span>
+            </div>
             <div className="mt-2 flex items-end justify-between gap-4">
               <div className="min-w-0">
-                <p className="truncate text-[64px] font-black leading-none text-yellow-300">€{totalAmount}</p>
+                <p key={totalAmount} className="live-pop truncate text-[64px] font-black leading-none text-yellow-300">€{totalAmount}</p>
                 <p className="mt-2 text-xs font-black text-white/45">Päivä · viikko · kuukausi · finaali</p>
               </div>
               <div className="shrink-0 rounded-3xl border border-cyan-300/25 bg-cyan-500/10 px-4 py-3 text-center">
@@ -146,11 +189,15 @@ export default function PotsPage() {
           </div>
         </section>
 
+        <section className="pressure-glow mt-4 rounded-[28px] border border-cyan-300/20 bg-cyan-300/10 p-4 text-center shadow-xl backdrop-blur-xl">
+          <p key={pressureIndex} className="live-pop text-sm font-black leading-snug text-cyan-50">{pressure}</p>
+        </section>
+
         <PotSelector data={data} activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {loading && <div className="mt-5 rounded-3xl border border-white/10 bg-white/10 p-5 text-center font-black text-white/70">Päivitetään potteja...</div>}
 
-        {activePot && <ActivePotCard pot={activePot} />}
+        {activePot && <ActivePotCard pot={activePot} pulse={pulse} />}
       </main>
 
       <AppBottomNav />
@@ -189,16 +236,24 @@ function PotSelector({ data, activeTab, setActiveTab }) {
   );
 }
 
-function ActivePotCard({ pot }) {
+function ActivePotCard({ pot, pulse }) {
   const top = pot.leaderboard[0];
+  const second = pot.leaderboard[1];
+  const gap = top && second ? Math.max(1, Math.abs(Number(top.score || 0) - Number(second.score || 0))) : null;
+  const nearWin = gap !== null && gap <= 40;
 
   return (
     <section className={`mt-6 overflow-hidden rounded-[38px] bg-gradient-to-br ${pot.accent} p-[2px] shadow-2xl shadow-cyan-400/10`}>
       <div className="rounded-[36px] bg-[#09111f]/95 p-5">
+        {nearWin && (
+          <div className="live-pop mb-4 rounded-[24px] border border-yellow-300/35 bg-yellow-300/12 px-4 py-3 text-center text-sm font-black text-yellow-100">
+            🔥 Ero kärjessä {gap} pistettä — seuraava ääni voi ratkaista
+          </div>
+        )}
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm font-black text-cyan-100">{pot.emoji} {pot.title}</p>
-            <p className="mt-1 text-[60px] font-black leading-none text-white">€{pot.amount}</p>
+            <p key={`${pot.key}-${pulse}`} className="live-pop mt-1 text-[60px] font-black leading-none text-white">€{pot.amount}</p>
             <p className="mt-2 text-xs font-black text-white/45">Potti kasvaa aktiivisuuden mukaan</p>
           </div>
           <div className="rounded-3xl border border-white/15 bg-white/10 px-4 py-3 text-center">
@@ -208,7 +263,7 @@ function ActivePotCard({ pot }) {
         </div>
 
         <div className="mt-5 h-4 overflow-hidden rounded-full bg-black/40">
-          <div className="h-full rounded-full bg-white" style={{ width: `${pot.fillRate}%` }} />
+          <div className="h-full rounded-full bg-white transition-all duration-500" style={{ width: `${pot.fillRate}%` }} />
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-black">
@@ -218,7 +273,10 @@ function ActivePotCard({ pot }) {
         </div>
 
         <div className="mt-5">
-          <h2 className="text-2xl font-black">Leaderboard</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-2xl font-black">Leaderboard</h2>
+            {top && <span className="rounded-full bg-yellow-300 px-3 py-1 text-[10px] font-black text-black">TOP {top.score}</span>}
+          </div>
           {pot.leaderboard.length ? (
             <div className="mt-3 space-y-3">
               {pot.leaderboard.map((post, index) => <LeaderRow key={post.id} post={post} index={index} />)}
@@ -240,12 +298,12 @@ function LeaderRow({ post, index }) {
   const rank = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
 
   return (
-    <div className="rounded-[26px] border border-white/10 bg-black/25 p-4">
+    <div className={`rounded-[26px] border p-4 transition ${index === 0 ? "border-yellow-300/35 bg-yellow-300/10" : "border-white/10 bg-black/25"}`}>
       <div className="flex items-start gap-3">
         <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-yellow-300 text-lg font-black text-black">{rank}</div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase text-cyan-200">Pelaaja</p>
+            <p className="text-xs font-black uppercase text-cyan-200">{index === 0 ? "Johtaja" : "Haastaja"}</p>
             <p className="text-sm font-black text-white/55">Score {Math.round(post.score)}</p>
           </div>
           <p className="mt-2 line-clamp-3 text-base font-black leading-relaxed text-white/75">{post.content}</p>
