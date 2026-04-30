@@ -16,41 +16,15 @@
 }
 
 html, body, #root { min-height: 100%; }
-
-body {
-  margin: 0;
-  color: white;
-  background: radial-gradient(circle at top, #22306a 0%, #0b1020 35%, #05070f 100%);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: -0.01em;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -20;
-  background: linear-gradient(180deg, rgba(5,8,22,.70), rgba(5,8,22,.95)), var(--finland-aurora) center/cover no-repeat;
-  opacity: .34;
-  pointer-events: none;
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -19;
-  background: radial-gradient(circle at 20% 12%, rgba(34,211,238,.14), transparent 28%), radial-gradient(circle at 82% 6%, rgba(250,204,21,.08), transparent 24%);
-  pointer-events: none;
-}
-
+body { margin: 0; color: white; background: radial-gradient(circle at top, #22306a 0%, #0b1020 35%, #05070f 100%); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: -0.01em; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -20; background: linear-gradient(180deg, rgba(5,8,22,.70), rgba(5,8,22,.95)), var(--finland-aurora) center/cover no-repeat; opacity: .34; pointer-events: none; }
+body::after { content: ""; position: fixed; inset: 0; z-index: -19; background: radial-gradient(circle at 20% 12%, rgba(34,211,238,.14), transparent 28%), radial-gradient(circle at 82% 6%, rgba(250,204,21,.08), transparent 24%); pointer-events: none; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 @keyframes suomiFade { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes suomiGlow { 0%,100% { box-shadow: 0 18px 50px rgba(0,0,0,.28), 0 0 calc(16px + 20px * var(--reactive-glow)) rgba(34,211,238,.11); } 50% { box-shadow: 0 22px 60px rgba(0,0,0,.32), 0 0 calc(22px + 26px * var(--reactive-glow)) rgba(34,211,238,.19); } }
 @keyframes suomiFloat { 0%,100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-3px,0); } }
 @keyframes suomiBreath { 0%,100% { filter: saturate(1) brightness(1); } 50% { filter: saturate(1.08) brightness(1.04); } }
-
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; } }
 
 @layer components {
@@ -75,14 +49,7 @@ body::after {
     animation: suomiFade .34s ease both, suomiGlow 5s ease-in-out infinite;
     isolation: isolate;
   }
-  .suomi-card::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(34,211,238,.13), transparent 38%, rgba(250,204,21,.08));
-    pointer-events: none;
-    z-index: 0;
-  }
+  .suomi-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(34,211,238,.13), transparent 38%, rgba(250,204,21,.08)); pointer-events: none; z-index: 0; }
   .suomi-card > * { position: relative; z-index: 1; }
   .suomi-helsinki { background-image: linear-gradient(180deg, rgba(3,7,18,.25), rgba(3,7,18,.84)), var(--finland-helsinki); }
   .suomi-lake { background-image: linear-gradient(180deg, rgba(3,7,18,.28), rgba(3,7,18,.84)), var(--finland-lake); }
@@ -97,4 +64,39 @@ body::after {
   .suomi-interactive { transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
   .suomi-interactive:active { transform: scale(.985); }
   .suomi-interactive:hover { border-color: rgba(103,232,249,.35); box-shadow: 0 24px 66px rgba(0,0,0,.35), 0 0 32px rgba(34,211,238,.17); }
+}
+
+/* FORCE PATCH: legacy pages still use old Tailwind-only cards. These selectors add Finnish image layers without editing every card file. */
+#root main > div[class*="rounded"],
+#root main section > div[class*="rounded"],
+#root main form[class*="rounded"],
+#root main article[class*="rounded"],
+#root main button[class*="rounded"][class*="border"],
+#root main a[class*="rounded"][class*="border"] {
+  background-image: linear-gradient(180deg, rgba(3,7,18,.48), rgba(3,7,18,.86)), var(--finland-lake) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  border-color: rgba(255,255,255,.14) !important;
+  box-shadow: 0 18px 50px rgba(0,0,0,.28), 0 0 20px rgba(34,211,238,.08) !important;
+}
+
+#root main > div:nth-of-type(2n)[class*="rounded"],
+#root main section > div:nth-of-type(2n)[class*="rounded"],
+#root main article:nth-of-type(2n)[class*="rounded"] {
+  background-image: linear-gradient(180deg, rgba(3,7,18,.50), rgba(3,7,18,.88)), var(--finland-forest) !important;
+}
+
+#root main > div:nth-of-type(3n)[class*="rounded"],
+#root main section > div:nth-of-type(3n)[class*="rounded"],
+#root main article:nth-of-type(3n)[class*="rounded"] {
+  background-image: linear-gradient(180deg, rgba(3,7,18,.46), rgba(3,7,18,.87)), var(--finland-aurora) !important;
+}
+
+#root textarea, #root input {
+  background-color: rgba(3,7,18,.64) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+#root button:active, #root a:active, #root [role="button"]:active {
+  transform: scale(.985);
 }
