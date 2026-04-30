@@ -24,6 +24,17 @@ const BOT_TEXTS = [
   "Tämä on near win -tilanne. Yksi ääni voi muuttaa kaiken.",
 ];
 
+const ATTACK_LINES = [
+  "haastaa sinun sijoituksen",
+  "painostaa sinun XP-tasoa",
+  "yrittää ohittaa sinut ennen kierroksen loppua",
+  "targetoi sinun porukan paikkaa",
+  "nostaa bot-painetta juuri sinun edelle",
+  "pakottaa sinut julkaisemaan paremman perustelun",
+  "on vain muutaman äänen päässä sinusta",
+  "käynnisti vastaiskun sinun rankingiin",
+];
+
 export function makeBotPosts(count = 16) {
   const now = Date.now();
   const pulse = Math.floor(now / 5000) % 9;
@@ -31,6 +42,7 @@ export function makeBotPosts(count = 16) {
     const bot = GAME_BOTS[index % GAME_BOTS.length];
     const seed = index + 1;
     const nearWinBoost = index % 4 === pulse % 4 ? 18 : 0;
+    const attackBoost = index % 5 === pulse % 5 ? 24 : 0;
     const aggression = bot.aggression || 1;
     return {
       id: `bot-post-${seed}`,
@@ -41,15 +53,16 @@ export function makeBotPosts(count = 16) {
       bot_style: bot.style,
       content: BOT_TEXTS[index % BOT_TEXTS.length],
       created_at: new Date(now - seed * 1000 * 60 * 4).toISOString(),
-      votes: Math.round((18 + seed * 5 + nearWinBoost) * aggression),
-      ai_score: Math.round((58 + seed * 4 + nearWinBoost) * Math.min(1.18, aggression)),
-      growth_score: Math.round((55 + seed * 5) * Math.min(1.2, aggression)),
-      boost_score: Math.round((seed % 5) + nearWinBoost / 8),
-      watch_time_total: Math.round((24 + seed * 4 + pulse) * aggression),
-      shares: Math.round((seed % 6) + nearWinBoost / 12),
+      votes: Math.round((18 + seed * 5 + nearWinBoost + attackBoost) * aggression),
+      ai_score: Math.round((58 + seed * 4 + nearWinBoost + attackBoost) * Math.min(1.18, aggression)),
+      growth_score: Math.round((55 + seed * 5 + attackBoost) * Math.min(1.2, aggression)),
+      boost_score: Math.round((seed % 5) + nearWinBoost / 8 + attackBoost / 10),
+      watch_time_total: Math.round((24 + seed * 4 + pulse + attackBoost / 3) * aggression),
+      shares: Math.round((seed % 6) + nearWinBoost / 12 + attackBoost / 16),
       score: 0,
-      bot_heat: Math.min(100, 42 + seed * 5 + nearWinBoost),
+      bot_heat: Math.min(100, 42 + seed * 5 + nearWinBoost + attackBoost),
       near_win: nearWinBoost > 0,
+      attacking_user: attackBoost > 0,
     };
   });
 }
@@ -62,7 +75,8 @@ export function botScore(post) {
     Number(post.boost_score || 0) * 4 +
     Number(post.watch_time_total || 0) * 2 +
     Number(post.shares || 0) * 6 +
-    Number(post.near_win ? 45 : 0)
+    Number(post.near_win ? 45 : 0) +
+    Number(post.attacking_user ? 60 : 0)
   );
 }
 
@@ -101,13 +115,42 @@ export function botTicker() {
   return actions[Math.floor(Date.now() / 2800) % actions.length];
 }
 
+export function botAttackTicker() {
+  const bot = GAME_BOTS[Math.floor(Date.now() / 1700) % GAME_BOTS.length];
+  const line = ATTACK_LINES[Math.floor(Date.now() / 2300) % ATTACK_LINES.length];
+  const pressure = 64 + (Math.floor(Date.now() / 1000) % 32);
+  return {
+    bot,
+    pressure,
+    text: `${bot.name} ${line}`,
+  };
+}
+
+export function getUserThreat(posts = [], userId = null) {
+  const sorted = [...posts].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+  const userIndex = userId ? sorted.findIndex((p) => p.user_id === userId) : -1;
+  const attacker = sorted.find((p) => p.bot && (p.attacking_user || p.near_win)) || sorted.find((p) => p.bot);
+  const userPost = userIndex >= 0 ? sorted[userIndex] : null;
+  const gap = userPost && attacker ? Math.max(1, Math.abs(Number(attacker.score || 0) - Number(userPost.score || 0))) : Math.max(12, Math.round((attacker?.score || 500) / 18));
+  if (!attacker) return null;
+  return {
+    attacker,
+    userPost,
+    userRank: userIndex >= 0 ? userIndex + 1 : null,
+    gap,
+    message: userPost
+      ? `${attacker.bot_name} on ${gap} XP päässä sinusta`
+      : `${attacker.bot_name} hakee sinua vastaan paikkaa leaderboardissa`,
+  };
+}
+
 export function botDrama(posts = []) {
   const botPosts = posts.filter((p) => p.bot);
-  const hot = botPosts.find((p) => p.near_win) || botPosts[0];
+  const hot = botPosts.find((p) => p.attacking_user) || botPosts.find((p) => p.near_win) || botPosts[0];
   if (!hot) return null;
   return {
-    title: "BOT PRESSURE",
-    text: `${hot.bot_name} on lähellä ohitusta · ${hot.score} XP`,
+    title: hot.attacking_user ? "BOT ATTACK" : "BOT PRESSURE",
+    text: hot.attacking_user ? `${hot.bot_name} hyökkää pelaajien sijoituksia vastaan · ${hot.score} XP` : `${hot.bot_name} on lähellä ohitusta · ${hot.score} XP`,
     heat: hot.bot_heat || 70,
   };
 }
