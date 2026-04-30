@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { haptic } from "../lib/effects";
+import { haptic, reward } from "../lib/effects";
 
 const FIN_BG = [
   "https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_skyline_(Sep_2024_-_01).jpg?width=900",
@@ -85,7 +85,8 @@ function Styles() {
       @keyframes plusPulse{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-4px) scale(1.055)}}
       @keyframes xpPop{0%{transform:translate(-50%,-10px) scale(.94);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-10px) scale(.94);opacity:0}}
       @keyframes sidePulse{0%,100%{transform:scale(1);box-shadow:0 14px 30px rgba(0,0,0,.25)}50%{transform:scale(1.055);box-shadow:0 18px 42px rgba(34,211,238,.22)}}
-      .nav-alive{animation:navAlive 2.5s ease-in-out infinite}.plus-pulse{animation:plusPulse 2.25s ease-in-out infinite}.xp-pop{animation:xpPop 1.8s ease both}.snap-card{scroll-snap-align:start;scroll-snap-stop:always}.action-pulse{animation:sidePulse 3s ease-in-out infinite}.safe-text{min-width:0;overflow:hidden;text-overflow:ellipsis}
+      @keyframes heartFloat{0%{transform:translateY(0) scale(.8);opacity:0}18%{opacity:1}100%{transform:translateY(-92px) scale(1.35);opacity:0}}
+      .nav-alive{animation:navAlive 2.5s ease-in-out infinite}.plus-pulse{animation:plusPulse 2.25s ease-in-out infinite}.xp-pop{animation:xpPop 1.8s ease both}.snap-card{scroll-snap-align:start;scroll-snap-stop:always}.action-pulse{animation:sidePulse 3s ease-in-out infinite}.safe-text{min-width:0;overflow:hidden;text-overflow:ellipsis}.heart-float{animation:heartFloat .9s ease-out both}
     `}</style>
   );
 }
@@ -153,6 +154,7 @@ export default function FeedPageClean() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [streak, setStreak] = useState(1);
   const [hiddenChrome, setHiddenChrome] = useState(false);
+  const [floatingHeart, setFloatingHeart] = useState(null);
   const scrollerRef = useRef(null);
   const watchRef = useRef({});
   const eventAtRef = useRef(0);
@@ -164,7 +166,7 @@ export default function FeedPageClean() {
     const channel = supabase
       .channel("feed-fullscreen-tiktok-mode")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => { pushEvent("📝 Uusi postaus feedissä", true); loadFeed(); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => { pushEvent("💗 Uusi ääni muutti rankingia", true); loadFeed(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => { reward("like"); pushEvent("💗 Uusi ääni muutti rankingia", true); loadFeed(); })
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, []);
@@ -237,6 +239,12 @@ export default function FeedPageClean() {
     setTimeout(() => setEvent(null), 1800);
   }
 
+  function showFloatingHeart() {
+    const id = Date.now();
+    setFloatingHeart(id);
+    setTimeout(() => setFloatingHeart(null), 950);
+  }
+
   function startWatch(post) {
     if (!post?.id) return;
     if (!watchRef.current[post.id]) watchRef.current[post.id] = { started: Date.now(), rewarded: false };
@@ -247,6 +255,7 @@ export default function FeedPageClean() {
     const state = watchRef.current[post.id] || { rewarded: false };
     if (state.rewarded) return;
     watchRef.current[post.id] = { ...state, rewarded: true };
+    reward("reward");
     pushEvent(`👀 +2 XP · streak ${streak}x`, true);
     const nextCount = Number(post.watch_time_total || 0) + 1;
     setPosts((prev) => prev.map((p) => p.id === post.id ? { ...p, watch_time_total: nextCount, score: scorePost({ ...p, watch_time_total: nextCount }) } : p).sort((a, b) => b.score - a.score));
@@ -264,7 +273,9 @@ export default function FeedPageClean() {
     const { error } = await supabase.from("votes").insert({ post_id: post.id, user_id: user.id, value: 1 });
     if (error) { pushEvent(error.message || "Äänestys epäonnistui", true); return; }
     setVoted((prev) => ({ ...prev, [post.id]: true }));
-    pushEvent("💗 +XP · ääni annettu", true);
+    reward("like");
+    showFloatingHeart();
+    pushEvent("💙 +XP · ääni annettu", true);
     await loadFeed();
   }
 
@@ -273,6 +284,7 @@ export default function FeedPageClean() {
     try {
       if (navigator.share) await navigator.share({ title: "KOLEHTI", text: post.content, url });
       else await navigator.clipboard?.writeText(url);
+      reward("superlike");
       pushEvent("🚀 Jaettu · boost kasvaa", true);
       const nextShares = Number(post.shares || 0) + 1;
       setPosts((prev) => prev.map((p) => p.id === post.id ? { ...p, shares: nextShares, score: scorePost({ ...p, shares: nextShares }) } : p).sort((a, b) => b.score - a.score));
@@ -294,6 +306,7 @@ export default function FeedPageClean() {
     <div className="h-[100dvh] overflow-hidden bg-black text-white">
       <Styles />
       {event && <div className="xp-pop fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-300/30 bg-black/78 px-5 py-4 text-center text-sm font-black text-white shadow-2xl shadow-cyan-400/20 backdrop-blur-xl">{event.text}</div>}
+      {floatingHeart && <div key={floatingHeart} className="heart-float pointer-events-none fixed bottom-[220px] right-[38px] z-[95] text-[70px] drop-shadow-[0_0_28px_rgba(34,211,238,.9)]">💙</div>}
       <main id="feed-scroll-root" ref={scrollerRef} className="h-[100dvh] snap-y snap-mandatory overflow-y-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <IntroSlide watchPot={watchPot} activePlayers={activePlayers} postCount={posts.length} totalWatches={totalWatches} topPost={topPost} />
         {loading && <section data-feed-card className="snap-card grid h-[100dvh] place-items-center bg-[#050816] px-5"><div className="suomi-card suomi-lake w-full max-w-sm rounded-[34px] p-8 text-center font-black shadow-2xl">Feed latautuu...</div></section>}
@@ -328,7 +341,7 @@ function TikTokCard({ post, index, voted, onVote, onShare, onImageStart, onImage
       </div>
 
       <aside className="absolute bottom-[156px] right-4 z-20 flex flex-col items-center gap-4">
-        <button data-haptic="success" onClick={() => { haptic("success"); onVote(post); }} disabled={voted} className={`action-pulse grid h-[62px] w-[62px] place-items-center rounded-full border border-white/15 text-3xl shadow-2xl backdrop-blur-xl active:scale-95 ${voted ? "bg-white/18 text-white/45" : "bg-pink-500/92 text-white"}`}>♥</button>
+        <button data-haptic="success" onClick={() => { haptic("success"); onVote(post); }} disabled={voted} className={`action-pulse grid h-[62px] w-[62px] place-items-center rounded-full border border-white/15 text-3xl shadow-2xl backdrop-blur-xl active:scale-95 ${voted ? "bg-white/18 text-white/45" : "bg-blue-500/92 text-white"}`}>♥</button>
         <div className="-mt-3 text-center text-[11px] font-black text-white drop-shadow">{post.votes}</div>
         <button data-haptic="heavy" onClick={() => { haptic("heavy"); onShare(post); }} className="grid h-[58px] w-[58px] place-items-center rounded-full border border-white/15 bg-cyan-500/88 text-2xl shadow-2xl backdrop-blur-xl active:scale-95">↗</button>
         <div className="-mt-3 text-center text-[11px] font-black text-white drop-shadow">{post.shares || 0}</div>
