@@ -14,6 +14,8 @@
   filter: saturate(1.08) contrast(1.04);
   transform-origin: center;
   will-change: transform, filter;
+  object-fit: cover;
+  object-position: center;
 }
 
 #root main article > section.absolute.left-0.right-0.z-20 {
@@ -23,6 +25,9 @@
 
 #root main article > section.absolute.left-0.right-0.z-20 > div {
   max-height: var(--feed-card-max-h) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
   transform: translateY(0) translateZ(36px) !important;
   box-shadow:
     0 24px 80px rgba(0, 0, 0, .48),
@@ -30,9 +35,20 @@
     inset 0 1px 0 rgba(255, 255, 255, .22) !important;
 }
 
+#root main article > section.absolute.left-0.right-0.z-20 > div::-webkit-scrollbar {
+  display: none;
+}
+
 #root main article > section.absolute.left-0.right-0.z-20 p {
   line-height: 1.18 !important;
   text-wrap: balance;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 p[class*="line-clamp"] {
+  display: block !important;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+  overflow: visible !important;
 }
 
 #root main article > section.absolute.left-0.right-0.z-20 [class*="text-[25px]"] {
