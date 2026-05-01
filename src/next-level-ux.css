@@ -2,11 +2,13 @@
 :root {
   --feed-card-bottom: max(132px, calc(env(safe-area-inset-bottom) + 118px));
   --feed-card-max-h: 54dvh;
+  --feed-readable-gradient: linear-gradient(180deg, rgba(2, 6, 17, .58), rgba(2, 6, 17, .38) 42%, rgba(2, 6, 17, .82));
 }
 
 #root main article {
   perspective: 1200px;
   transform-style: preserve-3d;
+  isolation: isolate;
 }
 
 #root main article > img,
@@ -16,6 +18,21 @@
   will-change: transform, filter;
   object-fit: cover;
   object-position: center;
+}
+
+#root main article > video {
+  background: #020611;
+}
+
+#root main article::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  background: var(--feed-readable-gradient);
+  opacity: .34;
+  transition: opacity .3s ease;
 }
 
 #root main article > section.absolute.left-0.right-0.z-20 {
@@ -29,6 +46,9 @@
   overscroll-behavior: contain;
   scrollbar-width: none;
   transform: translateY(0) translateZ(36px) !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(139, 238, 255, .14), transparent 34%),
+    linear-gradient(180deg, rgba(6, 12, 28, .64), rgba(0, 0, 0, .58)) !important;
   box-shadow:
     0 24px 80px rgba(0, 0, 0, .48),
     0 0 34px rgba(14, 165, 255, .16),
@@ -39,9 +59,21 @@
   display: none;
 }
 
+#root main article > section.absolute.left-0.right-0.z-20 > div::after {
+  content: "";
+  position: sticky;
+  display: block;
+  bottom: -20px;
+  height: 28px;
+  margin: 0 -20px -20px;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, .48));
+}
+
 #root main article > section.absolute.left-0.right-0.z-20 p {
   line-height: 1.18 !important;
   text-wrap: balance;
+  word-break: break-word;
 }
 
 #root main article > section.absolute.left-0.right-0.z-20 p[class*="line-clamp"] {
@@ -52,7 +84,11 @@
 }
 
 #root main article > section.absolute.left-0.right-0.z-20 [class*="text-[25px]"] {
-  font-size: clamp(22px, 3.55vh, 27px) !important;
+  font-size: clamp(21px, 3.35vh, 27px) !important;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 [class*="rounded-full"] {
+  backdrop-filter: blur(14px);
 }
 
 #root main article aside button,
@@ -78,12 +114,29 @@
     --feed-card-bottom: max(148px, calc(env(safe-area-inset-bottom) + 132px));
     --feed-card-max-h: 48dvh;
   }
+
+  #root main article > section.absolute.left-0.right-0.z-20 [class*="text-[25px]"] {
+    font-size: clamp(19px, 3.05vh, 23px) !important;
+  }
 }
 
 @media (min-height: 900px) {
   :root {
     --feed-card-bottom: max(150px, calc(env(safe-area-inset-bottom) + 130px));
-    --feed-card-max-h: 56dvh;
+    --feed-card-max-h: 58dvh;
+  }
+}
+
+@media (orientation: landscape) {
+  :root {
+    --feed-card-bottom: max(72px, calc(env(safe-area-inset-bottom) + 58px));
+    --feed-card-max-h: 66dvh;
+  }
+
+  #root main article > section.absolute.left-0.right-0.z-20 {
+    left: auto !important;
+    right: 18px !important;
+    width: min(520px, 48vw) !important;
   }
 }
 
