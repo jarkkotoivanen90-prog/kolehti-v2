@@ -29,7 +29,7 @@ export default function FeedPageClean() {
     const tickerTimer = setInterval(() => setTicker(botTicker()), 3500);
     const hintTimer = setTimeout(() => setHint(false), 5200);
     const channel = supabase
-      .channel("kolehti-god-mode-feed")
+      .channel("kolehti-ai-backend-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, load)
       .subscribe();
@@ -47,12 +47,16 @@ export default function FeedPageClean() {
     seenRef.current[post.id] = true;
     const timer = setTimeout(() => {
       saveFeedSignal(post, "views");
-      supabase.from("user_events").insert({
-        user_id: user?.id || null,
-        post_id: post.id,
-        event_type: "feed_view",
-        source: "god_mode_feed",
-        meta: { activeIndex, media: Boolean(getPostMedia(post).url) },
+      supabase.rpc("record_ai_feed_signal", { target_post_id: post.id, event: "feed_view" }).then(({ error }) => {
+        if (error) {
+          supabase.from("user_events").insert({
+            user_id: user?.id || null,
+            post_id: post.id,
+            event_type: "feed_view",
+            source: "god_mode_feed_fallback",
+            meta: { activeIndex, media: Boolean(getPostMedia(post).url) },
+          });
+        }
       });
     }, 1200);
     return () => clearTimeout(timer);
@@ -63,7 +67,10 @@ export default function FeedPageClean() {
     const next = Math.round(e.currentTarget.scrollTop / height);
     if (next !== activeIndex) {
       const previous = posts[lastIndexRef.current];
-      if (previous && Math.abs(next - lastIndexRef.current) >= 1) saveFeedSignal(previous, "skips");
+      if (previous && Math.abs(next - lastIndexRef.current) >= 1) {
+        saveFeedSignal(previous, "skips");
+        if (!previous.bot) supabase.rpc("record_ai_feed_signal", { target_post_id: previous.id, event: "feed_skip" });
+      }
       lastIndexRef.current = next;
       setActiveIndex(next);
       setHint(false);
@@ -72,6 +79,14 @@ export default function FeedPageClean() {
   }
 
   async function load() {
+    const aiFeed = await supabase.rpc("match_ai_feed", { match_count: 80 });
+
+    if (!aiFeed.error && Array.isArray(aiFeed.data) && aiFeed.data.length) {
+      setPosts(mergeWithBots(aiFeed.data, 8));
+      setLoading(false);
+      return;
+    }
+
     const { data } = await supabase
       .from("posts")
       .select("*")
@@ -92,7 +107,7 @@ export default function FeedPageClean() {
         ))}
       </div>
 
-      <div className="pointer-events-none fixed right-4 top-[82px] z-50 rounded-full border border-cyan-300/20 bg-black/42 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/80 backdrop-blur-xl">For You</div>
+      <div className="pointer-events-none fixed right-4 top-[82px] z-50 rounded-full border border-cyan-300/20 bg-black/42 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/80 backdrop-blur-xl">AI For You</div>
 
       {hint && !loading && posts.length > 1 && (
         <div className="pointer-events-none fixed left-1/2 top-1/2 z-50 -translate-x-1/2 rounded-full border border-white/15 bg-black/50 px-5 py-3 text-sm font-black text-white/85 shadow-2xl backdrop-blur-xl animate-bounce">Pyyhkäise ylös ↑</div>
@@ -103,7 +118,7 @@ export default function FeedPageClean() {
       )}
 
       <main onScroll={handleScroll} className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {loading && <div className="grid h-[100dvh] place-items-center text-sm font-black text-cyan-100/70">Ladataan feediä...</div>}
+        {loading && <div className="grid h-[100dvh] place-items-center text-sm font-black text-cyan-100/70">Ladataan AI-feediä...</div>}
         {!loading && posts.length === 0 && <EmptyFeed />}
         {posts.map((post, index) => <TikTokFeedCard key={post.id} post={post} active={index === activeIndex} user={user} onRefresh={load} />)}
       </main>
@@ -137,14 +152,14 @@ function TikTokFeedCard({ post, active, user, onRefresh }) {
   const [shareToast, setShareToast] = useState(false);
   const replies = useMemo(() => makeBotRepliesForPost(post, post.bot ? 1 : 2), [post.id, post.score, post.votes]);
   const media = getPostMedia(post);
-  const score = Math.round(post.score || post.winner_score || post.ai_score || 0);
+  const score = Math.round(post.backend_score || post.score || post.winner_score || post.ai_score || 0);
   const baseVotes = Number(post.votes || post.vote_count || 0);
   const votes = baseVotes + (liked ? 1 : 0);
   const views = Number(post.watch_time_total || post.views || 0);
   const shares = Number(post.shares || 0) + (shareToast ? 1 : 0);
   const author = post.bot ? post.bot_name : post.display_name || post.username || "Pelaaja";
   const avatar = post.bot ? post.bot_avatar || "🤖" : String(author || "P").slice(0, 1).toUpperCase();
-  const why = whyForYou(post);
+  const why = post.ai_similarity > 0 ? `AI match ${Math.round(post.ai_similarity * 100)}%` : whyForYou(post);
 
   async function likePulse() {
     setLiked(true);
@@ -157,7 +172,7 @@ function TikTokFeedCard({ post, active, user, onRefresh }) {
     setBusyLike(true);
     try {
       await supabase.from("votes").upsert({ post_id: post.id, user_id: user.id, value: 1 }, { onConflict: "user_id,post_id" });
-      await supabase.from("user_events").insert({ user_id: user.id, post_id: post.id, event_type: "feed_like", source: "god_mode_feed", meta: { score } });
+      await supabase.rpc("record_ai_feed_signal", { target_post_id: post.id, event: "feed_like" });
       setTimeout(() => onRefresh?.(), 500);
     } finally {
       setBusyLike(false);
@@ -173,7 +188,7 @@ function TikTokFeedCard({ post, active, user, onRefresh }) {
       else await navigator.clipboard?.writeText(window.location.href);
     } catch {}
     if (user?.id && !post.bot) {
-      supabase.from("user_events").insert({ user_id: user.id, post_id: post.id, event_type: "feed_share", source: "god_mode_feed", meta: { score } });
+      supabase.rpc("record_ai_feed_signal", { target_post_id: post.id, event: "feed_share" });
     }
     setShareToast(true);
     setTimeout(() => setShareToast(false), 1200);
@@ -212,7 +227,7 @@ function TikTokFeedCard({ post, active, user, onRefresh }) {
 
       <section className={`absolute bottom-[112px] left-0 right-0 z-20 px-4 transition-all duration-500 ${active ? "translate-y-0 opacity-100" : "translate-y-5 opacity-80"}`}>
         <div className="max-h-[60dvh] overflow-hidden rounded-[34px] border border-white/18 bg-black/40 p-5 shadow-2xl shadow-black/45 backdrop-blur-2xl">
-          <div className="mb-3 inline-flex rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/85">For You · {why}</div>
+          <div className="mb-3 inline-flex rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/85">AI For You · {why}</div>
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-lg font-black">{avatar}</div>
             <div className="min-w-0 flex-1">
