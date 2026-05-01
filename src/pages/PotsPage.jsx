@@ -8,6 +8,7 @@ import EgoPanel from "../components/EgoPanel";
 import { mergeWithBots } from "../lib/bots";
 import { buildWinnerRace, getWeekId } from "../lib/winnerSystem";
 import { recordWeeklyOutcome } from "../lib/streakSystem";
+import { decorateLeaderboard, recordIdentityResult, getIdentityStory } from "../lib/identitySystem";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
 
@@ -31,13 +32,15 @@ export default function PotsPage() {
 
   const race = useMemo(() => {
     const normalized = mergeWithBots(posts || [], 10);
-    return buildWinnerRace(normalized, { potKey: "weekly", amount: 200 });
+    const result = buildWinnerRace(normalized, { potKey: "weekly", amount: 200 });
+    result.ranked = decorateLeaderboard(result.ranked || []);
+    return result;
   }, [posts]);
 
   const userEntry = useMemo(() => {
     if (!user?.id) return null;
     const currentWeek = getWeekId();
-    return (race?.ranked || []).find((entry) => entry.user_id === user.id && (entry.week_id === currentWeek || entry.weekly_entry || !entry.bot)) || null;
+    return (race?.ranked || []).find((entry) => entry.user_id === user.id && (entry.week_id === currentWeek || !entry.bot)) || null;
   }, [race, user?.id]);
 
   useEffect(() => {
@@ -55,6 +58,8 @@ export default function PotsPage() {
       nearWin,
       score: userEntry?.winner_score || userEntry?.score || 0,
     });
+
+    recordIdentityResult({ winner: race.winner, top3: race.top3 });
 
     if (didWin) {
       setWinnerData({ winner: race.winner, amount: race.amount || 200, race });
@@ -94,23 +99,25 @@ export default function PotsPage() {
         <header className="text-center">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Viikon kilpailu</p>
           <h1 className="mt-2 text-[56px] font-black leading-none tracking-tight">Potit</h1>
-          <p className="mx-auto mt-2 max-w-[300px] text-sm font-bold leading-snug text-white/62">Yksi entry, yksi voittaja ja oma kehitys joka kierroksella.</p>
         </header>
 
         <section className="premium-card mt-6 rounded-[34px] p-5">
           <EgoPanel />
         </section>
 
-        <section className="premium-card mt-4 rounded-[34px] p-5 text-center">
-          <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Viikkopotti</p>
-          <div className="mt-2 text-[64px] font-black leading-none">€{race?.amount || 200}</div>
-          {race?.winner && (
-            <div className="mt-4 rounded-[26px] border border-cyan-100/10 bg-cyan-300/10 p-4 text-left">
-              <p className="text-[10px] font-black uppercase tracking-wide text-cyan-100/60">Nykyinen voittaja</p>
-              <p className="mt-1 text-xl font-black">🏆 {race.winner.bot ? race.winner.bot_name : "Pelaaja"}</p>
-              <p className="mt-1 text-xs font-bold text-white/56">{race.winner.winner_score || race.winner.score || 0} pts</p>
+        <section className="mt-6 space-y-3">
+          {race?.ranked?.slice(0,5).map((entry, i) => (
+            <div key={entry.id} className="p-3 rounded-xl bg-white/5">
+              <div className="flex justify-between">
+                <div>
+                  <div className="font-black">{entry.identity.badge} {entry.identity.alias}</div>
+                  <div className="text-xs text-white/60">{entry.identity.title}</div>
+                </div>
+                <div className="text-right font-black">{entry.winner_score || entry.score}</div>
+              </div>
+              <div className="text-xs text-cyan-200/70 mt-1">{getIdentityStory(entry)}</div>
             </div>
-          )}
+          ))}
         </section>
 
         <div className="mt-4 flex gap-3">
