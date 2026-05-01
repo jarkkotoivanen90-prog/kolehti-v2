@@ -1,0 +1,93 @@
+/* Next Level UX polish for Kolehti feed */
+:root {
+  --feed-card-bottom: max(132px, calc(env(safe-area-inset-bottom) + 118px));
+  --feed-card-max-h: 54dvh;
+}
+
+#root main article {
+  perspective: 1200px;
+  transform-style: preserve-3d;
+}
+
+#root main article > img,
+#root main article > video {
+  filter: saturate(1.08) contrast(1.04);
+  transform-origin: center;
+  will-change: transform, filter;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 {
+  bottom: var(--feed-card-bottom) !important;
+  transform-origin: bottom center;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 > div {
+  max-height: var(--feed-card-max-h) !important;
+  transform: translateY(0) translateZ(36px) !important;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, .48),
+    0 0 34px rgba(14, 165, 255, .16),
+    inset 0 1px 0 rgba(255, 255, 255, .22) !important;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 p {
+  line-height: 1.18 !important;
+  text-wrap: balance;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 [class*="text-[25px]"] {
+  font-size: clamp(22px, 3.55vh, 27px) !important;
+}
+
+#root main article aside button,
+#root main article aside [class*="rounded-full"] {
+  will-change: transform;
+}
+
+#root main article aside button:active {
+  transform: scale(.9) translateY(1px) !important;
+}
+
+#root main article header {
+  backdrop-filter: blur(0px);
+}
+
+#root nav[gesture-nav],
+#root nav.fixed.bottom-\[max\(14px\,env\(safe-area-inset-bottom\)\)\] {
+  will-change: transform, opacity, width;
+}
+
+@media (max-height: 760px) {
+  :root {
+    --feed-card-bottom: max(148px, calc(env(safe-area-inset-bottom) + 132px));
+    --feed-card-max-h: 48dvh;
+  }
+}
+
+@media (min-height: 900px) {
+  :root {
+    --feed-card-bottom: max(150px, calc(env(safe-area-inset-bottom) + 130px));
+    --feed-card-max-h: 56dvh;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #root main article > section.absolute.left-0.right-0.z-20 > div {
+    animation: feedCardBreath 4.8s ease-in-out infinite;
+  }
+
+  #root main article > img,
+  #root main article > video {
+    animation: feedBackgroundDrift 9s ease-in-out infinite;
+  }
+}
+
+@keyframes feedCardBreath {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.045); }
+}
+
+@keyframes feedBackgroundDrift {
+  0%, 100% { transform: scale(1.005); }
+  50% { transform: scale(1.025); }
+}
