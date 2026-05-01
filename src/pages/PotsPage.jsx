@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import AppBottomNav from "../components/AppBottomNav";
 import { haptic } from "../lib/effects";
 import { mergeWithBots, botDrama } from "../lib/bots";
-import { buildWinnerRace, getWinnerReason } from "../lib/winnerSystem";
+import { buildWinnerRace, getWinnerReason, formatTimeLeft } from "../lib/winnerSystem";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
 const panel = "premium-card rounded-[34px] p-5";
@@ -44,6 +44,7 @@ function normalizePost(post, voteMap) {
     shares: Number(post.shares || 0),
     bot: Boolean(post.bot),
     bot_name: post.bot_name,
+    bot_avatar: post.bot_avatar,
     bot_heat: Number(post.bot_heat || 0),
     near_win: Boolean(post.near_win),
   };
@@ -66,13 +67,13 @@ export default function PotsPage() {
     load();
     const channel = supabase
       .channel("pots-four-live-page")
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => handleLive("Uusi postaus mukana poteissa", "success"))
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => handleLive("Ääni muutti leaderboardia", "heavy"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => handleLive("Uusi osallistuminen mukana poteissa", "success"))
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => handleLive("Ääni muutti voittajatilannetta", "heavy"))
       .subscribe();
     const interval = setInterval(() => {
       setLiveTick((v) => (v + 1) % 19);
-      if (Math.random() > 0.45) setReward({ id: Date.now(), text: "Botit nostavat potin painetta" });
-    }, 3200);
+      if (Math.random() > 0.55) setReward({ id: Date.now(), text: "Voittajatilanne päivittyi" });
+    }, 3600);
     return () => { clearInterval(interval); supabase.removeChannel(channel); };
   }, []);
 
@@ -114,7 +115,6 @@ export default function PotsPage() {
       const botPotBoost = Math.round((botActivity * pot.botMultiplier + botHeat * 0.015) * (index + 1));
       const amount = Math.round(pot.base + playerCount * pot.multiplier + realActivity * (index + 1) * 0.12 + botPotBoost + liveBump);
       const activity = realActivity + botActivity;
-
       const race = buildWinnerRace(leaderboard, { potKey: pot.key, amount });
 
       return {
@@ -133,34 +133,129 @@ export default function PotsPage() {
   }, [posts, votes, liveTick]);
 
   const total = potData.reduce((sum, pot) => sum + pot.amount, 0);
-  const drama = potData[0]?.drama;
+  const mainRace = potData.find((p) => p.key === "weekly")?.race || potData[0]?.race;
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
+      <style>{`
+        @keyframes winnerPulse{0%,100%{box-shadow:0 0 0 rgba(34,211,238,0)}50%{box-shadow:0 0 38px rgba(34,211,238,.28)}}
+        @keyframes winnerSweep{0%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+        @keyframes rewardToast{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}
+        .winner-pulse{animation:winnerPulse 2.2s ease-in-out infinite}.winner-sweep{animation:winnerSweep 3.8s linear infinite}.reward-toast{animation:rewardToast 1.7s ease both}
+      `}</style>
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" />
       <div className="fixed inset-0 bg-gradient-to-b from-black/42 via-[#061126]/76 to-black/95" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(21,131,255,.16),transparent_34%)]" />
+
+      {reward && <div className="reward-toast fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">🏆 {reward.text}</div>}
 
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <header className="text-center">
+          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Viikon kilpailu</p>
           <h1 className="mt-2 text-[56px] font-black leading-none text-white">Potit</h1>
+          <p className="mx-auto mt-2 max-w-[290px] text-sm font-bold leading-snug text-white/62">Yksi osallistuminen. Yksi voittaja. Jokainen ääni voi muuttaa kärkeä.</p>
         </header>
 
-        <section className="mt-4 space-y-4">
-          {potData.map((pot) => (
-            <div key={pot.key} className="premium-card p-4">
-              <div className="text-3xl font-black">€{pot.amount}</div>
-
-              {pot.race?.winner && (
-                <div className="mt-3 text-sm text-cyan-200">
-                  🏆 {getWinnerReason(pot.race)}
-                </div>
-              )}
-            </div>
-          ))}
+        <section className={`${panel} mt-6 text-center`}>
+          <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Kaikki potit yhteensä</p>
+          <div className="mt-2 text-[64px] font-black leading-none text-white">€{total}</div>
+          {mainRace?.winner && <WinnerHero race={mainRace} />}
         </section>
+
+        {loading && <div className={`${panel} mt-4 text-center font-black`}>Päivitetään voittajatilannetta...</div>}
+
+        <section className="mt-4 space-y-4">{potData.map((pot) => <PotCard key={pot.key} pot={pot} />)}</section>
+        <div className="mt-4 flex gap-3">
+          <Link data-haptic="success" to="/new" className="flex-1 rounded-[26px] bg-cyan-500 px-4 py-4 text-center font-black text-white">Oma entry</Link>
+          <Link data-haptic="heavy" to="/feed" className="flex-1 rounded-[26px] border border-cyan-100/10 bg-[#030816]/70 px-4 py-4 text-center font-black text-white">Feed</Link>
+        </div>
       </main>
 
       <AppBottomNav />
+    </div>
+  );
+}
+
+function WinnerHero({ race }) {
+  const winner = race.winner;
+  const deadline = race.lockedAt ? formatTimeLeft(new Date(race.lockedAt).getTime() - Date.now()) : "live";
+  return (
+    <div className="winner-pulse relative mt-5 overflow-hidden rounded-[32px] border border-cyan-200/25 bg-[#030816]/75 p-5 text-left">
+      <div className="winner-sweep pointer-events-none absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-cyan-200/10 to-transparent" />
+      <div className="relative flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">Nykyinen voittaja</p>
+          <h2 className="mt-1 text-3xl font-black text-white">🏆 {winner.bot ? winner.bot_name : "Pelaaja"}</h2>
+          <p className="mt-2 line-clamp-3 text-sm font-bold leading-snug text-white/68">{winner.content}</p>
+        </div>
+        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-[24px] border border-cyan-100/15 bg-cyan-300/10 text-xl font-black text-cyan-100">
+          {winner.bot ? winner.bot_avatar || "🤖" : "★"}
+        </div>
+      </div>
+      <div className="relative mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-2xl bg-white/[.055] px-2 py-3"><div className="text-lg font-black">{winner.winner_score}</div><div className="text-[9px] font-black uppercase text-white/42">score</div></div>
+        <div className="rounded-2xl bg-white/[.055] px-2 py-3"><div className="text-lg font-black">{race.gap || 0}</div><div className="text-[9px] font-black uppercase text-white/42">ero</div></div>
+        <div className="rounded-2xl bg-white/[.055] px-2 py-3"><div className="text-lg font-black">{deadline}</div><div className="text-[9px] font-black uppercase text-white/42">jäljellä</div></div>
+      </div>
+      {race.isClose && race.runnerUp && <div className="relative mt-3 rounded-2xl border border-cyan-100/10 bg-cyan-300/10 px-4 py-3 text-xs font-black text-cyan-100">⚡ Near win: {race.runnerUp.bot ? race.runnerUp.bot_name : "Pelaaja"} on vain {race.gap} pisteen päässä</div>}
+    </div>
+  );
+}
+
+function PotCard({ pot }) {
+  return (
+    <article className={panel}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{pot.icon} {pot.title}</p>
+          <div className="mt-2 text-[46px] font-black leading-none text-white">€{pot.amount}</div>
+          <p className="mt-2 text-xs font-bold text-white/58">LIVE +€{pot.liveBump} · bot boost +€{pot.botPotBoost}</p>
+        </div>
+        <div className={`${innerPanel} px-4 py-3 text-center`}>
+          <div className="text-2xl font-black text-white">{pot.fillRate}%</div>
+          <div className="text-[10px] font-black uppercase text-white/45">aktiivisuus</div>
+        </div>
+      </div>
+
+      {pot.race?.winner && <MiniWinner race={pot.race} />}
+
+      <div className="mt-5 flex items-center justify-between gap-3"><h2 className="text-xl font-black">Leaderboard</h2><span className="rounded-full border border-cyan-100/12 bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100">TOP {Math.round(pot.race?.winner?.winner_score || 0)}</span></div>
+      <div className="mt-3 space-y-2">{pot.leaderboard.length ? pot.leaderboard.map((post, index) => <LeaderRow key={`${pot.key}-${post.id}`} post={post} index={index} isWinner={pot.race?.winner?.id === post.id} />) : <div className={`${innerPanel} p-4 text-center text-sm font-black text-white/65`}>Ei vielä osallistujia tässä potissa.</div>}</div>
+    </article>
+  );
+}
+
+function MiniWinner({ race }) {
+  const winner = race.winner;
+  return (
+    <div className="winner-pulse mt-4 rounded-[28px] border border-cyan-200/20 bg-[#041226]/76 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200/68">Voittaja nyt</p>
+          <div className="mt-1 text-lg font-black text-white">🏆 {winner.bot ? winner.bot_name : "Pelaaja"}</div>
+        </div>
+        <div className="rounded-full bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">{winner.winner_score} pts</div>
+      </div>
+      <p className="mt-2 text-xs font-bold text-white/60">{getWinnerReason(race)}</p>
+    </div>
+  );
+}
+
+function LeaderRow({ post, index, isWinner }) {
+  const rank = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
+  return (
+    <div className={`${innerPanel} ${isWinner ? "border-cyan-200/25 bg-cyan-300/10" : ""} p-3`}>
+      <div className="flex items-start gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/[.055] text-sm font-black">{isWinner ? "🏆" : rank}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-black uppercase text-cyan-100/80">{post.bot ? `🤖 ${post.bot_name}` : isWinner ? "Voittaja" : "Haastaja"}</p>
+            <p className="text-xs font-black text-white/55">{Math.round(post.score || post.winner_score || 0)} pts</p>
+          </div>
+          <p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white/78">{post.content}</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black text-white/50"><span>♥ {post.votes}</span><span>AI {Math.round(post.ai_score)}</span><span>👀 {post.watch_time_total}</span><span>↗ {post.shares}</span>{isWinner && <span className="text-cyan-100">winner</span>}</div>
+        </div>
+      </div>
     </div>
   );
 }
