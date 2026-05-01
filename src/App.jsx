@@ -42,13 +42,9 @@ function AppShell() {
     } catch {}
   }, [location.search]);
 
-  const publicPage =
-    location.pathname === "/" ||
-    location.pathname === "/login" ||
-    location.pathname === "/reset";
-
-  const hideNavbar = publicPage;
-  const showGlobalBottomNav = !publicPage;
+  const authPage = location.pathname === "/login" || location.pathname === "/reset";
+  const hideNavbar = location.pathname === "/" || authPage;
+  const showGlobalBottomNav = !authPage;
 
   return (
     <>
