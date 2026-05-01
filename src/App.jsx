@@ -19,6 +19,7 @@ import LeaderboardWarPage from "./pages/LeaderboardWarPage";
 import AuthGate from "./components/auth/AuthGate";
 import Navbar from "./components/Navbar";
 import BrandFX from "./components/BrandFX";
+import AppBottomNav from "./components/AppBottomNav";
 
 function AppShell() {
   const location = useLocation();
@@ -41,10 +42,13 @@ function AppShell() {
     } catch {}
   }, [location.search]);
 
-  const hideNavbar =
+  const publicPage =
     location.pathname === "/" ||
     location.pathname === "/login" ||
     location.pathname === "/reset";
+
+  const hideNavbar = publicPage;
+  const showGlobalBottomNav = !publicPage && location.pathname !== "/feed";
 
   return (
     <>
@@ -68,6 +72,8 @@ function AppShell() {
 
         <Route path="*" element={<HomePage />} />
       </Routes>
+
+      {showGlobalBottomNav && <AppBottomNav floating gesture />}
     </>
   );
 }
