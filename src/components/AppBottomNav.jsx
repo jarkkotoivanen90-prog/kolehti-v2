@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { haptic } from "../lib/effects";
 
@@ -11,8 +12,11 @@ function Icon({ type, active }) {
   return null;
 }
 
-export default function AppBottomNav({ hidden = false, floating = false, onPulse }) {
+export default function AppBottomNav({ hidden = false, floating = false, gesture = false, onPulse }) {
   const location = useLocation();
+  const [expanded, setExpanded] = useState(false);
+  const pressTimer = useRef(null);
+  const touchStartY = useRef(0);
   const items = [
     { to: "/", icon: "home", label: "Koti" },
     { to: "/feed", icon: "feed", label: "Feed" },
@@ -26,28 +30,69 @@ export default function AppBottomNav({ hidden = false, floating = false, onPulse
     onPulse?.();
   }
 
+  function startPress() {
+    if (!gesture || !floating) return;
+    clearTimeout(pressTimer.current);
+    pressTimer.current = setTimeout(() => {
+      setExpanded(true);
+      haptic("heavy");
+    }, 420);
+  }
+
+  function endPress() {
+    clearTimeout(pressTimer.current);
+  }
+
+  function onTouchStart(e) {
+    touchStartY.current = e.touches?.[0]?.clientY || 0;
+    startPress();
+  }
+
+  function onTouchEnd(e) {
+    endPress();
+    const endY = e.changedTouches?.[0]?.clientY || touchStartY.current;
+    const delta = endY - touchStartY.current;
+    if (!gesture || !floating) return;
+    if (delta > 26) {
+      setExpanded(false);
+      haptic("tap");
+    } else if (delta < -26) {
+      setExpanded(true);
+      haptic("tap");
+    }
+  }
+
   if (floating) {
     return (
-      <nav className={`fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-1/2 z-[70] w-[calc(100%-28px)] max-w-[340px] -translate-x-1/2 text-white transition-all duration-300 ${hidden ? "translate-y-[130%] opacity-0" : "translate-y-0 opacity-100"}`}>
-        <div className="relative rounded-full border border-white/14 bg-[#020611]/64 px-3 py-2 shadow-2xl shadow-black/45 backdrop-blur-2xl">
-          <div className="grid grid-cols-5 items-center gap-1 text-center text-[9px] font-black">
+      <nav
+        onMouseDown={startPress}
+        onMouseUp={endPress}
+        onMouseLeave={endPress}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        className={`fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-1/2 z-[70] text-white transition-all duration-300 ${expanded ? "w-[calc(100%-28px)] max-w-[360px]" : "w-[min(276px,calc(100%-72px))] max-w-[276px]"} ${hidden && !expanded ? "translate-y-[94%] opacity-55" : "translate-y-0 opacity-100"} -translate-x-1/2`}
+      >
+        <div className={`relative border border-white/14 bg-[#020611]/64 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 ${expanded ? "rounded-[28px] px-3 py-2.5" : "rounded-full px-3 py-2"}`}>
+          <div className={`grid grid-cols-5 items-center gap-1 text-center font-black transition-all duration-300 ${expanded ? "text-[10px]" : "text-[0px]"}`}>
             {items.map((item) => {
               const active = location.pathname === item.to;
               if (item.fab) {
                 return (
                   <Link key={item.to} to={item.to} onClick={() => pulse("heavy")} className="flex flex-col items-center justify-center text-white">
-                    <div className="grid h-12 w-12 place-items-center rounded-full border border-cyan-100/30 bg-gradient-to-br from-cyan-200 via-sky-400 to-blue-700 text-3xl font-black leading-none shadow-lg shadow-cyan-500/25">+</div>
+                    <div className={`grid place-items-center rounded-full border border-cyan-100/30 bg-gradient-to-br from-cyan-200 via-sky-400 to-blue-700 font-black leading-none shadow-lg shadow-cyan-500/25 transition-all duration-300 ${expanded ? "h-14 w-14 text-4xl" : "h-12 w-12 text-3xl"}`}>+</div>
+                    {expanded && <span className="mt-1 leading-none">Uusi</span>}
                   </Link>
                 );
               }
               return (
                 <Link key={item.to} to={item.to} onClick={() => pulse()} className={`flex flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1.5 ${active ? "bg-cyan-300/12 text-cyan-100" : "text-white/55"}`}>
                   <Icon type={item.icon} active={active} />
-                  <span className="leading-none">{item.label}</span>
+                  {expanded && <span className="leading-none">{item.label}</span>}
                 </Link>
               );
             })}
           </div>
+          {gesture && !expanded && <div className="absolute -top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/28" />}
         </div>
       </nav>
     );
