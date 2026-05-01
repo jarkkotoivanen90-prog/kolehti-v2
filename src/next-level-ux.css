@@ -24,6 +24,20 @@
   background: #020611;
 }
 
+#root main article::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
+  z-index: 7;
+  background:
+    radial-gradient(circle at 50% 36%, transparent 0 38%, rgba(0, 0, 0, .28) 72%, rgba(0, 0, 0, .58) 100%),
+    linear-gradient(100deg, transparent 0%, rgba(139, 238, 255, .08) 42%, transparent 58%);
+  opacity: .72;
+  mix-blend-mode: screen;
+  transform: translateZ(8px);
+}
+
 #root main article::after {
   content: "";
   position: absolute;
@@ -50,8 +64,8 @@
     radial-gradient(circle at 18% 0%, rgba(139, 238, 255, .14), transparent 34%),
     linear-gradient(180deg, rgba(6, 12, 28, .64), rgba(0, 0, 0, .58)) !important;
   box-shadow:
-    0 24px 80px rgba(0, 0, 0, .48),
-    0 0 34px rgba(14, 165, 255, .16),
+    0 28px 90px rgba(0, 0, 0, .52),
+    0 0 42px rgba(14, 165, 255, .18),
     inset 0 1px 0 rgba(255, 255, 255, .22) !important;
 }
 
@@ -168,13 +182,23 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  #root main article::before {
+    animation: cinematicLightSweep 7.8s ease-in-out infinite;
+  }
+
   #root main article > section.absolute.left-0.right-0.z-20 > div {
     animation: feedCardBreath 4.8s ease-in-out infinite;
   }
 
   #root main article > img,
   #root main article > video {
-    animation: feedBackgroundDrift 9s ease-in-out infinite;
+    animation: hyperBackgroundDrift 10s ease-in-out infinite;
+  }
+
+  #root main article header,
+  #root main article aside,
+  #root main article > section.absolute.left-0.right-0.z-20 {
+    animation: cinematicFloat 6s ease-in-out infinite;
   }
 }
 
@@ -186,6 +210,21 @@
 @keyframes feedBackgroundDrift {
   0%, 100% { transform: scale(1.005); }
   50% { transform: scale(1.025); }
+}
+
+@keyframes hyperBackgroundDrift {
+  0%, 100% { transform: scale(1.008) translate3d(0, 0, 0); filter: saturate(1.08) contrast(1.04) brightness(.98); }
+  50% { transform: scale(1.032) translate3d(0, -0.7%, 0); filter: saturate(1.16) contrast(1.08) brightness(1.04); }
+}
+
+@keyframes cinematicFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -2px, 0); }
+}
+
+@keyframes cinematicLightSweep {
+  0%, 100% { transform: translate3d(-2%, 0, 0) rotate(0deg); opacity: .45; }
+  50% { transform: translate3d(2%, -1%, 0) rotate(.4deg); opacity: .78; }
 }
 
 @keyframes rewardPop {
