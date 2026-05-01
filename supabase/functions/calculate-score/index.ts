@@ -1,6 +1,5 @@
 // Supabase Edge Function: calculate-score
-// Deploy with: supabase functions deploy calculate-score
-// Env required in Supabase: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Calculates trusted backend scores and optionally persists them to posts.
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
@@ -37,9 +36,7 @@ function calculateScore(post: Record<string, unknown>, votes: number) {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -49,12 +46,12 @@ serve(async (req) => {
   }
 
   try {
-    const { postIds } = await req.json();
-    const ids = Array.isArray(postIds) ? postIds.filter(Boolean).slice(0, 300) : [];
+    const body = await req.json().catch(() => ({}));
+    const ids = Array.isArray(body.postIds) ? body.postIds.filter(Boolean).slice(0, 300) : [];
+    const persist = body.persist !== false;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
     if (!supabaseUrl || !serviceRoleKey) {
       return new Response(JSON.stringify({ error: "Missing Supabase env" }), {
         status: 500,
@@ -75,7 +72,6 @@ serve(async (req) => {
     const { data: votes, error: votesError } = actualIds.length
       ? await supabase.from("votes").select("post_id,value").in("post_id", actualIds)
       : { data: [], error: null };
-
     if (votesError) throw votesError;
 
     const voteMap = new Map<string, number>();
@@ -84,18 +80,49 @@ serve(async (req) => {
       voteMap.set(postId, (voteMap.get(postId) || 0) + number(vote.value, 1));
     }
 
+    const calculatedAt = new Date().toISOString();
     const scores = (posts || []).map((post: Record<string, unknown>) => {
       const postId = String(post.id);
       const voteCount = voteMap.get(postId) || number(post.votes ?? post.vote_count, 0);
+      const score = calculateScore(post, voteCount);
       return {
         post_id: postId,
+        id: postId,
         votes: voteCount,
-        score: calculateScore(post, voteCount),
-        calculated_at: new Date().toISOString(),
+        vote_count: voteCount,
+        score,
+        winner_score: score,
+        backend_score: score,
+        backend_scored_at: calculatedAt,
+        calculated_at: calculatedAt,
       };
     });
 
-    return new Response(JSON.stringify({ scores }), {
+    let persisted = 0;
+    const persistErrors: string[] = [];
+
+    if (persist) {
+      for (const item of scores) {
+        const { error } = await supabase
+          .from("posts")
+          .update({
+            score: item.score,
+            winner_score: item.score,
+            backend_score: item.score,
+            vote_count: item.vote_count,
+            votes: item.votes,
+            backend_scored_at: item.backend_scored_at,
+          })
+          .eq("id", item.post_id);
+
+        if (error) persistErrors.push(`${item.post_id}: ${error.message}`);
+        else persisted += 1;
+      }
+    }
+
+    const leaderboard = [...scores].sort((a, b) => b.score - a.score);
+
+    return new Response(JSON.stringify({ scores, leaderboard, persisted, persistErrors }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
