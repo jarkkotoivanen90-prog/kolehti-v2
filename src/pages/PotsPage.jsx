@@ -5,6 +5,7 @@ import AppBottomNav from "../components/AppBottomNav";
 import WinnerScreen from "../components/WinnerScreen";
 import LossScreen from "../components/LossScreen";
 import EgoPanel from "../components/EgoPanel";
+import LiveRivalBattle from "../components/LiveRivalBattle";
 import { mergeWithBots } from "../lib/bots";
 import { buildWinnerRace, getWeekId } from "../lib/winnerSystem";
 import { recordWeeklyOutcome } from "../lib/streakSystem";
@@ -52,13 +53,7 @@ export default function PotsPage() {
     const didWin = race.winner.user_id === user.id;
     const nearWin = Boolean(userEntry && race.gap <= 120);
 
-    recordWeeklyOutcome({
-      weekId: race.weekId,
-      outcome: didWin ? "win" : "loss",
-      nearWin,
-      score: userEntry?.winner_score || userEntry?.score || 0,
-    });
-
+    recordWeeklyOutcome({ weekId: race.weekId, outcome: didWin ? "win" : "loss", nearWin });
     recordIdentityResult({ winner: race.winner, top3: race.top3 });
 
     if (didWin) {
@@ -75,35 +70,19 @@ export default function PotsPage() {
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" />
       <div className="fixed inset-0 bg-gradient-to-b from-black/45 via-[#061126]/80 to-black/95" />
 
-      {winnerData && (
-        <WinnerScreen
-          winner={winnerData.winner}
-          amount={winnerData.amount}
-          race={winnerData.race}
-          onClose={() => setWinnerData(null)}
-        />
-      )}
-
-      {lossData && (
-        <LossScreen
-          userEntry={lossData.userEntry}
-          winner={lossData.winner}
-          race={lossData.race}
-          amount={lossData.amount}
-          onClose={() => setLossData(null)}
-          onRevenge={() => { window.location.href = "/new"; }}
-        />
-      )}
+      {winnerData && <WinnerScreen winner={winnerData.winner} amount={winnerData.amount} race={winnerData.race} onClose={() => setWinnerData(null)} />}
+      {lossData && <LossScreen userEntry={lossData.userEntry} winner={lossData.winner} race={lossData.race} amount={lossData.amount} onClose={() => setLossData(null)} onRevenge={() => window.location.href = "/new"} />}
 
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
-        <header className="text-center">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Viikon kilpailu</p>
-          <h1 className="mt-2 text-[56px] font-black leading-none tracking-tight">Potit</h1>
-        </header>
+        <h1 className="text-4xl font-black">Potit</h1>
 
-        <section className="premium-card mt-6 rounded-[34px] p-5">
+        <div className="mt-4">
           <EgoPanel />
-        </section>
+        </div>
+
+        <div className="mt-4">
+          <LiveRivalBattle ranked={race?.ranked || []} userId={user?.id} />
+        </div>
 
         <section className="mt-6 space-y-3">
           {race?.ranked?.slice(0,5).map((entry, i) => (
