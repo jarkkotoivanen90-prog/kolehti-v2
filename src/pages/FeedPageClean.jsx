@@ -98,6 +98,17 @@ export default function FeedPageClean() {
   }
 
   async function load() {
+    const aiFeedV3 = await supabase.rpc("match_ai_feed_v3", {
+      match_count: 80,
+      exploration_rate: 0.12,
+    });
+
+    if (!aiFeedV3.error && Array.isArray(aiFeedV3.data) && aiFeedV3.data.length) {
+      setPosts(mergeWithBots(aiFeedV3.data, 8));
+      setLoading(false);
+      return;
+    }
+
     const aiFeed = await supabase.rpc("match_ai_feed", { match_count: 80 });
 
     if (!aiFeed.error && Array.isArray(aiFeed.data) && aiFeed.data.length) {
@@ -182,7 +193,7 @@ function TikTokFeedCard({ post, active, user, onRefresh, chromeVisible }) {
   const shares = Number(post.shares || 0) + (shareToast ? 1 : 0);
   const author = post.bot ? post.bot_name : post.display_name || post.username || "Pelaaja";
   const avatar = post.bot ? post.bot_avatar || "🤖" : String(author || "P").slice(0, 1).toUpperCase();
-  const why = post.ai_similarity > 0 ? `AI match ${Math.round(post.ai_similarity * 100)}%` : whyForYou(post);
+  const why = post.rank_reason || (post.ai_similarity > 0 ? `AI match ${Math.round(post.ai_similarity * 100)}%` : whyForYou(post));
 
   async function likePulse() {
     setLiked(true);
