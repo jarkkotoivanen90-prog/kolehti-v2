@@ -15,16 +15,8 @@ function getPostMedia(post) {
 
 function learnInterest(userId, postId, signal) {
   if (!postId) return;
-  supabase.rpc("update_user_interest", {
-    target_user_id: userId || null,
-    target_post_id: postId,
-    signal,
-  });
-  supabase.rpc("update_user_brain_cluster", {
-    target_user_id: userId || null,
-    target_post_id: postId,
-    signal,
-  });
+  supabase.rpc("update_user_interest", { target_user_id: userId || null, target_post_id: postId, signal });
+  supabase.rpc("update_user_brain_cluster", { target_user_id: userId || null, target_post_id: postId, signal });
 }
 
 export default function FeedPageClean() {
@@ -43,9 +35,9 @@ export default function FeedPageClean() {
   useEffect(() => {
     load();
     supabase.auth.getUser().then(({ data }) => setUser(data?.user || null));
-    const tickerTimer = setInterval(() => setTicker(botTicker()), 3500);
-    const hintTimer = setTimeout(() => setHint(false), 5200);
-    const startTimer = setTimeout(() => hideChrome(), 4200);
+    const tickerTimer = setInterval(() => setTicker(botTicker()), 5000);
+    const hintTimer = setTimeout(() => setHint(false), 4200);
+    const startTimer = setTimeout(() => hideChrome(), 1700);
     const channel = supabase
       .channel("kolehti-ai-backend-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, load)
@@ -70,7 +62,7 @@ export default function FeedPageClean() {
     setNavVisible(true);
     setChromeVisible(true);
     clearTimeout(chromeTimer.current);
-    chromeTimer.current = setTimeout(() => hideChrome(), 2400);
+    chromeTimer.current = setTimeout(() => hideChrome(), 1800);
   }
 
   useEffect(() => {
@@ -116,22 +108,14 @@ export default function FeedPageClean() {
   }
 
   async function load() {
-    const brainFeed = await supabase.rpc("match_ai_feed_brain_v2", {
-      match_count: 80,
-      exploration_rate: 0.14,
-    });
-
+    const brainFeed = await supabase.rpc("match_ai_feed_brain_v2", { match_count: 80, exploration_rate: 0.14 });
     if (!brainFeed.error && Array.isArray(brainFeed.data) && brainFeed.data.length) {
       setPosts(mergeWithBots(brainFeed.data, 8));
       setLoading(false);
       return;
     }
 
-    const aiFeedV3 = await supabase.rpc("match_ai_feed_v3", {
-      match_count: 80,
-      exploration_rate: 0.12,
-    });
-
+    const aiFeedV3 = await supabase.rpc("match_ai_feed_v3", { match_count: 80, exploration_rate: 0.12 });
     if (!aiFeedV3.error && Array.isArray(aiFeedV3.data) && aiFeedV3.data.length) {
       setPosts(mergeWithBots(aiFeedV3.data, 8));
       setLoading(false);
@@ -139,37 +123,33 @@ export default function FeedPageClean() {
     }
 
     const aiFeed = await supabase.rpc("match_ai_feed", { match_count: 80 });
-
     if (!aiFeed.error && Array.isArray(aiFeed.data) && aiFeed.data.length) {
       setPosts(mergeWithBots(aiFeed.data, 8));
       setLoading(false);
       return;
     }
 
-    const { data } = await supabase
-      .from("posts")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(100);
-
+    const { data } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100);
     setPosts(rankGodFeed(mergeWithBots(data || [], 8)));
     setLoading(false);
   }
+
+  const topReason = posts[activeIndex]?.rank_reason || "For You";
 
   return (
     <div onClick={revealChrome} className="h-[100dvh] overflow-hidden bg-black text-white">
       <PreloadMedia posts={posts} activeIndex={activeIndex} />
 
-      <div className={`pointer-events-none fixed left-4 top-[82px] z-50 flex flex-col gap-1.5 transition-opacity duration-300 ${chromeVisible ? "opacity-100" : "opacity-0"}`}>
-        {posts.slice(0, 7).map((_, i) => (
-          <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? "w-8 bg-cyan-200" : "w-3 bg-white/30"}`} />
+      <div className={`pointer-events-none fixed left-3 top-[72px] z-50 flex flex-col gap-1.5 transition-opacity duration-300 ${chromeVisible ? "opacity-45" : "opacity-0"}`}>
+        {posts.slice(0, 5).map((_, i) => (
+          <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? "w-6 bg-cyan-200/80" : "w-2.5 bg-white/20"}`} />
         ))}
       </div>
 
-      <div className={`pointer-events-none fixed right-4 top-[82px] z-50 rounded-full border border-cyan-300/20 bg-black/42 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/80 backdrop-blur-xl transition-opacity duration-300 ${chromeVisible ? "opacity-100" : "opacity-0"}`}>AI For You</div>
+      <div className={`pointer-events-none fixed left-1/2 top-[78px] z-50 max-w-[78vw] -translate-x-1/2 rounded-full border border-cyan-300/18 bg-black/30 px-3 py-1.5 text-center text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/70 backdrop-blur-xl transition-all duration-300 ${chromeVisible ? "translate-y-0 opacity-80" : "-translate-y-3 opacity-0"}`}>AI · {topReason}</div>
 
       {!chromeVisible && !loading && (
-        <div className="pointer-events-none fixed bottom-[max(18px,env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/10 bg-black/32 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-white/45 backdrop-blur-xl">tap for nav</div>
+        <div className="pointer-events-none fixed bottom-[76px] left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/10 bg-black/26 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white/36 backdrop-blur-xl">tap</div>
       )}
 
       {hint && !loading && posts.length > 1 && (
@@ -177,7 +157,7 @@ export default function FeedPageClean() {
       )}
 
       {ticker && chromeVisible && (
-        <div className="pointer-events-none fixed left-1/2 top-[86px] z-50 w-[calc(100%-132px)] max-w-xs -translate-x-1/2 rounded-full border border-cyan-300/25 bg-[#030816]/72 px-4 py-2 text-center text-xs font-black text-cyan-100 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">🤖 {ticker}</div>
+        <div className="pointer-events-none fixed left-1/2 top-[116px] z-50 max-w-[58vw] -translate-x-1/2 truncate rounded-full border border-cyan-300/16 bg-[#030816]/42 px-3 py-1.5 text-center text-[10px] font-black text-cyan-100/62 shadow-xl shadow-blue-500/5 backdrop-blur-xl">🤖 {ticker}</div>
       )}
 
       <main onScroll={handleScroll} className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -269,17 +249,17 @@ function TikTokFeedCard({ post, active, user, onRefresh, chromeVisible }) {
 
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/8 to-black/95" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_24%,rgba(34,211,238,.20),transparent_34%)]" />
-      <div className={`absolute inset-x-0 top-0 z-10 h-32 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-300 ${chromeVisible ? "opacity-100" : "opacity-0"}`} />
+      <div className={`absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/54 to-transparent transition-opacity duration-300 ${chromeVisible ? "opacity-70" : "opacity-0"}`} />
       <div className="absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-t from-black via-black/68 to-transparent" />
 
       {burst && <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center text-8xl text-pink-200 drop-shadow-2xl animate-[ping_.65s_ease-out_1]">♥</div>}
       {shareToast && <div className="pointer-events-none absolute left-1/2 top-32 z-50 -translate-x-1/2 rounded-full bg-black/60 px-5 py-2 text-xs font-black text-white backdrop-blur-xl">Jaettu / linkki kopioitu</div>}
 
-      <header className={`absolute left-4 right-4 top-6 z-20 flex items-center gap-3 transition-all duration-300 ${chromeVisible ? "translate-y-0 opacity-100" : "-translate-y-5 opacity-0"}`}>
-        <div className="grid h-14 w-14 place-items-center rounded-3xl border border-cyan-200/25 bg-cyan-300/12 text-2xl font-black shadow-2xl shadow-cyan-500/15 backdrop-blur-xl">K</div>
+      <header className={`absolute left-4 right-4 top-4 z-20 flex items-center gap-2.5 transition-all duration-300 ${chromeVisible ? "translate-y-0 opacity-80" : "-translate-y-5 opacity-0"}`}>
+        <div className="grid h-10 w-10 place-items-center rounded-2xl border border-cyan-200/20 bg-cyan-300/10 text-lg font-black shadow-xl shadow-cyan-500/10 backdrop-blur-xl">K</div>
         <div>
-          <div className="text-3xl font-black tracking-tight drop-shadow">KOLEHTI</div>
-          <div className="text-[11px] font-black uppercase tracking-[0.28em] text-cyan-100/75">Äänestä · nosta · voita</div>
+          <div className="text-2xl font-black tracking-tight drop-shadow">KOLEHTI</div>
+          <div className="text-[9px] font-black uppercase tracking-[0.24em] text-cyan-100/55">Äänestä · nosta · voita</div>
         </div>
       </header>
 
