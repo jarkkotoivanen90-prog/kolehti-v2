@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import AppBottomNav from "../components/AppBottomNav";
 import { haptic } from "../lib/effects";
 import { mergeWithBots, botDrama } from "../lib/bots";
+import { buildWinnerRace, getWinnerReason } from "../lib/winnerSystem";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
 const panel = "premium-card rounded-[34px] p-5";
@@ -113,12 +114,16 @@ export default function PotsPage() {
       const botPotBoost = Math.round((botActivity * pot.botMultiplier + botHeat * 0.015) * (index + 1));
       const amount = Math.round(pot.base + playerCount * pot.multiplier + realActivity * (index + 1) * 0.12 + botPotBoost + liveBump);
       const activity = realActivity + botActivity;
+
+      const race = buildWinnerRace(leaderboard, { potKey: pot.key, amount });
+
       return {
         ...pot,
         amount,
         players: playerCount,
         bots: botPosts.length,
         leaderboard,
+        race,
         fillRate: Math.min(100, Math.max(8, Math.round(playerCount + activity / 2))),
         liveBump,
         botPotBoost,
@@ -132,58 +137,30 @@ export default function PotsPage() {
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
-      <style>{`@keyframes livePop{0%{transform:scale(.985);opacity:.78}50%{transform:scale(1.012);opacity:1}100%{transform:scale(1);opacity:1}}@keyframes rewardToast{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}.live-pop{animation:livePop .42s ease both}.reward-toast{animation:rewardToast 1.7s ease both}`}</style>
-      <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" loading="eager" decoding="async" />
+      <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" />
       <div className="fixed inset-0 bg-gradient-to-b from-black/42 via-[#061126]/76 to-black/95" />
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(21,131,255,.13),transparent_34%)]" />
-      {reward && <div className="reward-toast fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">🤖 {reward.text}</div>}
+
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <header className="text-center">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Live-palkinnot</p>
-          <h1 className="mt-2 text-[56px] font-black leading-none tracking-tight text-white">Potit</h1>
-          <p className="mx-auto mt-2 max-w-[290px] text-sm font-bold leading-snug text-white/62">Botit nostavat painetta, pelaajat ratkaisevat leaderboardin.</p>
+          <h1 className="mt-2 text-[56px] font-black leading-none text-white">Potit</h1>
         </header>
-        <section className={`${panel} mt-6 text-center`}>
-          <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Kaikki potit yhteensä</p>
-          <div key={total} className="live-pop mt-2 text-[64px] font-black leading-none text-white">€{total}</div>
-          <p className="mt-2 text-sm font-bold text-white/62">{potData[0]?.players || 1} osallistujaa · {potData[0]?.bots || 0} bottia nostamassa painetta</p>
-          {drama && <div className={`${innerPanel} mt-4 p-3 text-left text-xs font-black text-cyan-100`}><div>{drama.title}</div><div className="mt-1 text-white/70">{drama.text}</div></div>}
+
+        <section className="mt-4 space-y-4">
+          {potData.map((pot) => (
+            <div key={pot.key} className="premium-card p-4">
+              <div className="text-3xl font-black">€{pot.amount}</div>
+
+              {pot.race?.winner && (
+                <div className="mt-3 text-sm text-cyan-200">
+                  🏆 {getWinnerReason(pot.race)}
+                </div>
+              )}
+            </div>
+          ))}
         </section>
-        {loading && <div className={`${panel} mt-4 text-center font-black`}>Päivitetään potteja...</div>}
-        <section className="mt-4 space-y-4">{potData.map((pot) => <PotCard key={pot.key} pot={pot} />)}</section>
-        <div className="mt-4 flex gap-3">
-          <Link data-haptic="success" to="/new" className="flex-1 rounded-[26px] bg-cyan-500 px-4 py-4 text-center font-black text-white">Luo postaus</Link>
-          <Link data-haptic="heavy" to="/feed" className="flex-1 rounded-[26px] border border-cyan-100/10 bg-[#030816]/70 px-4 py-4 text-center font-black text-white">Feed</Link>
-        </div>
       </main>
+
       <AppBottomNav />
     </div>
   );
-}
-
-function PotCard({ pot }) {
-  const top = pot.leaderboard[0];
-  return (
-    <article className={panel}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-black uppercase tracking-wide text-cyan-200">{pot.icon} {pot.title}</p>
-          <div key={`${pot.key}-${pot.amount}`} className="live-pop mt-2 text-[46px] font-black leading-none text-white">€{pot.amount}</div>
-          <p className="mt-2 text-xs font-bold text-white/58">LIVE +€{pot.liveBump} · bot boost +€{pot.botPotBoost}</p>
-        </div>
-        <div className={`${innerPanel} px-4 py-3 text-center`}>
-          <div className="text-2xl font-black text-white">{pot.fillRate}%</div>
-          <div className="text-[10px] font-black uppercase text-white/45">aktiivisuus</div>
-        </div>
-      </div>
-      <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/45"><div className="h-full rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500" style={{ width: `${pot.fillRate}%` }} /></div>
-      <div className="mt-5 flex items-center justify-between gap-3"><h2 className="text-xl font-black">Leaderboard</h2>{top && <span className="rounded-full border border-cyan-100/12 bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100">TOP {Math.round(top.score)}</span>}</div>
-      <div className="mt-3 space-y-2">{pot.leaderboard.length ? pot.leaderboard.map((post, index) => <LeaderRow key={`${pot.key}-${post.id}`} post={post} index={index} />) : <div className={`${innerPanel} p-4 text-center text-sm font-black text-white/65`}>Ei vielä osallistujia tässä potissa.</div>}</div>
-    </article>
-  );
-}
-
-function LeaderRow({ post, index }) {
-  const rank = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
-  return <div className={`${innerPanel} p-3`}><div className="flex items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/[.055] text-sm font-black">{rank}</div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="text-[10px] font-black uppercase text-cyan-100/80">{post.bot ? `🤖 ${post.bot_name}` : index === 0 ? "Johtaja" : "Haastaja"}</p><p className="text-xs font-black text-white/55">{Math.round(post.score)} pts</p></div><p className="mt-1 line-clamp-2 text-sm font-bold leading-snug text-white/78">{post.content}</p><div className="mt-2 flex flex-wrap gap-2 text-[10px] font-black text-white/50"><span>♥ {post.votes}</span><span>AI {Math.round(post.ai_score)}</span><span>👀 {post.watch_time_total}</span><span>↗ {post.shares}</span>{post.near_win && <span className="text-cyan-100">near win</span>}</div></div></div></div>;
 }
