@@ -25,7 +25,6 @@ function saveNavMemory(memory) {
 function predictNext(pathname, items) {
   const memory = readNavMemory();
   const scores = Object.fromEntries(items.map((item) => [item.to, Number(memory[item.to] || 0)]));
-
   const flowBoosts = {
     "/": { "/feed": 8, "/new": 3 },
     "/feed": { "/new": 9, "/pots": 5, "/profile": 2 },
@@ -38,11 +37,9 @@ function predictNext(pathname, items) {
     "/growth": { "/new": 6, "/feed": 5 },
     "/war": { "/pots": 8, "/feed": 3 },
   };
-
   const boosts = flowBoosts[pathname] || flowBoosts["/"];
   for (const [target, boost] of Object.entries(boosts)) scores[target] = Number(scores[target] || 0) + boost;
   delete scores[pathname];
-
   return Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || "/feed";
 }
 
@@ -59,6 +56,10 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     { to: "/profile", icon: "profile", label: "Profiili" },
   ];
   const suggestedPath = useMemo(() => predictNext(location.pathname, items), [location.pathname]);
+
+  // Unified nav rule: only the floating global nav is allowed to render.
+  // Old page-level non-floating nav usages become no-ops to prevent duplicates.
+  if (!floating) return null;
 
   function rememberClick(to) {
     const memory = readNavMemory();
@@ -81,9 +82,7 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     }, 420);
   }
 
-  function endPress() {
-    clearTimeout(pressTimer.current);
-  }
+  function endPress() { clearTimeout(pressTimer.current); }
 
   function onTouchStart(e) {
     touchStartY.current = e.touches?.[0]?.clientY || 0;
@@ -95,82 +94,44 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     const endY = e.changedTouches?.[0]?.clientY || touchStartY.current;
     const delta = endY - touchStartY.current;
     if (!gesture || !floating) return;
-    if (delta > 26) {
-      setExpanded(false);
-      haptic("tap");
-    } else if (delta < -26) {
-      setExpanded(true);
-      haptic("tap");
-    }
-  }
-
-  if (floating) {
-    return (
-      <nav
-        onMouseDown={startPress}
-        onMouseUp={endPress}
-        onMouseLeave={endPress}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        className={`fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-1/2 z-[70] text-white transition-all duration-300 ${expanded ? "w-[calc(100%-28px)] max-w-[360px]" : "w-[min(276px,calc(100%-72px))] max-w-[276px]"} ${hidden && !expanded ? "translate-y-[94%] opacity-55" : "translate-y-0 opacity-100"} -translate-x-1/2`}
-      >
-        <div className={`relative border border-white/14 bg-[#020611]/64 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 ${expanded ? "rounded-[28px] px-3 py-2.5" : "rounded-full px-3 py-2"}`}>
-          {expanded && <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full border border-cyan-200/16 bg-black/42 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-cyan-100/62 backdrop-blur-xl">AI next</div>}
-          <div className={`grid grid-cols-5 items-center gap-1 text-center font-black transition-all duration-300 ${expanded ? "text-[10px]" : "text-[0px]"}`}>
-            {items.map((item) => {
-              const active = location.pathname === item.to;
-              const suggested = !active && suggestedPath === item.to;
-              if (item.fab) {
-                return (
-                  <Link key={item.to} to={item.to} onClick={() => pulse("heavy", item.to)} className="relative flex flex-col items-center justify-center text-white">
-                    {suggested && <span className="absolute -top-1 h-2 w-2 rounded-full bg-cyan-200 shadow-[0_0_14px_rgba(139,238,255,.85)]" />}
-                    <div className={`grid place-items-center rounded-full border font-black leading-none shadow-lg transition-all duration-300 ${suggested ? "border-cyan-100/60 bg-gradient-to-br from-white via-cyan-200 to-blue-600 shadow-cyan-300/45" : "border-cyan-100/30 bg-gradient-to-br from-cyan-200 via-sky-400 to-blue-700 shadow-cyan-500/25"} ${expanded ? "h-14 w-14 text-4xl" : "h-12 w-12 text-3xl"}`}>+</div>
-                    {expanded && <span className="mt-1 leading-none">Uusi</span>}
-                  </Link>
-                );
-              }
-              return (
-                <Link key={item.to} to={item.to} onClick={() => pulse("tap", item.to)} className={`relative flex flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1.5 ${active ? "bg-cyan-300/12 text-cyan-100" : suggested ? "bg-cyan-300/8 text-cyan-100/85" : "text-white/55"}`}>
-                  {suggested && <span className="absolute -top-0.5 right-2 h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_12px_rgba(139,238,255,.85)]" />}
-                  <Icon type={item.icon} active={active} suggested={suggested} />
-                  {expanded && <span className="leading-none">{item.label}</span>}
-                </Link>
-              );
-            })}
-          </div>
-          {gesture && !expanded && <div className="absolute -top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/28" />}
-        </div>
-      </nav>
-    );
+    if (delta > 26) { setExpanded(false); haptic("tap"); }
+    else if (delta < -26) { setExpanded(true); haptic("tap"); }
   }
 
   return (
-    <nav className={`fixed bottom-0 left-0 right-0 z-[70] mx-auto max-w-md px-5 pb-[max(14px,env(safe-area-inset-bottom))] text-white transition-transform duration-300 ${hidden ? "translate-y-[120%]" : "translate-y-0"}`}>
-      <div className="kolehti-bottom-shell relative rounded-[30px] px-4 pb-4 pt-3">
-        <div className="grid grid-cols-5 items-end text-center text-[11px] font-black">
+    <nav
+      onMouseDown={startPress}
+      onMouseUp={endPress}
+      onMouseLeave={endPress}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      className={`fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-1/2 z-[70] text-white transition-all duration-300 ${expanded ? "w-[calc(100%-28px)] max-w-[360px]" : "w-[min(276px,calc(100%-72px))] max-w-[276px]"} ${hidden && !expanded ? "translate-y-[94%] opacity-55" : "translate-y-0 opacity-100"} -translate-x-1/2`}
+    >
+      <div className={`relative border border-white/14 bg-[#020611]/64 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 ${expanded ? "rounded-[28px] px-3 py-2.5" : "rounded-full px-3 py-2"}`}>
+        {expanded && <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full border border-cyan-200/16 bg-black/42 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-cyan-100/62 backdrop-blur-xl">AI next</div>}
+        <div className={`grid grid-cols-5 items-center gap-1 text-center font-black transition-all duration-300 ${expanded ? "text-[10px]" : "text-[0px]"}`}>
           {items.map((item) => {
             const active = location.pathname === item.to;
             const suggested = !active && suggestedPath === item.to;
             if (item.fab) {
               return (
-                <Link key={item.to} to={item.to} onClick={() => pulse("heavy", item.to)} className="relative -mt-10 flex flex-col items-center text-white">
+                <Link key={item.to} to={item.to} onClick={() => pulse("heavy", item.to)} className="relative flex flex-col items-center justify-center text-white">
                   {suggested && <span className="absolute -top-1 h-2 w-2 rounded-full bg-cyan-200 shadow-[0_0_14px_rgba(139,238,255,.85)]" />}
-                  <div className="grid h-[78px] w-[78px] place-items-center rounded-full border-[6px] border-[#061126] bg-gradient-to-br from-cyan-100 via-sky-400 to-blue-700 text-[54px] font-black leading-none shadow-lg shadow-blue-500/25">+</div>
-                  <div className="mt-1">{item.label}</div>
+                  <div className={`grid place-items-center rounded-full border font-black leading-none shadow-lg transition-all duration-300 ${suggested ? "border-cyan-100/60 bg-gradient-to-br from-white via-cyan-200 to-blue-600 shadow-cyan-300/45" : "border-cyan-100/30 bg-gradient-to-br from-cyan-200 via-sky-400 to-blue-700 shadow-cyan-500/25"} ${expanded ? "h-14 w-14 text-4xl" : "h-12 w-12 text-3xl"}`}>+</div>
+                  {expanded && <span className="mt-1 leading-none">Uusi</span>}
                 </Link>
               );
             }
             return (
-              <Link key={item.to} to={item.to} onClick={() => pulse("tap", item.to)} className={`relative flex flex-col items-center gap-1 ${active ? "text-cyan-200" : suggested ? "text-cyan-100/80" : "text-white/48"}`}>
-                {suggested && <span className="absolute -top-1 h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_12px_rgba(139,238,255,.85)]" />}
-                <div className={`grid h-10 w-10 place-items-center rounded-2xl border ${active ? "border-cyan-200/18 bg-cyan-300/10 shadow-[0_0_18px_rgba(125,220,255,.16)]" : suggested ? "border-cyan-200/16 bg-cyan-300/8 shadow-[0_0_14px_rgba(125,220,255,.12)]" : "border-white/5 bg-white/[.035]"}`}>
-                  <Icon type={item.icon} active={active} suggested={suggested} />
-                </div>
-                <div>{item.label}</div>
+              <Link key={item.to} to={item.to} onClick={() => pulse("tap", item.to)} className={`relative flex flex-col items-center justify-center gap-0.5 rounded-full px-1 py-1.5 ${active ? "bg-cyan-300/12 text-cyan-100" : suggested ? "bg-cyan-300/8 text-cyan-100/85" : "text-white/55"}`}>
+                {suggested && <span className="absolute -top-0.5 right-2 h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_12px_rgba(139,238,255,.85)]" />}
+                <Icon type={item.icon} active={active} suggested={suggested} />
+                {expanded && <span className="leading-none">{item.label}</span>}
               </Link>
             );
           })}
         </div>
+        {gesture && !expanded && <div className="absolute -top-2 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/28" />}
       </div>
     </nav>
   );
