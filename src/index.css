@@ -319,3 +319,16 @@ nav, header, section, article, button, a { isolation: isolate; }
 
 svg path[fill="white"], svg text[fill="white"] { filter: drop-shadow(0 0 8px rgba(255,255,255,.22)); }
 [class*="shadow-cyan"], [class*="shadow-blue"] { filter: saturate(1.12); }
+
+/* Feed full-screen placement fix */
+#root main article > section.absolute.left-0.right-0.z-20 {
+  bottom: 132px !important;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 > div {
+  max-height: 54dvh !important;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 p {
+  line-height: 1.18 !important;
+}
