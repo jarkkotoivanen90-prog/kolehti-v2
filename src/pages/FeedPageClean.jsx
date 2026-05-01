@@ -12,32 +12,63 @@ function getPostMedia(post) {
   return { url, type };
 }
 
+function rankFeed(posts = []) {
+  return [...posts].sort((a, b) => {
+    const scoreA = Number(a.boost_score || 0) * 4 + Number(a.ai_score || a.score || 0) + Number(a.votes || 0) * 10 + Number(a.views || 0) * 0.8;
+    const scoreB = Number(b.boost_score || 0) * 4 + Number(b.ai_score || b.score || 0) + Number(b.votes || 0) * 10 + Number(b.views || 0) * 0.8;
+    return scoreB - scoreA;
+  });
+}
+
 export default function FeedPageClean() {
   const [posts, setPosts] = useState([]);
   const [ticker, setTicker] = useState("");
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
-  const feedRef = useRef(null);
+  const [user, setUser] = useState(null);
+  const [hint, setHint] = useState(true);
+  const seenRef = useRef({});
 
   useEffect(() => {
     load();
+    supabase.auth.getUser().then(({ data }) => setUser(data?.user || null));
     const t = setInterval(() => setTicker(botTicker()), 3500);
+    const hintTimer = setTimeout(() => setHint(false), 5200);
     const channel = supabase
-      .channel("kolehti-tiktok-feed-polished")
+      .channel("kolehti-ultra-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, load)
       .subscribe();
 
     return () => {
       clearInterval(t);
+      clearTimeout(hintTimer);
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    const post = posts[activeIndex];
+    if (!post?.id || post.bot || seenRef.current[post.id]) return;
+    seenRef.current[post.id] = true;
+    const timer = setTimeout(() => {
+      supabase.from("user_events").insert({
+        user_id: user?.id || null,
+        post_id: post.id,
+        event_type: "feed_view",
+        source: "ultra_feed",
+        meta: { activeIndex },
+      });
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [activeIndex, posts, user?.id]);
 
   function handleScroll(e) {
     const height = window.innerHeight || 1;
     const next = Math.round(e.currentTarget.scrollTop / height);
     if (next !== activeIndex) {
       setActiveIndex(next);
+      setHint(false);
       haptic("tap");
     }
   }
@@ -47,35 +78,48 @@ export default function FeedPageClean() {
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(80);
 
-    setPosts(mergeWithBots(data || [], 8));
+    setPosts(rankFeed(mergeWithBots(data || [], 8)));
     setLoading(false);
   }
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-black text-white">
+      <PreloadMedia posts={posts} activeIndex={activeIndex} />
+
       <div className="pointer-events-none fixed left-4 top-[82px] z-50 flex flex-col gap-1.5">
-        {posts.slice(0, 6).map((_, i) => (
+        {posts.slice(0, 7).map((_, i) => (
           <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? "w-8 bg-cyan-200" : "w-3 bg-white/30"}`} />
         ))}
       </div>
 
+      {hint && !loading && posts.length > 1 && (
+        <div className="pointer-events-none fixed left-1/2 top-1/2 z-50 -translate-x-1/2 rounded-full border border-white/15 bg-black/50 px-5 py-3 text-sm font-black text-white/85 shadow-2xl backdrop-blur-xl animate-bounce">
+          Pyyhkäise ylös ↑
+        </div>
+      )}
+
       {ticker && (
-        <div className="pointer-events-none fixed left-1/2 top-[86px] z-50 w-[calc(100%-96px)] max-w-xs -translate-x-1/2 rounded-full border border-cyan-300/25 bg-[#030816]/72 px-4 py-2 text-center text-xs font-black text-cyan-100 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
+        <div className="pointer-events-none fixed left-1/2 top-[86px] z-50 w-[calc(100%-104px)] max-w-xs -translate-x-1/2 rounded-full border border-cyan-300/25 bg-[#030816]/72 px-4 py-2 text-center text-xs font-black text-cyan-100 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
           🤖 {ticker}
         </div>
       )}
 
-      <main ref={feedRef} onScroll={handleScroll} className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <main onScroll={handleScroll} className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {loading && <div className="grid h-[100dvh] place-items-center text-sm font-black text-cyan-100/70">Ladataan feediä...</div>}
         {!loading && posts.length === 0 && <EmptyFeed />}
-        {posts.map((post, index) => <TikTokFeedCard key={post.id} post={post} active={index === activeIndex} />)}
+        {posts.map((post, index) => <TikTokFeedCard key={post.id} post={post} active={index === activeIndex} user={user} onRefresh={load} />)}
       </main>
 
       <AppBottomNav />
     </div>
   );
+}
+
+function PreloadMedia({ posts, activeIndex }) {
+  const next = posts.slice(activeIndex + 1, activeIndex + 3).map(getPostMedia).filter((m) => m.url && m.type === "image");
+  return <>{next.map((m) => <img key={m.url} src={m.url} alt="" className="hidden" />)}</>;
 }
 
 function EmptyFeed() {
@@ -90,9 +134,11 @@ function EmptyFeed() {
   );
 }
 
-function TikTokFeedCard({ post, active }) {
+function TikTokFeedCard({ post, active, user, onRefresh }) {
   const [liked, setLiked] = useState(false);
   const [burst, setBurst] = useState(false);
+  const [busyLike, setBusyLike] = useState(false);
+  const [shareToast, setShareToast] = useState(false);
   const replies = useMemo(() => makeBotRepliesForPost(post, post.bot ? 1 : 2), [post.id, post.score, post.votes]);
   const media = getPostMedia(post);
   const score = Math.round(post.score || post.winner_score || post.ai_score || 0);
@@ -103,19 +149,39 @@ function TikTokFeedCard({ post, active }) {
   const author = post.bot ? post.bot_name : post.display_name || post.username || "Pelaaja";
   const avatar = post.bot ? post.bot_avatar || "🤖" : String(author || "P").slice(0, 1).toUpperCase();
 
-  function likePulse() {
+  async function likePulse() {
     setLiked(true);
     setBurst(true);
     haptic("heavy");
     setTimeout(() => setBurst(false), 650);
+
+    if (!user?.id || post.bot || busyLike) return;
+    setBusyLike(true);
+    try {
+      await supabase.from("votes").upsert({ post_id: post.id, user_id: user.id, value: 1 }, { onConflict: "user_id,post_id" });
+      setTimeout(() => onRefresh?.(), 500);
+    } finally {
+      setBusyLike(false);
+    }
+  }
+
+  async function sharePost() {
+    haptic("tap");
+    const text = `${post.content}\n\nKolehti`;
+    try {
+      if (navigator.share) await navigator.share({ title: "Kolehti", text, url: window.location.href });
+      else await navigator.clipboard?.writeText(window.location.href);
+    } catch {}
+    setShareToast(true);
+    setTimeout(() => setShareToast(false), 1200);
   }
 
   return (
     <article onDoubleClick={likePulse} className="relative h-[100dvh] snap-start overflow-hidden bg-[#050816]">
       {media.type === "video" && media.url ? (
-        <video src={media.url} className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ${active ? "scale-100" : "scale-105"}`} autoPlay={active} muted loop playsInline />
+        <video src={media.url} className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ${active ? "scale-100" : "scale-105"}`} autoPlay={active} muted loop playsInline preload={active ? "auto" : "metadata"} />
       ) : (
-        <img src={media.url || FALLBACK_BG} alt="" className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ${active ? "scale-100" : "scale-105"}`} loading="lazy" decoding="async" />
+        <img src={media.url || FALLBACK_BG} alt="" className={`absolute inset-0 h-full w-full object-cover transition-transform duration-700 ${active ? "scale-100" : "scale-105"}`} loading={active ? "eager" : "lazy"} decoding="async" />
       )}
 
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/8 to-black/95" />
@@ -123,7 +189,8 @@ function TikTokFeedCard({ post, active }) {
       <div className="absolute inset-x-0 top-0 z-10 h-32 bg-gradient-to-b from-black/80 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-t from-black via-black/68 to-transparent" />
 
-      {burst && <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center text-8xl drop-shadow-2xl animate-[ping_.65s_ease-out_1]">♥</div>}
+      {burst && <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center text-8xl text-pink-200 drop-shadow-2xl animate-[ping_.65s_ease-out_1]">♥</div>}
+      {shareToast && <div className="pointer-events-none absolute left-1/2 top-32 z-50 -translate-x-1/2 rounded-full bg-black/60 px-5 py-2 text-xs font-black text-white backdrop-blur-xl">Jaettu / linkki kopioitu</div>}
 
       <header className="absolute left-4 right-4 top-6 z-20 flex items-center gap-3">
         <div className="grid h-14 w-14 place-items-center rounded-3xl border border-cyan-200/25 bg-cyan-300/12 text-2xl font-black shadow-2xl shadow-cyan-500/15 backdrop-blur-xl">K</div>
@@ -136,7 +203,7 @@ function TikTokFeedCard({ post, active }) {
       <aside className="absolute bottom-[168px] right-3 z-30 flex flex-col items-center gap-3">
         <button type="button" onClick={likePulse} className="transition active:scale-90"><ActionBubble icon="♥" label={votes || 0} active={liked} /></button>
         <ActionBubble icon="👀" label={views || 0} />
-        <ActionBubble icon="↗" label={shares || 0} />
+        <button type="button" onClick={sharePost} className="transition active:scale-90"><ActionBubble icon="↗" label={shares || 0} /></button>
         <ActionBubble icon="AI" label={score} small />
       </aside>
 
