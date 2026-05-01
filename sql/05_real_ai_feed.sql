@@ -22,11 +22,13 @@ create table if not exists public.user_interest_vectors (
 alter table public.post_embeddings enable row level security;
 alter table public.user_interest_vectors enable row level security;
 
-create policy if not exists "post embeddings are readable"
+drop policy if exists "post embeddings are readable" on public.post_embeddings;
+create policy "post embeddings are readable"
   on public.post_embeddings for select
   using (true);
 
-create policy if not exists "users can read own interest vector"
+drop policy if exists "users can read own interest vector" on public.user_interest_vectors;
+create policy "users can read own interest vector"
   on public.user_interest_vectors for select
   to authenticated
   using (user_id = auth.uid());
@@ -47,10 +49,6 @@ returns table (
   votes integer,
   views integer,
   boost_score numeric,
-  media_url text,
-  image_url text,
-  video_url text,
-  media_type text,
   created_at timestamptz,
   ai_similarity double precision,
   backend_score double precision
@@ -74,10 +72,6 @@ as $$
       p.votes,
       p.views,
       p.boost_score,
-      case when exists (select 1 from information_schema.columns where table_schema='public' and table_name='posts' and column_name='media_url') then null::text else null::text end as media_url,
-      case when exists (select 1 from information_schema.columns where table_schema='public' and table_name='posts' and column_name='image_url') then null::text else null::text end as image_url,
-      case when exists (select 1 from information_schema.columns where table_schema='public' and table_name='posts' and column_name='video_url') then null::text else null::text end as video_url,
-      case when exists (select 1 from information_schema.columns where table_schema='public' and table_name='posts' and column_name='media_type') then null::text else null::text end as media_type,
       p.created_at,
       coalesce(1 - (pe.embedding <=> (select embedding from profile)), 0)::double precision as ai_similarity,
       (
