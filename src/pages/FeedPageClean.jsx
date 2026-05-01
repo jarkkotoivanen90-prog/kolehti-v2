@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import AppBottomNav from "../components/AppBottomNav";
 import { mergeWithBots, botTicker, makeBotRepliesForPost } from "../lib/bots";
 import { haptic } from "../lib/effects";
+import { rankGodFeed, saveFeedSignal, whyForYou } from "../lib/godFeed";
 
 const FALLBACK_BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1400";
 
@@ -10,14 +11,6 @@ function getPostMedia(post) {
   const url = post?.video_url || post?.image_url || post?.media_url || "";
   const type = post?.media_type || (/\.(mp4|webm|mov)(\?|$)/i.test(url) ? "video" : url ? "image" : null);
   return { url, type };
-}
-
-function rankFeed(posts = []) {
-  return [...posts].sort((a, b) => {
-    const scoreA = Number(a.boost_score || 0) * 4 + Number(a.ai_score || a.score || 0) + Number(a.votes || 0) * 10 + Number(a.views || 0) * 0.8;
-    const scoreB = Number(b.boost_score || 0) * 4 + Number(b.ai_score || b.score || 0) + Number(b.votes || 0) * 10 + Number(b.views || 0) * 0.8;
-    return scoreB - scoreA;
-  });
 }
 
 export default function FeedPageClean() {
@@ -28,20 +21,21 @@ export default function FeedPageClean() {
   const [user, setUser] = useState(null);
   const [hint, setHint] = useState(true);
   const seenRef = useRef({});
+  const lastIndexRef = useRef(0);
 
   useEffect(() => {
     load();
     supabase.auth.getUser().then(({ data }) => setUser(data?.user || null));
-    const t = setInterval(() => setTicker(botTicker()), 3500);
+    const tickerTimer = setInterval(() => setTicker(botTicker()), 3500);
     const hintTimer = setTimeout(() => setHint(false), 5200);
     const channel = supabase
-      .channel("kolehti-ultra-feed")
+      .channel("kolehti-god-mode-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, load)
       .subscribe();
 
     return () => {
-      clearInterval(t);
+      clearInterval(tickerTimer);
       clearTimeout(hintTimer);
       supabase.removeChannel(channel);
     };
@@ -52,12 +46,13 @@ export default function FeedPageClean() {
     if (!post?.id || post.bot || seenRef.current[post.id]) return;
     seenRef.current[post.id] = true;
     const timer = setTimeout(() => {
+      saveFeedSignal(post, "views");
       supabase.from("user_events").insert({
         user_id: user?.id || null,
         post_id: post.id,
         event_type: "feed_view",
-        source: "ultra_feed",
-        meta: { activeIndex },
+        source: "god_mode_feed",
+        meta: { activeIndex, media: Boolean(getPostMedia(post).url) },
       });
     }, 1200);
     return () => clearTimeout(timer);
@@ -67,6 +62,9 @@ export default function FeedPageClean() {
     const height = window.innerHeight || 1;
     const next = Math.round(e.currentTarget.scrollTop / height);
     if (next !== activeIndex) {
+      const previous = posts[lastIndexRef.current];
+      if (previous && Math.abs(next - lastIndexRef.current) >= 1) saveFeedSignal(previous, "skips");
+      lastIndexRef.current = next;
       setActiveIndex(next);
       setHint(false);
       haptic("tap");
@@ -78,9 +76,9 @@ export default function FeedPageClean() {
       .from("posts")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(80);
+      .limit(100);
 
-    setPosts(rankFeed(mergeWithBots(data || [], 8)));
+    setPosts(rankGodFeed(mergeWithBots(data || [], 8)));
     setLoading(false);
   }
 
@@ -94,16 +92,14 @@ export default function FeedPageClean() {
         ))}
       </div>
 
+      <div className="pointer-events-none fixed right-4 top-[82px] z-50 rounded-full border border-cyan-300/20 bg-black/42 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/80 backdrop-blur-xl">For You</div>
+
       {hint && !loading && posts.length > 1 && (
-        <div className="pointer-events-none fixed left-1/2 top-1/2 z-50 -translate-x-1/2 rounded-full border border-white/15 bg-black/50 px-5 py-3 text-sm font-black text-white/85 shadow-2xl backdrop-blur-xl animate-bounce">
-          Pyyhkäise ylös ↑
-        </div>
+        <div className="pointer-events-none fixed left-1/2 top-1/2 z-50 -translate-x-1/2 rounded-full border border-white/15 bg-black/50 px-5 py-3 text-sm font-black text-white/85 shadow-2xl backdrop-blur-xl animate-bounce">Pyyhkäise ylös ↑</div>
       )}
 
       {ticker && (
-        <div className="pointer-events-none fixed left-1/2 top-[86px] z-50 w-[calc(100%-104px)] max-w-xs -translate-x-1/2 rounded-full border border-cyan-300/25 bg-[#030816]/72 px-4 py-2 text-center text-xs font-black text-cyan-100 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
-          🤖 {ticker}
-        </div>
+        <div className="pointer-events-none fixed left-1/2 top-[86px] z-50 w-[calc(100%-132px)] max-w-xs -translate-x-1/2 rounded-full border border-cyan-300/25 bg-[#030816]/72 px-4 py-2 text-center text-xs font-black text-cyan-100 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">🤖 {ticker}</div>
       )}
 
       <main onScroll={handleScroll} className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -118,7 +114,7 @@ export default function FeedPageClean() {
 }
 
 function PreloadMedia({ posts, activeIndex }) {
-  const next = posts.slice(activeIndex + 1, activeIndex + 3).map(getPostMedia).filter((m) => m.url && m.type === "image");
+  const next = posts.slice(activeIndex + 1, activeIndex + 4).map(getPostMedia).filter((m) => m.url && m.type === "image");
   return <>{next.map((m) => <img key={m.url} src={m.url} alt="" className="hidden" />)}</>;
 }
 
@@ -145,13 +141,15 @@ function TikTokFeedCard({ post, active, user, onRefresh }) {
   const baseVotes = Number(post.votes || post.vote_count || 0);
   const votes = baseVotes + (liked ? 1 : 0);
   const views = Number(post.watch_time_total || post.views || 0);
-  const shares = Number(post.shares || 0);
+  const shares = Number(post.shares || 0) + (shareToast ? 1 : 0);
   const author = post.bot ? post.bot_name : post.display_name || post.username || "Pelaaja";
   const avatar = post.bot ? post.bot_avatar || "🤖" : String(author || "P").slice(0, 1).toUpperCase();
+  const why = whyForYou(post);
 
   async function likePulse() {
     setLiked(true);
     setBurst(true);
+    saveFeedSignal(post, "likes");
     haptic("heavy");
     setTimeout(() => setBurst(false), 650);
 
@@ -159,6 +157,7 @@ function TikTokFeedCard({ post, active, user, onRefresh }) {
     setBusyLike(true);
     try {
       await supabase.from("votes").upsert({ post_id: post.id, user_id: user.id, value: 1 }, { onConflict: "user_id,post_id" });
+      await supabase.from("user_events").insert({ user_id: user.id, post_id: post.id, event_type: "feed_like", source: "god_mode_feed", meta: { score } });
       setTimeout(() => onRefresh?.(), 500);
     } finally {
       setBusyLike(false);
@@ -167,11 +166,15 @@ function TikTokFeedCard({ post, active, user, onRefresh }) {
 
   async function sharePost() {
     haptic("tap");
+    saveFeedSignal(post, "shares");
     const text = `${post.content}\n\nKolehti`;
     try {
       if (navigator.share) await navigator.share({ title: "Kolehti", text, url: window.location.href });
       else await navigator.clipboard?.writeText(window.location.href);
     } catch {}
+    if (user?.id && !post.bot) {
+      supabase.from("user_events").insert({ user_id: user.id, post_id: post.id, event_type: "feed_share", source: "god_mode_feed", meta: { score } });
+    }
     setShareToast(true);
     setTimeout(() => setShareToast(false), 1200);
   }
@@ -209,6 +212,7 @@ function TikTokFeedCard({ post, active, user, onRefresh }) {
 
       <section className={`absolute bottom-[112px] left-0 right-0 z-20 px-4 transition-all duration-500 ${active ? "translate-y-0 opacity-100" : "translate-y-5 opacity-80"}`}>
         <div className="max-h-[60dvh] overflow-hidden rounded-[34px] border border-white/18 bg-black/40 p-5 shadow-2xl shadow-black/45 backdrop-blur-2xl">
+          <div className="mb-3 inline-flex rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/85">For You · {why}</div>
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-lg font-black">{avatar}</div>
             <div className="min-w-0 flex-1">
