@@ -33,54 +33,110 @@ export default function PotsPage() {
   const [lossData, setLossData] = useState(null);
   const handledOutcomeRef = useRef(null);
   const lastTopRef = useRef(null);
+  const pulseTimerRef = useRef(null);
+  const toastTimerRef = useRef(null);
 
   useEffect(() => {
+    let mounted = true;
     load();
+
     const channel = supabase
-      .channel("kolehti-live-vote-impact")
-      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => handleVoteImpact())
-      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => handleVoteImpact("Uusi entry muutti kilpailua"))
+      .channel("kolehti-live-vote-impact-v2")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "votes" }, (payload) => {
+        if (!mounted) return;
+        handleVoteInsert(payload?.new);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "votes" }, (payload) => {
+        if (!mounted) return;
+        handleVoteUpdate(payload?.new);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "votes" }, (payload) => {
+        if (!mounted) return;
+        handleVoteDelete(payload?.old);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => {
+        if (!mounted) return;
+        showImpact("Uusi entry muutti kilpailua");
+        loadPostsOnly();
+      })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    return () => {
+      mounted = false;
+      if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  async function handleVoteImpact(text = "Ääni muutti live-tilannetta") {
-    haptic("tap");
-    setLivePulse((v) => v + 1);
+  function triggerLivePulse() {
+    if (pulseTimerRef.current) return;
+    pulseTimerRef.current = setTimeout(() => {
+      setLivePulse((v) => v + 1);
+      pulseTimerRef.current = null;
+    }, 260);
+  }
+
+  function showImpact(text = "Ääni muutti live-tilannetta", type = "tap") {
+    haptic(type);
     setVoteImpact({ id: Date.now(), text });
-    await load();
-    setTimeout(() => setVoteImpact(null), 1700);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setVoteImpact(null), 1500);
+    triggerLivePulse();
+  }
+
+  function handleVoteInsert(vote) {
+    if (!vote?.post_id) return;
+    setVotes((prev) => [vote, ...prev].slice(0, 500));
+    showImpact("Ääni vaikutti tilanteeseen");
+  }
+
+  function handleVoteUpdate(vote) {
+    if (!vote?.post_id) return;
+    setVotes((prev) => prev.map((item) => item.id && vote.id && item.id === vote.id ? vote : item));
+    showImpact("Ääni päivittyi");
+  }
+
+  function handleVoteDelete(vote) {
+    if (!vote?.post_id) return;
+    setVotes((prev) => vote.id ? prev.filter((item) => item.id !== vote.id) : prev.slice(1));
+    showImpact("Ääni poistui tilanteesta");
+  }
+
+  async function loadPostsOnly() {
+    const { data } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(300);
+    setPosts(data || []);
   }
 
   async function load() {
     const [{ data: auth }, { data: postData }, { data: voteData }] = await Promise.all([
       supabase.auth.getUser(),
       supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(300),
-      supabase.from("votes").select("post_id,user_id,value,created_at").limit(3000),
+      supabase.from("votes").select("id,post_id,user_id,value,created_at").order("created_at", { ascending: false }).limit(500),
     ]);
     setUser(auth?.user || null);
     setPosts(postData || []);
     setVotes(voteData || []);
   }
 
+  const voteMap = useMemo(() => buildVoteMap(votes), [votes]);
+
+  const scoredPosts = useMemo(() => (posts || []).map((post) => {
+    const voteCount = Number(voteMap[post.id] || post.votes || post.vote_count || 0);
+    return { ...post, votes: voteCount, vote_count: voteCount };
+  }), [posts, voteMap]);
+
   const race = useMemo(() => {
-    const voteMap = buildVoteMap(votes);
-    const scoredPosts = (posts || []).map((post) => ({
-      ...post,
-      votes: Number(voteMap[post.id] || post.votes || post.vote_count || 0),
-      vote_count: Number(voteMap[post.id] || post.vote_count || post.votes || 0),
-    }));
     const normalized = mergeWithBots(scoredPosts, 10);
     const result = buildWinnerRace(normalized, { potKey: "weekly", amount: 200 + Math.round(votes.length * 0.35) });
     result.ranked = decorateLeaderboard(result.ranked || []);
     return result;
-  }, [posts, votes, livePulse]);
+  }, [scoredPosts, votes.length, livePulse]);
 
   useEffect(() => {
     const currentTopId = race?.winner?.id;
     if (lastTopRef.current && currentTopId && lastTopRef.current !== currentTopId) {
-      setVoteImpact({ id: Date.now(), text: "Johtaja vaihtui livenä" });
-      haptic("heavy");
+      showImpact("Johtaja vaihtui livenä", "heavy");
     }
     if (currentTopId) lastTopRef.current = currentTopId;
   }, [race?.winner?.id]);
@@ -116,7 +172,7 @@ export default function PotsPage() {
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
       <style>{`
         @keyframes impactToast{0%{transform:translate(-50%,-12px) scale(.96);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.96);opacity:0}}
-        .impact-toast{animation:impactToast 1.7s ease both}
+        .impact-toast{animation:impactToast 1.5s ease both}
       `}</style>
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" />
       <div className="fixed inset-0 bg-gradient-to-b from-black/45 via-[#061126]/80 to-black/95" />
@@ -133,12 +189,10 @@ export default function PotsPage() {
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <h1 className="text-4xl font-black">Potit</h1>
 
-        <div className="mt-4">
-          <EgoPanel />
-        </div>
+        <div className="mt-4"><EgoPanel /></div>
 
         <div className="mt-4">
-          <LiveRivalBattle key={`battle-${livePulse}-${race?.winner?.id || "none"}`} ranked={race?.ranked || []} userId={user?.id} />
+          <LiveRivalBattle ranked={race?.ranked || []} userId={user?.id} pulse={livePulse} />
         </div>
 
         <section className="mt-6 space-y-3">
