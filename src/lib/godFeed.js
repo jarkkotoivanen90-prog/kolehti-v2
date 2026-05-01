@@ -1,5 +1,6 @@
 const PREF_KEY = "kolehti_feed_godmode_v1";
 const INTEREST_KEY = "kolehti_interest_engine_v1";
+const VECTOR_KEY = "kolehti_ai_feed_vector_v2";
 
 const TOPICS = [
   { id: "money", label: "Raha", words: ["raha", "euro", "potti", "maksu", "tuki", "säästö", "sijoitus", "lasku"] },
@@ -11,26 +12,41 @@ const TOPICS = [
   { id: "media", label: "Media", words: ["kuva", "video", "näytä", "katso", "tarina"] },
 ];
 
+const SEMANTIC_AXES = [
+  ["money", "raha", "euro", "potti", "maksu", "säästö", "sijoitus", "lasku", "tulo"],
+  ["need", "tarve", "apu", "tuki", "hätä", "vaikea", "selviytyä", "pakko"],
+  ["hope", "toivo", "unelma", "tulevaisuus", "mahdollisuus", "kasvu", "onnistua"],
+  ["family", "perhe", "lapsi", "äiti", "isä", "koti", "läheinen", "ystävä"],
+  ["health", "terveys", "sairas", "hoito", "mieli", "jaksaminen", "kipu", "stressi"],
+  ["work", "työ", "duuni", "opiskelu", "koulu", "projekti", "yritys", "ura"],
+  ["community", "yhteisö", "porukka", "tiimi", "naapuri", "suomi", "yhdessä"],
+  ["emotion", "kiitos", "ilo", "pelko", "surullinen", "tärkeä", "merkitys", "sydän"],
+  ["clarity", "koska", "siksi", "tavoite", "suunnitelma", "konkreettinen", "selkeä"],
+  ["media", "kuva", "video", "tarina", "näytä", "katso", "visuaalinen"],
+];
+
 export function getFeedPrefs() {
-  try {
-    return JSON.parse(localStorage.getItem(PREF_KEY) || "{}");
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem(PREF_KEY) || "{}"); } catch { return {}; }
 }
 
 export function getInterestProfile() {
-  try {
-    return JSON.parse(localStorage.getItem(INTEREST_KEY) || "{}");
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem(INTEREST_KEY) || "{}"); } catch { return {}; }
+}
+
+export function getVectorProfile() {
+  try { return JSON.parse(localStorage.getItem(VECTOR_KEY) || "null") || zeroVector(); } catch { return zeroVector(); }
+}
+
+function zeroVector() {
+  return Array.from({ length: SEMANTIC_AXES.length }, () => 0);
 }
 
 function saveInterestProfile(profile) {
-  try {
-    localStorage.setItem(INTEREST_KEY, JSON.stringify(profile));
-  } catch {}
+  try { localStorage.setItem(INTEREST_KEY, JSON.stringify(profile)); } catch {}
+}
+
+function saveVectorProfile(vector) {
+  try { localStorage.setItem(VECTOR_KEY, JSON.stringify(vector.map((v) => Math.round(v * 1000) / 1000))); } catch {}
 }
 
 export function detectTopics(post) {
@@ -47,6 +63,28 @@ export function topicLabel(topicId) {
   return TOPICS.find((topic) => topic.id === topicId)?.label || "Yleinen";
 }
 
+export function semanticVector(post) {
+  const text = `${post?.content || ""} ${post?.ai_feedback ? JSON.stringify(post.ai_feedback) : ""}`.toLowerCase();
+  const lenBoost = Math.min(1, String(post?.content || "").length / 600);
+  return SEMANTIC_AXES.map((axis) => {
+    const hits = axis.reduce((count, word) => count + (text.includes(word) ? 1 : 0), 0);
+    return Math.min(1, hits / Math.max(2, axis.length / 3) + lenBoost * 0.08);
+  });
+}
+
+function cosine(a = [], b = []) {
+  let dot = 0, aa = 0, bb = 0;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = Number(a[i] || 0);
+    const y = Number(b[i] || 0);
+    dot += x * y;
+    aa += x * x;
+    bb += y * y;
+  }
+  if (!aa || !bb) return 0;
+  return dot / (Math.sqrt(aa) * Math.sqrt(bb));
+}
+
 export function saveFeedSignal(post, type) {
   if (!post?.id) return;
   const prefs = getFeedPrefs();
@@ -54,17 +92,24 @@ export function saveFeedSignal(post, type) {
   item[type] = Number(item[type] || 0) + 1;
   item.last = Date.now();
   item.topics = detectTopics(post);
+  item.vector = semanticVector(post);
   prefs[post.id] = item;
 
   const profile = getInterestProfile();
-  const weight = type === "likes" ? 8 : type === "shares" ? 10 : type === "views" ? 2 : type === "skips" ? -4 : 0;
+  const topicWeight = type === "likes" ? 8 : type === "shares" ? 10 : type === "views" ? 2 : type === "skips" ? -4 : 0;
   for (const topic of item.topics) {
-    profile[topic] = Math.max(-20, Math.min(100, Number(profile[topic] || 0) + weight));
+    profile[topic] = Math.max(-20, Math.min(100, Number(profile[topic] || 0) + topicWeight));
   }
+
+  const vector = getVectorProfile();
+  const postVector = item.vector;
+  const vectorWeight = type === "likes" ? 0.18 : type === "shares" ? 0.24 : type === "views" ? 0.06 : type === "skips" ? -0.12 : 0;
+  const nextVector = vector.map((value, i) => Math.max(-1, Math.min(1, Number(value || 0) + Number(postVector[i] || 0) * vectorWeight)));
 
   try {
     localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
     saveInterestProfile(profile);
+    saveVectorProfile(nextVector);
   } catch {}
 }
 
@@ -82,13 +127,19 @@ function interestScore(post, profile = getInterestProfile()) {
   return topics.reduce((sum, topic) => sum + Number(profile[topic] || 0), 0) / Math.max(1, topics.length);
 }
 
+function aiSimilarityScore(post, vectorProfile = getVectorProfile()) {
+  const sim = cosine(semanticVector(post), vectorProfile);
+  return sim * 80;
+}
+
 export function rankGodFeed(posts = []) {
   const prefs = getFeedPrefs();
   const profile = getInterestProfile();
-  return [...posts].sort((a, b) => godScore(b, prefs, profile) - godScore(a, prefs, profile));
+  const vector = getVectorProfile();
+  return [...posts].sort((a, b) => godScore(b, prefs, profile, vector) - godScore(a, prefs, profile, vector));
 }
 
-export function godScore(post, prefs = getFeedPrefs(), profile = getInterestProfile()) {
+export function godScore(post, prefs = getFeedPrefs(), profile = getInterestProfile(), vector = getVectorProfile()) {
   const pref = prefs[post.id] || {};
   const global =
     Number(post.boost_score || 0) * 5 +
@@ -103,13 +154,16 @@ export function godScore(post, prefs = getFeedPrefs(), profile = getInterestProf
     (Number(pref.views || 0) > 0 ? 18 : 0);
 
   const interests = interestScore(post, profile) * 1.7;
+  const aiV2 = aiSimilarityScore(post, vector);
 
-  return global + personal + interests + freshnessBoost(post.created_at) + (hasMedia(post) ? 9 : 0) + (post.bot ? -8 : 0);
+  return global + personal + interests + aiV2 + freshnessBoost(post.created_at) + (hasMedia(post) ? 9 : 0) + (post.bot ? -8 : 0);
 }
 
 export function whyForYou(post) {
+  const sim = aiSimilarityScore(post);
   const topTopic = detectTopics(post)[0];
   const profile = getInterestProfile();
+  if (sim >= 28) return "AI uskoo tämän osuvan sinuun";
   if (Number(profile[topTopic] || 0) >= 10) return `${topicLabel(topTopic)} kiinnostaa sinua`;
   if (Number(post?.boost_score || 0) > 0) return "Boostattu";
   if (Number(post?.votes || 0) > 0) return "Ihmiset äänestävät tätä";
@@ -124,4 +178,13 @@ export function getTopInterests(limit = 3) {
     .sort((a, b) => Number(b[1]) - Number(a[1]))
     .slice(0, limit)
     .map(([id, value]) => ({ id, label: topicLabel(id), value }));
+}
+
+export function getAiFeedDebug(post) {
+  return {
+    topics: detectTopics(post),
+    vector: semanticVector(post),
+    similarity: Math.round(aiSimilarityScore(post)),
+    why: whyForYou(post),
+  };
 }
