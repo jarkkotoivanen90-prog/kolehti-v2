@@ -6,6 +6,7 @@ import WinnerScreen from "../components/WinnerScreen";
 import LossScreen from "../components/LossScreen";
 import EgoPanel from "../components/EgoPanel";
 import LiveRivalBattle from "../components/LiveRivalBattle";
+import { haptic } from "../lib/effects";
 import { mergeWithBots } from "../lib/bots";
 import { buildWinnerRace, getWeekId } from "../lib/winnerSystem";
 import { recordWeeklyOutcome } from "../lib/streakSystem";
@@ -13,30 +14,76 @@ import { decorateLeaderboard, recordIdentityResult, getIdentityStory } from "../
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
 
+function buildVoteMap(votes = []) {
+  const map = {};
+  votes.forEach((vote) => {
+    if (!vote?.post_id) return;
+    map[vote.post_id] = (map[vote.post_id] || 0) + Number(vote.value || 1);
+  });
+  return map;
+}
+
 export default function PotsPage() {
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [votes, setVotes] = useState([]);
+  const [voteImpact, setVoteImpact] = useState(null);
+  const [livePulse, setLivePulse] = useState(0);
   const [winnerData, setWinnerData] = useState(null);
   const [lossData, setLossData] = useState(null);
   const handledOutcomeRef = useRef(null);
+  const lastTopRef = useRef(null);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const channel = supabase
+      .channel("kolehti-live-vote-impact")
+      .on("postgres_changes", { event: "*", schema: "public", table: "votes" }, () => handleVoteImpact())
+      .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => handleVoteImpact("Uusi entry muutti kilpailua"))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  async function handleVoteImpact(text = "Ääni muutti live-tilannetta") {
+    haptic("tap");
+    setLivePulse((v) => v + 1);
+    setVoteImpact({ id: Date.now(), text });
+    await load();
+    setTimeout(() => setVoteImpact(null), 1700);
+  }
 
   async function load() {
-    const [{ data: auth }, { data: postData }] = await Promise.all([
+    const [{ data: auth }, { data: postData }, { data: voteData }] = await Promise.all([
       supabase.auth.getUser(),
       supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(300),
+      supabase.from("votes").select("post_id,user_id,value,created_at").limit(3000),
     ]);
     setUser(auth?.user || null);
     setPosts(postData || []);
+    setVotes(voteData || []);
   }
 
   const race = useMemo(() => {
-    const normalized = mergeWithBots(posts || [], 10);
-    const result = buildWinnerRace(normalized, { potKey: "weekly", amount: 200 });
+    const voteMap = buildVoteMap(votes);
+    const scoredPosts = (posts || []).map((post) => ({
+      ...post,
+      votes: Number(voteMap[post.id] || post.votes || post.vote_count || 0),
+      vote_count: Number(voteMap[post.id] || post.vote_count || post.votes || 0),
+    }));
+    const normalized = mergeWithBots(scoredPosts, 10);
+    const result = buildWinnerRace(normalized, { potKey: "weekly", amount: 200 + Math.round(votes.length * 0.35) });
     result.ranked = decorateLeaderboard(result.ranked || []);
     return result;
-  }, [posts]);
+  }, [posts, votes, livePulse]);
+
+  useEffect(() => {
+    const currentTopId = race?.winner?.id;
+    if (lastTopRef.current && currentTopId && lastTopRef.current !== currentTopId) {
+      setVoteImpact({ id: Date.now(), text: "Johtaja vaihtui livenä" });
+      haptic("heavy");
+    }
+    if (currentTopId) lastTopRef.current = currentTopId;
+  }, [race?.winner?.id]);
 
   const userEntry = useMemo(() => {
     if (!user?.id) return null;
@@ -67,8 +114,18 @@ export default function PotsPage() {
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
+      <style>{`
+        @keyframes impactToast{0%{transform:translate(-50%,-12px) scale(.96);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.96);opacity:0}}
+        .impact-toast{animation:impactToast 1.7s ease both}
+      `}</style>
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" />
       <div className="fixed inset-0 bg-gradient-to-b from-black/45 via-[#061126]/80 to-black/95" />
+
+      {voteImpact && (
+        <div className="impact-toast fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/92 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
+          ⚡ {voteImpact.text}
+        </div>
+      )}
 
       {winnerData && <WinnerScreen winner={winnerData.winner} amount={winnerData.amount} race={winnerData.race} onClose={() => setWinnerData(null)} />}
       {lossData && <LossScreen userEntry={lossData.userEntry} winner={lossData.winner} race={lossData.race} amount={lossData.amount} onClose={() => setLossData(null)} onRevenge={() => window.location.href = "/new"} />}
@@ -81,20 +138,23 @@ export default function PotsPage() {
         </div>
 
         <div className="mt-4">
-          <LiveRivalBattle ranked={race?.ranked || []} userId={user?.id} />
+          <LiveRivalBattle key={`battle-${livePulse}-${race?.winner?.id || "none"}`} ranked={race?.ranked || []} userId={user?.id} />
         </div>
 
         <section className="mt-6 space-y-3">
           {race?.ranked?.slice(0,5).map((entry, i) => (
-            <div key={entry.id} className="p-3 rounded-xl bg-white/5">
+            <div key={entry.id} className={`rounded-xl p-3 transition-all duration-500 ${i === 0 ? "bg-cyan-300/10 ring-1 ring-cyan-200/20" : "bg-white/5"}`}>
               <div className="flex justify-between">
                 <div>
                   <div className="font-black">{entry.identity.badge} {entry.identity.alias}</div>
                   <div className="text-xs text-white/60">{entry.identity.title}</div>
                 </div>
-                <div className="text-right font-black">{entry.winner_score || entry.score}</div>
+                <div className="text-right">
+                  <div className="font-black">{entry.winner_score || entry.score}</div>
+                  <div className="text-[10px] font-black uppercase text-cyan-100/60">♥ {entry.votes || 0}</div>
+                </div>
               </div>
-              <div className="text-xs text-cyan-200/70 mt-1">{getIdentityStory(entry)}</div>
+              <div className="mt-1 text-xs text-cyan-200/70">{getIdentityStory(entry)}</div>
             </div>
           ))}
         </section>
