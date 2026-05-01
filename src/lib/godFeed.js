@@ -52,9 +52,7 @@ function saveVectorProfile(vector) {
 export function detectTopics(post) {
   const text = `${post?.content || ""} ${post?.ai_feedback ? JSON.stringify(post.ai_feedback) : ""}`.toLowerCase();
   const found = [];
-  for (const topic of TOPICS) {
-    if (topic.words.some((word) => text.includes(word))) found.push(topic.id);
-  }
+  for (const topic of TOPICS) if (topic.words.some((word) => text.includes(word))) found.push(topic.id);
   if (hasMedia(post) && !found.includes("media")) found.push("media");
   return found.length ? found : ["general"];
 }
@@ -97,9 +95,7 @@ export function saveFeedSignal(post, type) {
 
   const profile = getInterestProfile();
   const topicWeight = type === "likes" ? 8 : type === "shares" ? 10 : type === "views" ? 2 : type === "skips" ? -4 : 0;
-  for (const topic of item.topics) {
-    profile[topic] = Math.max(-20, Math.min(100, Number(profile[topic] || 0) + topicWeight));
-  }
+  for (const topic of item.topics) profile[topic] = Math.max(-20, Math.min(100, Number(profile[topic] || 0) + topicWeight));
 
   const vector = getVectorProfile();
   const postVector = item.vector;
@@ -116,6 +112,28 @@ export function saveFeedSignal(post, type) {
 function freshnessBoost(createdAt) {
   const ageHours = Math.max(0, (Date.now() - new Date(createdAt || Date.now()).getTime()) / 36e5);
   return Math.max(0, 35 - ageHours * 1.4);
+}
+
+function viralVelocity(post) {
+  const ageHours = Math.max(0.25, (Date.now() - new Date(post?.created_at || Date.now()).getTime()) / 36e5);
+  const votes = Number(post?.votes || post?.vote_count || 0);
+  const views = Number(post?.views || post?.watch_time_total || 0);
+  const shares = Number(post?.shares || 0);
+  return Math.min(80, (votes * 13 + shares * 18 + views * 0.5) / Math.sqrt(ageHours));
+}
+
+function exploreBoost(post) {
+  const id = String(post?.id || post?.content || "");
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return (hash % 1000) / 1000 * 18;
+}
+
+function coldStartBoost(post, prefs = getFeedPrefs()) {
+  const seenCount = Object.values(prefs).filter((item) => Number(item?.views || 0) > 0).length;
+  if (seenCount > 12) return 0;
+  const quality = Number(post?.ai_score || post?.score || 0);
+  return Math.max(0, 25 - seenCount * 2) + (quality >= 70 ? 12 : 0) + (hasMedia(post) ? 8 : 0);
 }
 
 function hasMedia(post) {
@@ -141,28 +159,20 @@ export function rankGodFeed(posts = []) {
 
 export function godScore(post, prefs = getFeedPrefs(), profile = getInterestProfile(), vector = getVectorProfile()) {
   const pref = prefs[post.id] || {};
-  const global =
-    Number(post.boost_score || 0) * 5 +
-    Number(post.ai_score || post.score || 0) +
-    Number(post.votes || 0) * 11 +
-    Number(post.views || 0) * 0.7;
-
-  const personal =
-    Number(pref.likes || 0) * 45 +
-    Number(pref.shares || 0) * 35 -
-    Number(pref.skips || 0) * 20 -
-    (Number(pref.views || 0) > 0 ? 18 : 0);
-
+  const global = Number(post.boost_score || 0) * 5 + Number(post.ai_score || post.score || 0) + Number(post.votes || 0) * 11 + Number(post.views || 0) * 0.7;
+  const personal = Number(pref.likes || 0) * 45 + Number(pref.shares || 0) * 35 - Number(pref.skips || 0) * 20 - (Number(pref.views || 0) > 0 ? 18 : 0);
   const interests = interestScore(post, profile) * 1.7;
   const aiV2 = aiSimilarityScore(post, vector);
-
-  return global + personal + interests + aiV2 + freshnessBoost(post.created_at) + (hasMedia(post) ? 9 : 0) + (post.bot ? -8 : 0);
+  const hardcore = viralVelocity(post) + exploreBoost(post) + coldStartBoost(post, prefs);
+  return global + personal + interests + aiV2 + hardcore + freshnessBoost(post.created_at) + (hasMedia(post) ? 9 : 0) + (post.bot ? -8 : 0);
 }
 
 export function whyForYou(post) {
   const sim = aiSimilarityScore(post);
+  const velocity = viralVelocity(post);
   const topTopic = detectTopics(post)[0];
   const profile = getInterestProfile();
+  if (velocity >= 35) return "Nousee nopeasti";
   if (sim >= 28) return "AI uskoo tämän osuvan sinuun";
   if (Number(profile[topTopic] || 0) >= 10) return `${topicLabel(topTopic)} kiinnostaa sinua`;
   if (Number(post?.boost_score || 0) > 0) return "Boostattu";
@@ -174,10 +184,7 @@ export function whyForYou(post) {
 
 export function getTopInterests(limit = 3) {
   const profile = getInterestProfile();
-  return Object.entries(profile)
-    .sort((a, b) => Number(b[1]) - Number(a[1]))
-    .slice(0, limit)
-    .map(([id, value]) => ({ id, label: topicLabel(id), value }));
+  return Object.entries(profile).sort((a, b) => Number(b[1]) - Number(a[1])).slice(0, limit).map(([id, value]) => ({ id, label: topicLabel(id), value }));
 }
 
 export function getAiFeedDebug(post) {
@@ -185,6 +192,8 @@ export function getAiFeedDebug(post) {
     topics: detectTopics(post),
     vector: semanticVector(post),
     similarity: Math.round(aiSimilarityScore(post)),
+    velocity: Math.round(viralVelocity(post)),
+    explore: Math.round(exploreBoost(post)),
     why: whyForYou(post),
   };
 }
