@@ -11,6 +11,7 @@ import { mergeWithBots } from "../lib/bots";
 import { buildWinnerRace, getWeekId } from "../lib/winnerSystem";
 import { recordWeeklyOutcome } from "../lib/streakSystem";
 import { decorateLeaderboard, recordIdentityResult, getIdentityStory } from "../lib/identitySystem";
+import { fetchBackendScores, applyBackendScores } from "../lib/backendScoring";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
 
@@ -27,6 +28,7 @@ export default function PotsPage() {
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [votes, setVotes] = useState([]);
+  const [backendScores, setBackendScores] = useState({});
   const [voteImpact, setVoteImpact] = useState(null);
   const [livePulse, setLivePulse] = useState(0);
   const [winnerData, setWinnerData] = useState(null);
@@ -68,6 +70,11 @@ export default function PotsPage() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    if (!posts.length) return;
+    fetchBackendScores(posts).then(setBackendScores);
+  }, [posts, livePulse]);
 
   function triggerLivePulse() {
     if (pulseTimerRef.current) return;
@@ -121,10 +128,13 @@ export default function PotsPage() {
 
   const voteMap = useMemo(() => buildVoteMap(votes), [votes]);
 
-  const scoredPosts = useMemo(() => (posts || []).map((post) => {
-    const voteCount = Number(voteMap[post.id] || post.votes || post.vote_count || 0);
-    return { ...post, votes: voteCount, vote_count: voteCount };
-  }), [posts, voteMap]);
+  const scoredPosts = useMemo(() => {
+    const withVotes = (posts || []).map((post) => {
+      const voteCount = Number(voteMap[post.id] || post.votes || post.vote_count || 0);
+      return { ...post, votes: voteCount, vote_count: voteCount };
+    });
+    return applyBackendScores(withVotes, backendScores);
+  }, [posts, voteMap, backendScores]);
 
   const race = useMemo(() => {
     const normalized = mergeWithBots(scoredPosts, 10);
@@ -204,8 +214,8 @@ export default function PotsPage() {
                   <div className="text-xs text-white/60">{entry.identity.title}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-black">{entry.winner_score || entry.score}</div>
-                  <div className="text-[10px] font-black uppercase text-cyan-100/60">♥ {entry.votes || 0}</div>
+                  <div className="font-black">{entry.score}</div>
+                  <div className="text-[10px] font-black uppercase text-cyan-100/60">♥ {entry.votes || 0}{entry.backend_scored ? " · backend" : ""}</div>
                 </div>
               </div>
               <div className="mt-1 text-xs text-cyan-200/70">{getIdentityStory(entry)}</div>
