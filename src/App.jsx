@@ -48,7 +48,7 @@ function AppShell() {
     location.pathname === "/reset";
 
   const hideNavbar = publicPage;
-  const showGlobalBottomNav = !publicPage && location.pathname !== "/feed";
+  const showGlobalBottomNav = !publicPage;
 
   return (
     <>
