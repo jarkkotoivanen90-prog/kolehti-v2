@@ -1,67 +1,46 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { mergeWithBots, botTicker, makeBotRepliesForPost } from "../lib/bots";
-import { haptic } from "../lib/effects";
-import { rankGodFeed, saveFeedSignal, whyForYou } from "../lib/godFeed";
 
-const FALLBACK_BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1400";
-
-// 🔥 NOTE: AppBottomNav removed → unified global nav used
-
-function getPostMedia(post) {
-  const url = post?.video_url || post?.image_url || post?.media_url || "";
-  const type = post?.media_type || (/\.(mp4|webm|mov)(\?|$)/i.test(url) ? "video" : url ? "image" : null);
-  return { url, type };
+function getMedia(post) {
+  const url = post?.video_url || post?.image_url || "";
+  const isVideo = /\.(mp4|webm|mov)/i.test(url);
+  return { url, isVideo };
 }
 
 export default function FeedPageClean() {
   const [posts, setPosts] = useState([]);
-  const [ticker, setTicker] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [hint, setHint] = useState(true);
-  const [chromeVisible, setChromeVisible] = useState(true);
-  const chromeTimer = useRef(null);
 
   useEffect(() => {
     load();
-    const tickerTimer = setInterval(() => setTicker(botTicker()), 5000);
-    const hintTimer = setTimeout(() => setHint(false), 4200);
-    const startTimer = setTimeout(() => hideChrome(), 1700);
-
-    return () => {
-      clearInterval(tickerTimer);
-      clearTimeout(hintTimer);
-      clearTimeout(startTimer);
-      clearTimeout(chromeTimer.current);
-    };
   }, []);
 
-  function hideChrome() {
-    setChromeVisible(false);
-  }
-
-  function revealChrome() {
-    setChromeVisible(true);
-    clearTimeout(chromeTimer.current);
-    chromeTimer.current = setTimeout(() => hideChrome(), 1800);
-  }
-
   async function load() {
-    const aiFeed = await supabase.rpc("match_ai_feed_v3", { match_count: 50 });
-    setPosts(aiFeed.data || []);
-    setLoading(false);
+    const { data } = await supabase.rpc("match_ai_feed_v3", { match_count: 50 });
+    setPosts(data || []);
   }
 
   return (
-    <div onClick={revealChrome} className="h-[100dvh] overflow-hidden bg-black text-white">
-      <main className="h-[100dvh] overflow-y-auto">
-        {posts.map((post) => (
-          <div key={post.id} className="h-[100dvh] flex items-center justify-center">
-            <p className="text-xl font-bold">{post.content}</p>
+    <div className="bg-black text-white">
+      {posts.map((post) => {
+        const media = getMedia(post);
+        return (
+          <div key={post.id} className="relative h-[100dvh] w-full overflow-hidden flex items-end">
+            {media.url && (
+              media.isVideo ? (
+                <video src={media.url} autoPlay loop muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <img src={media.url} className="absolute inset-0 h-full w-full object-cover" />
+              )
+            )}
+
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+            <div className="relative p-5 pb-24 max-w-[90%]">
+              <p className="text-2xl font-bold leading-tight">{post.content}</p>
+            </div>
           </div>
-        ))}
-      </main>
+        );
+      })}
     </div>
   );
 }
