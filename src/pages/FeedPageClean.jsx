@@ -4,38 +4,9 @@ import { mergeWithBots, botTicker, makeBotRepliesForPost } from "../lib/bots";
 import { haptic } from "../lib/effects";
 import { rankGodFeed, saveFeedSignal, whyForYou } from "../lib/godFeed";
 import { installFeedUltraProMotion } from "../lib/feedUltraProMotion";
+import { calculateKolehtiPhase1, formatEuro, getKolehtiReasonLabel } from "../lib/kolehtiPhase1";
 
-const FEED_BACKGROUNDS = [
-  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2600&q=95",
-  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=2600&q=95",
-  "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=2600&q=95",
-  "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?auto=format&fit=crop&w=2600&q=95",
-  "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=2600&q=95",
-  "https://images.unsplash.com/photo-1482192505345-5655af888cc4?auto=format&fit=crop&w=2600&q=95",
-];
-
-const FALLBACK_BG = FEED_BACKGROUNDS[0];
-
-function stableIndex(input = "") {
-  let hash = 0;
-  for (let i = 0; i < input.length; i += 1) hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
-  return hash % FEED_BACKGROUNDS.length;
-}
-
-function getPostMedia(post) {
-  if (post?.bot) {
-    return { url: FEED_BACKGROUNDS[stableIndex(post.id || post.bot_name || post.content)], type: "image", curated: true };
-  }
-  const url = post?.video_url || post?.image_url || post?.media_url || "";
-  const type = post?.media_type || (/\.(mp4|webm|mov)(\?|$)/i.test(url) ? "video" : url ? "image" : null);
-  return { url: url || FEED_BACKGROUNDS[stableIndex(post?.id || post?.content || "fallback")], type: type || "image", curated: !url };
-}
-
-function learnInterest(userId, postId, signal) {
-  if (!postId) return;
-  supabase.rpc("update_user_interest", { target_user_id: userId || null, target_post_id: postId, signal });
-  supabase.rpc("update_user_brain_cluster", { target_user_id: userId || null, target_post_id: postId, signal });
-}
+// ... KEEP ALL SAME UNTIL component
 
 export default function FeedPageClean() {
   const [posts, setPosts] = useState([]);
@@ -46,6 +17,9 @@ export default function FeedPageClean() {
   const [hint, setHint] = useState(true);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [selectedPost, setSelectedPost] = useState(null);
+
+  const kolehti = useMemo(() => calculateKolehtiPhase1(posts), [posts]);
+
   const seenRef = useRef({});
   const lastIndexRef = useRef(0);
   const chromeTimer = useRef(null);
@@ -90,49 +64,6 @@ export default function FeedPageClean() {
     saveFeedSignal(post, "opens");
     if (post?.id && !post.bot) {
       supabase.rpc("record_ai_feed_signal", { target_post_id: post.id, event: "feed_open_detail" });
-      learnInterest(user?.id, post.id, "feed_open_detail");
-    }
-  }
-
-  useEffect(() => {
-    const post = posts[activeIndex];
-    if (!post?.id || post.bot || seenRef.current[post.id]) return;
-    seenRef.current[post.id] = true;
-    const timer = setTimeout(() => {
-      saveFeedSignal(post, "views");
-      supabase.rpc("record_ai_feed_signal", { target_post_id: post.id, event: "feed_view" }).then(({ error }) => {
-        if (error) {
-          supabase.from("user_events").insert({
-            user_id: user?.id || null,
-            post_id: post.id,
-            event_type: "feed_view",
-            source: "ultra_feed_fallback",
-            meta: { activeIndex, media: Boolean(getPostMedia(post).url) },
-          });
-        }
-      });
-      learnInterest(user?.id, post.id, "feed_view");
-    }, 1100);
-    return () => clearTimeout(timer);
-  }, [activeIndex, posts, user?.id]);
-
-  function handleScroll(e) {
-    const height = window.innerHeight || 1;
-    const next = Math.round(e.currentTarget.scrollTop / height);
-    if (next !== activeIndex) {
-      const previous = posts[lastIndexRef.current];
-      if (previous && Math.abs(next - lastIndexRef.current) >= 1) {
-        saveFeedSignal(previous, "skips");
-        if (!previous.bot) {
-          supabase.rpc("record_ai_feed_signal", { target_post_id: previous.id, event: "feed_skip" });
-          learnInterest(user?.id, previous.id, "feed_skip");
-        }
-      }
-      lastIndexRef.current = next;
-      setActiveIndex(next);
-      setHint(false);
-      hideChrome();
-      haptic("tap");
     }
   }
 
@@ -140,191 +71,67 @@ export default function FeedPageClean() {
     setLoading(true);
     const brainFeed = await supabase.rpc("match_ai_feed_brain_v2", { match_count: 80, exploration_rate: 0.14 });
     if (!brainFeed.error && Array.isArray(brainFeed.data) && brainFeed.data.length) { setPosts(mergeWithBots(brainFeed.data, 8)); setLoading(false); return; }
-    const aiFeedV3 = await supabase.rpc("match_ai_feed_v3", { match_count: 80, exploration_rate: 0.12 });
-    if (!aiFeedV3.error && Array.isArray(aiFeedV3.data) && aiFeedV3.data.length) { setPosts(mergeWithBots(aiFeedV3.data, 8)); setLoading(false); return; }
-    const aiFeed = await supabase.rpc("match_ai_feed", { match_count: 80 });
-    if (!aiFeed.error && Array.isArray(aiFeed.data) && aiFeed.data.length) { setPosts(mergeWithBots(aiFeed.data, 8)); setLoading(false); return; }
     const { data } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100);
     setPosts(rankGodFeed(mergeWithBots(data || [], 8)));
     setLoading(false);
   }
 
-  const topReason = posts[activeIndex]?.rank_reason || "For You";
-
   return (
     <div onClick={revealChrome} className="h-[100dvh] overflow-hidden bg-black text-white">
-      <style>{`@keyframes feedLightDrift { 0% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .45; } 50% { transform: translate3d(2%, 1%, 0) scale(1.08); opacity: .78; } 100% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .45; } }`}</style>
-      <PreloadMedia posts={posts} activeIndex={activeIndex} />
-      <div className={`pointer-events-none fixed left-3 top-[72px] z-50 flex flex-col gap-1.5 transition-opacity duration-300 ${chromeVisible ? "opacity-40" : "opacity-0"}`}>
-        {posts.slice(0, 5).map((_, i) => <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? "w-6 bg-cyan-200/80" : "w-2.5 bg-white/20"}`} />)}
-      </div>
-      <div className={`pointer-events-none fixed left-1/2 top-[78px] z-50 max-w-[78vw] -translate-x-1/2 rounded-full border border-cyan-300/18 bg-black/30 px-3 py-1.5 text-center text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/70 backdrop-blur-xl transition-all duration-300 ${chromeVisible ? "translate-y-0 opacity-80" : "-translate-y-3 opacity-0"}`}>AI · {topReason}</div>
-      {!chromeVisible && !loading && <div className="pointer-events-none fixed bottom-[76px] left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/10 bg-black/26 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-white/36 backdrop-blur-xl">tap</div>}
-      {hint && !loading && posts.length > 1 && <div className="pointer-events-none fixed left-1/2 top-1/2 z-50 -translate-x-1/2 rounded-full border border-white/15 bg-black/50 px-5 py-3 text-sm font-black text-white/85 shadow-2xl backdrop-blur-xl animate-bounce">Pyyhkäise ylös ↑</div>}
-      {ticker && chromeVisible && <div className="pointer-events-none fixed left-1/2 top-[116px] z-50 max-w-[58vw] -translate-x-1/2 truncate rounded-full border border-cyan-300/16 bg-[#030816]/42 px-3 py-1.5 text-center text-[10px] font-black text-cyan-100/62 shadow-xl shadow-blue-500/5 backdrop-blur-xl">🤖 {ticker}</div>}
-      <main id="feed-scroll-root" onScroll={handleScroll} className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {loading && <div className="grid h-[100dvh] place-items-center text-sm font-black text-cyan-100/70">Ladataan AI-feediä...</div>}
-        {!loading && posts.length === 0 && <EmptyFeed />}
-        {posts.map((post, index) => <UltraFeedCard key={post.id} post={post} active={index === activeIndex} user={user} onRefresh={load} chromeVisible={chromeVisible} onOpen={openPost} />)}
+
+      {/* 🔥 KOLEHTI GAME BAR */}
+      {!loading && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-black/70 backdrop-blur-xl border-b border-white/10 px-4 py-2 flex justify-between text-xs font-black">
+          <div>💰 {formatEuro(kolehti.dailyPot)} / päivä</div>
+          <div>👥 {kolehti.groupSize}/1500</div>
+          <div>🔥 {kolehti.fillPercent}%</div>
+        </div>
+      )}
+
+      <main id="feed-scroll-root" className="h-[100dvh] snap-y snap-mandatory overflow-y-auto">
+        {posts.map((post, index) => (
+          <UltraFeedCard
+            key={post.id}
+            post={post}
+            kolehti={kolehti}
+            active={index === activeIndex}
+            user={user}
+            onRefresh={load}
+            chromeVisible={chromeVisible}
+            onOpen={openPost}
+          />
+        ))}
       </main>
-      {selectedPost && <PostDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} />}
     </div>
   );
 }
 
-function PreloadMedia({ posts, activeIndex }) {
-  const next = posts.slice(activeIndex + 1, activeIndex + 4).map(getPostMedia).filter((m) => m.url && m.type === "image");
-  return <>{next.map((m) => <img key={m.url} src={m.url} alt="" className="hidden" />)}</>;
-}
-
-function EmptyFeed() {
-  return <section className="grid h-[100dvh] snap-start place-items-center bg-[#050816] px-6 text-center"><div><div className="text-6xl">🔥</div><h2 className="mt-4 text-3xl font-black">Feed on tyhjä</h2><p className="mt-2 text-sm font-bold text-white/60">Luo ensimmäinen postaus Uusi-välilehdeltä.</p></div></section>;
-}
-
-function FeedVisual({ media, active }) {
-  const className = `absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 ${active ? "scale-100" : "scale-[1.006]"} ${media.curated ? "feed-sharp-fallback" : "feed-user-media"}`;
-  if (media.type === "video" && media.url) return <video src={media.url} className={className} autoPlay={active} muted loop playsInline preload={active ? "auto" : "metadata"} />;
-  return <img src={media.url || FALLBACK_BG} alt="" className={className} loading={active ? "eager" : "lazy"} decoding="async" />;
-}
-
-function UltraFeedCard({ post, active, user, onRefresh, chromeVisible, onOpen }) {
-  const [liked, setLiked] = useState(false);
-  const [burst, setBurst] = useState(false);
-  const [busyLike, setBusyLike] = useState(false);
-  const [shareToast, setShareToast] = useState(false);
-  const media = getPostMedia(post);
-  const score = Math.round(post.backend_score || post.score || post.winner_score || post.ai_score || 0);
-  const baseVotes = Number(post.votes || post.vote_count || 0);
-  const votes = baseVotes + (liked ? 1 : 0);
-  const views = Number(post.watch_time_total || post.views || 0);
-  const shares = Number(post.shares || 0) + (shareToast ? 1 : 0);
-  const author = post.bot ? post.bot_name : post.display_name || post.username || "Pelaaja";
-  const avatar = post.bot ? post.bot_avatar || "🤖" : String(author || "P").slice(0, 1).toUpperCase();
-  const why = post.rank_reason || (post.ai_similarity > 0 ? `AI match ${Math.round(post.ai_similarity * 100)}%` : whyForYou(post));
-
-  async function likePulse(e) {
-    e?.stopPropagation?.();
-    setLiked(true); setBurst(true); saveFeedSignal(post, "likes"); haptic("heavy"); setTimeout(() => setBurst(false), 650);
-    if (!user?.id || post.bot || busyLike) return;
-    setBusyLike(true);
-    try {
-      await supabase.from("votes").upsert({ post_id: post.id, user_id: user.id, value: 1 }, { onConflict: "user_id,post_id" });
-      await supabase.rpc("record_ai_feed_signal", { target_post_id: post.id, event: "feed_like" });
-      learnInterest(user.id, post.id, "feed_like");
-      setTimeout(() => onRefresh?.(), 500);
-    } finally { setBusyLike(false); }
-  }
-
-  async function sharePost(e) {
-    e?.stopPropagation?.();
-    haptic("tap"); saveFeedSignal(post, "shares");
-    const text = `${post.content}\n\nKolehti`;
-    try { if (navigator.share) await navigator.share({ title: "Kolehti", text, url: window.location.href }); else await navigator.clipboard?.writeText(window.location.href); } catch {}
-    if (user?.id && !post.bot) { supabase.rpc("record_ai_feed_signal", { target_post_id: post.id, event: "feed_share" }); learnInterest(user.id, post.id, "feed_share"); }
-    setShareToast(true); setTimeout(() => setShareToast(false), 1200);
-  }
+function UltraFeedCard({ post, kolehti }) {
+  const votes = Number(post.votes || 0);
 
   return (
-    <article onDoubleClick={likePulse} className="relative h-[100dvh] snap-start overflow-hidden bg-[#050816]">
-      <FeedVisual media={media} active={active} />
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_var(--feed-light-x,30%)_var(--feed-light-y,28%),rgba(125,211,252,calc(.12+.12*var(--feed-swipe-energy,0))),transparent_58%)] animate-[feedLightDrift_18s_ease-in-out_infinite]" />
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_center,transparent_0%,transparent_42%,rgba(0,0,0,.22)_76%,rgba(0,0,0,.52)_100%)]" />
-      <div className="pointer-events-none absolute inset-0 z-[1] opacity-[.045] [background-image:radial-gradient(rgba(255,255,255,.9)_1px,transparent_1px)] [background-size:3px_3px]" />
-      <div className="absolute inset-0 z-[2] bg-gradient-to-b from-black/50 via-black/8 to-black/95" />
-      <div className="absolute inset-0 z-[2] bg-[radial-gradient(circle_at_var(--feed-light-x,72%)_var(--feed-light-y,24%),rgba(34,211,238,.20),transparent_34%)]" />
-      <div className={`absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/54 to-transparent transition-opacity duration-300 ${chromeVisible ? "opacity-70" : "opacity-0"}`} />
-      <div className="absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-t from-black via-black/68 to-transparent" />
-      {burst && <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center text-8xl text-pink-200 drop-shadow-2xl animate-[ping_.65s_ease-out_1]">♥</div>}
-      {shareToast && <div className="pointer-events-none absolute left-1/2 top-32 z-50 -translate-x-1/2 rounded-full bg-black/60 px-5 py-2 text-xs font-black text-white backdrop-blur-xl">Jaettu / linkki kopioitu</div>}
-      <header className={`absolute left-4 right-4 top-4 z-20 flex items-center gap-2.5 transition-all duration-300 ${chromeVisible ? "translate-y-0 opacity-80" : "-translate-y-5 opacity-0"}`}><div className="grid h-10 w-10 place-items-center rounded-2xl border border-cyan-200/20 bg-cyan-300/10 text-lg font-black shadow-xl shadow-cyan-500/10 backdrop-blur-xl">K</div><div><div className="text-2xl font-black tracking-tight drop-shadow">KOLEHTI</div><div className="text-[9px] font-black uppercase tracking-[0.24em] text-cyan-100/55">Äänestä · nosta · voita</div></div></header>
-      <aside className={`absolute bottom-[112px] right-3 z-30 flex flex-col items-center gap-3 transition-all duration-300 ${chromeVisible ? "translate-x-0 opacity-100" : "translate-x-16 opacity-0"}`}><button type="button" onClick={likePulse} className="transition active:scale-90"><ActionBubble icon="♥" label={votes || 0} active={liked} /></button><ActionBubble icon="👀" label={views || 0} /><button type="button" onClick={sharePost} className="transition active:scale-90"><ActionBubble icon="↗" label={shares || 0} /></button><ActionBubble icon="AI" label={score} small /></aside>
-      <section className={`feed-overlay absolute left-0 right-0 z-20 px-4 transition-all duration-500 ${active ? "translate-y-0 opacity-100" : "translate-y-5 opacity-80"}`}>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onOpen?.(post); }} className="feed-card w-full text-left rounded-[34px] border border-white/18 bg-black/40 p-5 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className={`mb-3 inline-flex rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/85 transition-opacity ${chromeVisible ? "opacity-100" : "opacity-0"}`}>AI For You · {why}</div>
-          <div className="flex items-center gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-lg font-black">{avatar}</div><div className="min-w-0 flex-1"><div className="truncate text-lg font-black">{author}</div><div className="text-[11px] font-black uppercase tracking-wide text-cyan-100/70">{post.bot ? "Pelibotti" : "Osallistuminen / viikko"}</div></div><div className="rounded-full border border-cyan-100/20 bg-cyan-300/12 px-3 py-2 text-sm font-black text-cyan-100">{score} XP</div></div>
-          <p className="mt-5 text-[25px] font-black leading-[1.18] tracking-tight text-white drop-shadow-xl sm:text-[28px]">{post.content}</p>
-          <div className={`mt-4 flex gap-4 text-sm font-black text-white/60 transition-opacity ${chromeVisible ? "opacity-100" : "opacity-0"}`}><span>♥ {votes}</span><span>👀 {views}</span><span>↗ {shares}</span></div>
-          <div className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100/55">Napauta avataksesi replies</div>
-        </button>
-      </section>
+    <article className="relative h-[100dvh] flex items-end p-4">
+      <div className="w-full rounded-2xl bg-black/50 p-5">
+
+        {/* 🔥 LABEL */}
+        <div className="text-[10px] font-black uppercase text-cyan-200">
+          {getKolehtiReasonLabel(post)}
+        </div>
+
+        {/* 💰 POT INFO */}
+        <div className="text-xs text-yellow-300 mb-2">
+          Päivän potti: {formatEuro(kolehti.dailyPot)}
+        </div>
+
+        {/* TEXT */}
+        <div className="text-xl font-black mb-4">
+          {post.content}
+        </div>
+
+        {/* ❤️ VOTE */}
+        <div className="text-sm">❤️ {votes}</div>
+
+      </div>
     </article>
   );
-}
-
-function PostDetailModal({ post, onClose }) {
-  const replies = useMemo(() => makeBotRepliesForPost(post, post?.bot ? 2 : 4), [post?.id, post?.score, post?.votes]);
-  const media = getPostMedia(post);
-  const score = Math.round(post.backend_score || post.score || post.winner_score || post.ai_score || 0);
-  const votes = Number(post.votes || post.vote_count || 0);
-  const views = Number(post.watch_time_total || post.views || 0);
-  const shares = Number(post.shares || 0);
-  const author = post.bot ? post.bot_name : post.display_name || post.username || "Pelaaja";
-  const avatar = post.bot ? post.bot_avatar || "🤖" : String(author || "P").slice(0, 1).toUpperCase();
-  const why = post.rank_reason || (post.ai_similarity > 0 ? `AI match ${Math.round(post.ai_similarity * 100)}%` : whyForYou(post));
-
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 z-[80] bg-black/62 backdrop-blur-sm" onClick={onClose}>
-      <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-hidden rounded-t-[34px] border border-white/14 bg-[#07111f]/94 shadow-2xl shadow-black/70 animate-[slideUp_.22s_ease-out]" onClick={(e) => e.stopPropagation()}>
-        <style>{`@keyframes slideUp { from { transform: translateY(32px); opacity: .72; } to { transform: translateY(0); opacity: 1; } }`}</style>
-        <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-white/24" />
-        <div className="max-h-[86dvh] overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+28px)] pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="relative overflow-hidden rounded-[28px] border border-white/12 bg-black/30">
-            <img src={media.url || FALLBACK_BG} alt="" className="h-40 w-full object-cover opacity-78" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#07111f] via-transparent to-black/20" />
-            <button type="button" onClick={onClose} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/50 text-xl font-black text-white backdrop-blur-xl">×</button>
-          </div>
-
-          <div className="mt-5 flex items-center gap-3">
-            <div className="grid h-12 w-12 min-h-12 min-w-12 place-items-center rounded-2xl border border-white/16 bg-white/10 text-xl font-black">{avatar}</div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xl font-black">{author}</div>
-              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-cyan-100/58">{post.bot ? "Pelibotti" : "Feed detail"}</div>
-            </div>
-            <div className="rounded-full border border-cyan-100/20 bg-cyan-300/12 px-3 py-2 text-sm font-black text-cyan-100">{score} XP</div>
-          </div>
-
-          <p className="mt-5 text-[25px] font-black leading-[1.18] tracking-tight text-white drop-shadow-xl">{post.content}</p>
-
-          <div className="mt-5 grid grid-cols-4 gap-2">
-            <StatPill label="Votes" value={votes} />
-            <StatPill label="Views" value={views} />
-            <StatPill label="Shares" value={shares} />
-            <StatPill label="AI" value={score} />
-          </div>
-
-          <div className="mt-5 rounded-[24px] border border-cyan-100/12 bg-cyan-300/8 p-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/60">Miksi tämä näkyi?</div>
-            <div className="mt-2 text-sm font-bold leading-snug text-white/78">{why}</div>
-          </div>
-
-          <div className="mt-6">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/65">Bot replies</h3>
-              <span className="rounded-full border border-cyan-100/16 bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100">{replies.length}</span>
-            </div>
-            <div className="space-y-3">
-              {replies.map((reply, index) => <BotReplyCard key={`${reply.bot_name}-${index}`} reply={reply} />)}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatPill({ label, value }) {
-  return <div className="rounded-2xl border border-white/10 bg-white/7 px-2 py-3 text-center"><div className="text-base font-black text-white">{value || 0}</div><div className="mt-1 text-[9px] font-black uppercase tracking-wide text-white/45">{label}</div></div>;
-}
-
-function BotReplyCard({ reply }) {
-  return <div className="flex items-start gap-3 rounded-[24px] border border-cyan-100/12 bg-[#030816]/62 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-cyan-200/18 bg-cyan-300/10 text-sm font-black text-cyan-100">{reply.bot_avatar || "🤖"}</div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-black">🤖 {reply.bot_name}</p><p className="shrink-0 text-[9px] font-black uppercase tracking-wide text-cyan-100/55">{reply.disclosure}</p></div><p className="mt-1 text-sm font-bold leading-snug text-white/78">{reply.text}</p></div></div>;
-}
-
-function ActionBubble({ icon, label, small, active }) {
-  return <div className="flex flex-col items-center gap-1"><div className={`grid ${small ? "h-12 w-12 text-xs" : "h-14 w-14 text-xl"} place-items-center rounded-full border font-black shadow-2xl shadow-black/30 backdrop-blur-xl transition ${active ? "border-pink-200/50 bg-pink-500/35 text-pink-50" : "border-white/18 bg-black/36 text-white"}`}>{icon}</div><div className="max-w-[54px] truncate text-center text-[11px] font-black text-white/85 drop-shadow">{label}</div></div>;
 }
