@@ -1,8 +1,121 @@
-/* Next Level UX polish for Kolehti feed */
+/* Next Level UX polish for Kolehti feed + global premium interactions */
 :root {
   --feed-card-bottom: max(132px, calc(env(safe-area-inset-bottom) + 118px));
   --feed-card-max-h: 54dvh;
   --feed-readable-gradient: linear-gradient(180deg, rgba(2, 6, 17, .58), rgba(2, 6, 17, .38) 42%, rgba(2, 6, 17, .82));
+}
+
+/* Global premium interaction layer */
+#root button,
+#root a,
+#root [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+#root button:not(:disabled),
+#root a[href],
+#root [role="button"] {
+  transition:
+    transform .18s cubic-bezier(.2, .9, .2, 1),
+    filter .18s ease,
+    box-shadow .22s ease,
+    border-color .22s ease,
+    background-color .22s ease;
+}
+
+#root button:not(:disabled):active,
+#root a[href]:active,
+#root [role="button"]:active {
+  transform: translateY(1px) scale(.975);
+  filter: brightness(1.08) saturate(1.08);
+}
+
+#root button:not(:disabled)::after,
+#root a[href]::after {
+  pointer-events: none;
+}
+
+#root main section[class*="bg-[#041226]"],
+#root main article[class*="bg-[#041226]"],
+#root main form[class*="bg-[#041226]"] {
+  transform: translateZ(0);
+  will-change: transform, filter;
+  transition: transform .24s cubic-bezier(.2, .9, .2, 1), filter .24s ease, box-shadow .24s ease;
+}
+
+#root main section[class*="bg-[#041226]"]:active,
+#root main article[class*="bg-[#041226]"]:active,
+#root main form[class*="bg-[#041226]"]:active {
+  transform: translateY(-1px) scale(1.003);
+  filter: brightness(1.035);
+}
+
+#root main section[class*="bg-[#041226]"]::before,
+#root main article[class*="bg-[#041226]"]::before,
+#root main form[class*="bg-[#041226]"]::before {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,.08) 42%, rgba(139,238,255,.12) 50%, transparent 62%, transparent 100%);
+  opacity: 0;
+  transform: translateX(-18%) rotate(6deg);
+  transition: opacity .24s ease, transform .55s ease;
+  z-index: 1;
+}
+
+#root main section[class*="bg-[#041226]"]:active::before,
+#root main article[class*="bg-[#041226]"]:active::before,
+#root main form[class*="bg-[#041226]"]:active::before {
+  opacity: .75;
+  transform: translateX(18%) rotate(6deg);
+}
+
+#root main input,
+#root main textarea {
+  transition: border-color .22s ease, box-shadow .22s ease, background-color .22s ease, transform .18s ease;
+}
+
+#root main input:focus,
+#root main textarea:focus {
+  border-color: rgba(125, 211, 252, .42) !important;
+  box-shadow: 0 0 0 3px rgba(14,165,233,.14), 0 0 34px rgba(14,165,233,.10);
+  background-color: rgba(255,255,255,.075) !important;
+}
+
+#root main .live-dot,
+#root main [class*="shadow-cyan-500"],
+#root main [class*="bg-cyan-500"] {
+  will-change: filter, box-shadow, transform;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #root main section[class*="bg-[#041226]"],
+  #root main article[class*="bg-[#041226]"],
+  #root main form[class*="bg-[#041226]"] {
+    animation: premiumCardFloat 6.4s ease-in-out infinite;
+  }
+
+  #root main section[class*="bg-[#041226]"]:nth-of-type(2n),
+  #root main article[class*="bg-[#041226]"]:nth-of-type(2n) {
+    animation-delay: -2.2s;
+  }
+
+  #root main [class*="bg-cyan-500"],
+  #root main [class*="from-cyan-400"] {
+    animation: premiumCtaGlow 3.2s ease-in-out infinite;
+  }
+}
+
+@keyframes premiumCardFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -2px, 0); }
+}
+
+@keyframes premiumCtaGlow {
+  0%, 100% { filter: brightness(1); box-shadow: 0 0 0 rgba(34,211,238,0); }
+  50% { filter: brightness(1.08) saturate(1.08); box-shadow: 0 0 28px rgba(34,211,238,.20); }
 }
 
 #root main article {
