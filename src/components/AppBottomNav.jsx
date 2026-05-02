@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { haptic } from "../lib/effects";
 
@@ -31,7 +31,6 @@ function predictNext(pathname, items) {
     "/new": { "/feed": 10, "/pots": 4 },
     "/pots": { "/feed": 7, "/new": 5 },
     "/profile": { "/feed": 6, "/new": 4 },
-    "/vote": { "/feed": 6, "/pots": 5 },
     "/groups": { "/feed": 5, "/new": 4 },
     "/leaderboard": { "/pots": 7, "/feed": 4 },
     "/growth": { "/new": 6, "/feed": 5 },
@@ -46,8 +45,12 @@ function predictNext(pathname, items) {
 export default function AppBottomNav({ hidden = false, floating = false, gesture = false, onPulse }) {
   const location = useLocation();
   const [expanded, setExpanded] = useState(false);
+  const [smartHidden, setSmartHidden] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const pressTimer = useRef(null);
   const touchStartY = useRef(0);
+  const lastY = useRef(0);
+  const lastShowAt = useRef(Date.now());
   const items = [
     { to: "/", icon: "home", label: "Koti" },
     { to: "/feed", icon: "feed", label: "Feed" },
@@ -57,8 +60,65 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
   ];
   const suggestedPath = useMemo(() => predictNext(location.pathname, items), [location.pathname]);
 
-  // Unified nav rule: only the floating global nav is allowed to render.
-  // Old page-level non-floating nav usages become no-ops to prevent duplicates.
+  useEffect(() => {
+    setSmartHidden(false);
+    setExpanded(false);
+    lastY.current = window.scrollY || 0;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!floating) return;
+    let ticking = false;
+
+    function update() {
+      ticking = false;
+      const y = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0);
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const delta = y - lastY.current;
+      setScrollProgress(Math.min(1, y / max));
+
+      if (expanded) {
+        setSmartHidden(false);
+        lastY.current = y;
+        return;
+      }
+
+      if (y < 80) {
+        setSmartHidden(false);
+        lastShowAt.current = Date.now();
+      } else if (delta > 10) {
+        setSmartHidden(true);
+      } else if (delta < -8) {
+        setSmartHidden(false);
+        lastShowAt.current = Date.now();
+      }
+
+      lastY.current = y;
+    }
+
+    function onScroll() {
+      if (!ticking) {
+        requestAnimationFrame(update);
+        ticking = true;
+      }
+    }
+
+    function onPointerMove(e) {
+      if (e.clientY > window.innerHeight - 72) {
+        setSmartHidden(false);
+        lastShowAt.current = Date.now();
+      }
+    }
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    update();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pointermove", onPointerMove);
+    };
+  }, [floating, expanded]);
+
   if (!floating) return null;
 
   function rememberClick(to) {
@@ -78,6 +138,7 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     clearTimeout(pressTimer.current);
     pressTimer.current = setTimeout(() => {
       setExpanded(true);
+      setSmartHidden(false);
       haptic("heavy");
     }, 420);
   }
@@ -86,6 +147,7 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
 
   function onTouchStart(e) {
     touchStartY.current = e.touches?.[0]?.clientY || 0;
+    if (touchStartY.current > window.innerHeight - 120) setSmartHidden(false);
     startPress();
   }
 
@@ -94,22 +156,29 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     const endY = e.changedTouches?.[0]?.clientY || touchStartY.current;
     const delta = endY - touchStartY.current;
     if (!gesture || !floating) return;
-    if (delta > 26) { setExpanded(false); haptic("tap"); }
-    else if (delta < -26) { setExpanded(true); haptic("tap"); }
+    if (delta > 26) { setExpanded(false); setSmartHidden(true); haptic("tap"); }
+    else if (delta < -26) { setExpanded(true); setSmartHidden(false); haptic("tap"); }
   }
+
+  const isHidden = (hidden || smartHidden) && !expanded;
 
   return (
     <nav
+      gesture-nav="true"
       onMouseDown={startPress}
       onMouseUp={endPress}
       onMouseLeave={endPress}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
-      className={`fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-1/2 z-[70] text-white transition-all duration-300 ${expanded ? "w-[calc(100%-28px)] max-w-[360px]" : "w-[min(276px,calc(100%-72px))] max-w-[276px]"} ${hidden && !expanded ? "translate-y-[94%] opacity-55" : "translate-y-0 opacity-100"} -translate-x-1/2`}
+      className={`fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-1/2 z-[70] text-white transition-all duration-500 ease-[cubic-bezier(.2,.9,.2,1)] ${expanded ? "w-[calc(100%-28px)] max-w-[360px]" : "w-[min(276px,calc(100%-72px))] max-w-[276px]"} ${isHidden ? "translate-y-[calc(100%+10px)] opacity-0 scale-95 pointer-events-none" : "translate-y-0 opacity-100 scale-100"} -translate-x-1/2`}
+      style={{ filter: `brightness(${1 + scrollProgress * 0.05})` }}
     >
-      <div className={`relative border border-white/14 bg-[#020611]/64 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 ${expanded ? "rounded-[28px] px-3 py-2.5" : "rounded-full px-3 py-2"}`}>
+      <div className={`relative overflow-hidden border border-white/14 bg-[#020611]/64 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 ${expanded ? "rounded-[28px] px-3 py-2.5" : "rounded-full px-3 py-2"}`}>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,238,255,.18),transparent_48%)]" />
+        <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-100/60 to-transparent" />
+        <div className="pointer-events-none absolute bottom-0 left-0 h-[2px] bg-cyan-300/70 transition-all duration-300" style={{ width: `${Math.round(scrollProgress * 100)}%` }} />
         {expanded && <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full border border-cyan-200/16 bg-black/42 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-cyan-100/62 backdrop-blur-xl">AI next</div>}
-        <div className={`grid grid-cols-5 items-center gap-1 text-center font-black transition-all duration-300 ${expanded ? "text-[10px]" : "text-[0px]"}`}>
+        <div className={`relative grid grid-cols-5 items-center gap-1 text-center font-black transition-all duration-300 ${expanded ? "text-[10px]" : "text-[0px]"}`}>
           {items.map((item) => {
             const active = location.pathname === item.to;
             const suggested = !active && suggestedPath === item.to;
