@@ -1,17 +1,34 @@
-/* Feed Ultra Motion Layer — no AI image selection, only motion/depth polish */
+/* Feed Ultra Motion Layer — final polish: smooth first, cinematic second */
+
+body[data-kolehti-route="feed"] #root main {
+  scroll-snap-type: y mandatory;
+  scroll-padding: 0;
+  -webkit-overflow-scrolling: touch;
+  contain: layout paint;
+}
+
+body[data-kolehti-route="feed"] #root main article {
+  background: #020611;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  contain: layout paint;
+  isolation: isolate;
+}
 
 body[data-kolehti-route="feed"] #root main article > img.feed-sharp-fallback,
 body[data-kolehti-route="feed"] #root main article > img.feed-user-media,
 body[data-kolehti-route="feed"] #root main article > video.feed-user-media {
   transform-origin: center center;
-  will-change: transform, filter;
-  filter: saturate(1.16) contrast(1.08) brightness(.98);
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0, 0, 0) scale(var(--feed-pro-scale, 1.018));
+  filter: saturate(1.12) contrast(1.06) brightness(.98);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   body[data-kolehti-route="feed"] #root main article > img.feed-sharp-fallback,
   body[data-kolehti-route="feed"] #root main article > img.feed-user-media {
-    animation: kolehtiUltraKenBurns 16s ease-in-out infinite;
+    animation: kolehtiUltraKenBurns 22s ease-in-out infinite;
   }
 
   body[data-kolehti-route="feed"] #root main article:nth-of-type(2n) > img.feed-sharp-fallback,
@@ -20,68 +37,76 @@ body[data-kolehti-route="feed"] #root main article > video.feed-user-media {
   }
 
   body[data-kolehti-route="feed"] #root main article::before {
-    animation: kolehtiUltraEdgeLight 9s ease-in-out infinite;
-  }
-
-  body[data-kolehti-route="feed"] #root main article::after {
-    animation: kolehtiUltraDepthPulse 6s ease-in-out infinite;
+    animation: kolehtiUltraEdgeLight 14s ease-in-out infinite;
   }
 }
 
 @keyframes kolehtiUltraKenBurns {
-  0% {
-    transform: scale(1.012) translate3d(-.45%, -.25%, 0);
-    filter: saturate(1.12) contrast(1.06) brightness(.96);
+  0%, 100% {
+    transform: translate3d(-.22%, -.14%, 0) scale(1.014);
   }
   50% {
-    transform: scale(1.038) translate3d(.42%, .32%, 0);
-    filter: saturate(1.2) contrast(1.1) brightness(1.02);
-  }
-  100% {
-    transform: scale(1.012) translate3d(-.45%, -.25%, 0);
-    filter: saturate(1.12) contrast(1.06) brightness(.96);
+    transform: translate3d(.22%, .18%, 0) scale(1.026);
   }
 }
 
 @keyframes kolehtiUltraKenBurnsAlt {
-  0% {
-    transform: scale(1.014) translate3d(.42%, -.28%, 0);
-    filter: saturate(1.14) contrast(1.06) brightness(.97);
+  0%, 100% {
+    transform: translate3d(.2%, -.16%, 0) scale(1.015);
   }
   50% {
-    transform: scale(1.04) translate3d(-.42%, .34%, 0);
-    filter: saturate(1.22) contrast(1.1) brightness(1.02);
-  }
-  100% {
-    transform: scale(1.014) translate3d(.42%, -.28%, 0);
-    filter: saturate(1.14) contrast(1.06) brightness(.97);
+    transform: translate3d(-.22%, .18%, 0) scale(1.027);
   }
 }
 
 @keyframes kolehtiUltraEdgeLight {
   0%, 100% {
-    opacity: .55;
-    transform: translate3d(-2%, -1%, 0) scale(1.02);
+    opacity: .46;
+    transform: translate3d(-1.2%, -.8%, 0) scale(1.01);
   }
   50% {
-    opacity: .9;
-    transform: translate3d(2%, 1%, 0) scale(1.08);
+    opacity: .72;
+    transform: translate3d(1.2%, .8%, 0) scale(1.04);
   }
 }
 
-@keyframes kolehtiUltraDepthPulse {
-  0%, 100% { opacity: .34; }
-  50% { opacity: .44; }
-}
-
-/* Center remains visually sharp; edges get cinematic depth through overlays, not blur. */
-body[data-kolehti-route="feed"] #root main article {
-  background: #020611;
+/* Text clarity + card hierarchy */
+body[data-kolehti-route="feed"] #root main article > section.absolute.left-0.right-0.z-20 {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
 }
 
 body[data-kolehti-route="feed"] #root main article > section.absolute.left-0.right-0.z-20 > div {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(139, 238, 255, .12), transparent 32%),
+    linear-gradient(180deg, rgba(5, 10, 24, .68), rgba(0, 0, 0, .62)) !important;
   box-shadow:
-    0 34px 110px rgba(0, 0, 0, .58),
-    0 0 54px rgba(14, 165, 255, .20),
-    inset 0 1px 0 rgba(255, 255, 255, .22) !important;
+    0 24px 74px rgba(0, 0, 0, .54),
+    0 0 34px rgba(14, 165, 255, .14),
+    inset 0 1px 0 rgba(255, 255, 255, .20) !important;
+}
+
+body[data-kolehti-route="feed"] #root main article > section.absolute.left-0.right-0.z-20 p {
+  text-shadow: 0 2px 18px rgba(0,0,0,.52);
+}
+
+/* Light layer follows CSS vars but remains cheap */
+body[data-kolehti-route="feed"] #root main article::before {
+  background:
+    radial-gradient(circle at var(--feed-light-x, 50%) var(--feed-light-y, 28%), rgba(125,211,252,calc(.10 + .08 * var(--feed-swipe-energy,0))), transparent 54%),
+    radial-gradient(circle at center, transparent 0%, transparent 46%, rgba(0,0,0,.22) 78%, rgba(0,0,0,.50) 100%) !important;
+}
+
+@media (max-height: 760px) {
+  body[data-kolehti-route="feed"] #root main article > section.absolute.left-0.right-0.z-20 > div {
+    max-height: 48dvh !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-kolehti-route="feed"] #root main article > img.feed-sharp-fallback,
+  body[data-kolehti-route="feed"] #root main article > img.feed-user-media {
+    animation: none !important;
+    transform: translate3d(0,0,0) scale(1.012) !important;
+  }
 }
