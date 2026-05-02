@@ -8,7 +8,7 @@ import { haptic } from "../lib/effects";
 import { mergeWithBots } from "../lib/bots";
 import { buildWinnerRace, getWeekId } from "../lib/winnerSystem";
 import { recordWeeklyOutcome } from "../lib/streakSystem";
-import { decorateLeaderboard, recordIdentityResult, getIdentityStory } from "../lib/identitySystem";
+import { decorateLeaderboard, recordIdentityResult } from "../lib/identitySystem";
 import { fetchBackendScores, applyBackendScores } from "../lib/backendScoring";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
@@ -78,17 +78,34 @@ function periodFilter(post, period) {
 function PotCard({ title, label, amount, entrants, endsAt, leader, accent, index }) {
   const leaderName = leader?.identity?.alias || leader?.display_name || leader?.username || leader?.bot_name || "Ei johtajaa";
   const leaderScore = Math.round(leader?.score || leader?.backend_score || leader?.ai_score || 0);
+  const recommended = index === 0;
+
   return (
-    <section className="premium-card relative overflow-hidden rounded-[34px] p-5">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-cyan-500/10" />
+    <section className="relative overflow-hidden rounded-[34px] border border-white/18 bg-white/[0.075] p-5 shadow-[0_18px_42px_rgba(0,0,0,.30),inset_0_1px_0_rgba(255,255,255,.22)] backdrop-blur-2xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-white/[0.025] to-cyan-400/10" />
+      <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-cyan-300/14 blur-3xl" />
+      <div className="absolute -left-14 top-10 h-32 w-32 rounded-full bg-white/10 blur-3xl" />
+
+      {recommended && (
+        <div className="absolute right-4 top-4 z-20 rounded-full border border-cyan-200/24 bg-black/24 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-50/90 backdrop-blur-xl">
+          AI suosittelee
+        </div>
+      )}
+
       <div className="relative">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 pr-16">
           <div>
             <div className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/72">{label}</div>
             <h2 className="mt-1 text-[32px] font-black leading-none tracking-tight">{title}</h2>
           </div>
-          <div className="rounded-full border border-cyan-100/18 bg-cyan-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-100">Live</div>
+          {!recommended && <div className="rounded-full border border-cyan-100/16 bg-cyan-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-100/80">Live</div>}
         </div>
+
+        {recommended && (
+          <div className="mt-4 inline-flex max-w-full rounded-[22px] border border-cyan-100/14 bg-white/[0.065] px-4 py-3 text-sm font-black text-cyan-50/90 backdrop-blur-xl">
+            ⚡ Paras mahdollisuus juuri nyt
+          </div>
+        )}
 
         <div className="mt-6 flex items-end justify-between gap-3">
           <div>
@@ -102,17 +119,17 @@ function PotCard({ title, label, amount, entrants, endsAt, leader, accent, index
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-[24px] border border-white/10 bg-black/28 p-3">
+          <div className="rounded-[24px] border border-white/12 bg-white/[0.065] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-xl">
             <div className="text-[10px] font-black uppercase tracking-wide text-white/48">Päättyy</div>
             <div className="mt-1 text-lg font-black text-white">{formatEnds(endsAt)}</div>
           </div>
-          <div className="rounded-[24px] border border-white/10 bg-black/28 p-3">
+          <div className="rounded-[24px] border border-white/12 bg-white/[0.065] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-xl">
             <div className="text-[10px] font-black uppercase tracking-wide text-white/48">Johtaja</div>
             <div className="mt-1 truncate text-lg font-black text-white">{leaderName}</div>
           </div>
         </div>
 
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/45">
+        <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/30">
           <div className={`h-full rounded-full bg-gradient-to-r ${accent}`} style={{ width: `${Math.max(14, Math.min(96, 28 + index * 16 + entrants * 4))}%` }} />
         </div>
         <div className="mt-2 flex justify-between text-[11px] font-black text-white/52">
@@ -143,7 +160,7 @@ export default function PotsPage() {
     load();
 
     const channel = supabase
-      .channel("kolehti-pots-live-v3")
+      .channel("kolehti-pots-live-v4")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "votes" }, (payload) => {
         if (!mounted) return;
         handleVoteInsert(payload?.new);
@@ -314,10 +331,7 @@ export default function PotsPage() {
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
-      <style>{`
-        @keyframes impactToast{0%{transform:translate(-50%,-12px) scale(.96);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.96);opacity:0}}
-        .impact-toast{animation:impactToast 1.5s ease both}
-      `}</style>
+      <style>{`@keyframes impactToast{0%{transform:translate(-50%,-12px) scale(.96);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.96);opacity:0}}.impact-toast{animation:impactToast 1.5s ease both}`}</style>
       <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" />
       <div className="fixed inset-0 bg-gradient-to-b from-black/45 via-[#061126]/80 to-black/95" />
 
@@ -346,31 +360,6 @@ export default function PotsPage() {
         <div className="mt-5">
           <LiveRivalBattle ranked={race?.ranked || []} userId={user?.id} pulse={livePulse} />
         </div>
-
-        <section className="mt-6 space-y-3">
-          <div className="flex items-end justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/60">Top live</p>
-              <h2 className="text-2xl font-black">Johtajat</h2>
-            </div>
-            <span className="text-xs font-black text-white/48">{race?.ranked?.length || 0} osallistujaa</span>
-          </div>
-          {race?.ranked?.slice(0,5).map((entry, i) => (
-            <div key={entry.id} className={`rounded-[24px] border p-4 transition-all duration-500 ${i === 0 ? "border-cyan-200/24 bg-cyan-300/10" : "border-white/8 bg-white/5"}`}>
-              <div className="flex justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate font-black">{entry.identity?.badge} {entry.identity?.alias}</div>
-                  <div className="text-xs text-white/60">{entry.identity?.title}</div>
-                </div>
-                <div className="text-right">
-                  <div className="font-black">{Math.round(entry.score || 0)}</div>
-                  <div className="text-[10px] font-black uppercase text-cyan-100/60">♥ {entry.votes || 0}</div>
-                </div>
-              </div>
-              <div className="mt-2 text-xs text-cyan-200/70">{getIdentityStory(entry)}</div>
-            </div>
-          ))}
-        </section>
 
         <div className="mt-5 flex gap-3">
           <Link to="/new" className="flex-1 rounded-[26px] bg-cyan-500 px-4 py-4 text-center font-black text-white">Oma entry</Link>
