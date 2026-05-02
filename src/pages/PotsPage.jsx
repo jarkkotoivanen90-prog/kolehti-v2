@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import WinnerScreen from "../components/WinnerScreen";
 import LossScreen from "../components/LossScreen";
 import LiveRivalBattle from "../components/LiveRivalBattle";
+import AdaptiveBackground from "../components/AdaptiveBackground";
 import { haptic } from "../lib/effects";
 import { mergeWithBots } from "../lib/bots";
 import { buildWinnerRace, getWeekId } from "../lib/winnerSystem";
@@ -329,8 +330,7 @@ export default function PotsPage() {
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
       <style>{`@keyframes impactToast{0%{transform:translate(-50%,-12px) scale(.96);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.96);opacity:0}}.impact-toast{animation:impactToast 1.5s ease both}`}</style>
-      <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" />
-      <div className="fixed inset-0 bg-gradient-to-b from-black/45 via-[#061126]/80 to-black/95" />
+      <AdaptiveBackground src={BG} strength="balanced" />
 
       {voteImpact && (
         <div className="impact-toast fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/92 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10 backdrop-blur-xl">
