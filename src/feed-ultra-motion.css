@@ -63,7 +63,11 @@ body[data-kolehti-route="feed"] #root main article > video.feed-user-media {
 }
 
 body[data-kolehti-route="feed"] #root main article > section.absolute.left-0.right-0.z-20 {
-  position: relative !important;
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  bottom: clamp(136px, 17dvh, 190px) !important;
   z-index: 20 !important;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
@@ -120,6 +124,9 @@ body[data-kolehti-route="feed"] #root main article > .absolute.inset-x-0.bottom-
 }
 
 @media (max-height: 760px) {
+  body[data-kolehti-route="feed"] #root main article > section.absolute.left-0.right-0.z-20 {
+    bottom: 118px !important;
+  }
   body[data-kolehti-route="feed"] #root main article > section.absolute.left-0.right-0.z-20 > div {
     max-height: 48dvh !important;
   }
