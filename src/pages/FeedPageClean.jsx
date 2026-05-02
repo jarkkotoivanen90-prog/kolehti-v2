@@ -45,6 +45,7 @@ export default function FeedPageClean() {
   const [user, setUser] = useState(null);
   const [hint, setHint] = useState(true);
   const [chromeVisible, setChromeVisible] = useState(true);
+  const [selectedPost, setSelectedPost] = useState(null);
   const seenRef = useRef({});
   const lastIndexRef = useRef(0);
   const chromeTimer = useRef(null);
@@ -81,6 +82,16 @@ export default function FeedPageClean() {
     setChromeVisible(true);
     clearTimeout(chromeTimer.current);
     chromeTimer.current = setTimeout(() => hideChrome(), 2000);
+  }
+
+  function openPost(post) {
+    haptic("tap");
+    setSelectedPost(post);
+    saveFeedSignal(post, "opens");
+    if (post?.id && !post.bot) {
+      supabase.rpc("record_ai_feed_signal", { target_post_id: post.id, event: "feed_open_detail" });
+      learnInterest(user?.id, post.id, "feed_open_detail");
+    }
   }
 
   useEffect(() => {
@@ -154,8 +165,9 @@ export default function FeedPageClean() {
       <main id="feed-scroll-root" onScroll={handleScroll} className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {loading && <div className="grid h-[100dvh] place-items-center text-sm font-black text-cyan-100/70">Ladataan AI-feediä...</div>}
         {!loading && posts.length === 0 && <EmptyFeed />}
-        {posts.map((post, index) => <UltraFeedCard key={post.id} post={post} active={index === activeIndex} user={user} onRefresh={load} chromeVisible={chromeVisible} />)}
+        {posts.map((post, index) => <UltraFeedCard key={post.id} post={post} active={index === activeIndex} user={user} onRefresh={load} chromeVisible={chromeVisible} onOpen={openPost} />)}
       </main>
+      {selectedPost && <PostDetailModal post={selectedPost} user={user} onClose={() => setSelectedPost(null)} />}
     </div>
   );
 }
@@ -175,7 +187,7 @@ function FeedVisual({ media, active }) {
   return <img src={media.url || FALLBACK_BG} alt="" className={className} loading={active ? "eager" : "lazy"} decoding="async" />;
 }
 
-function UltraFeedCard({ post, active, user, onRefresh, chromeVisible }) {
+function UltraFeedCard({ post, active, user, onRefresh, chromeVisible, onOpen }) {
   const [liked, setLiked] = useState(false);
   const [burst, setBurst] = useState(false);
   const [busyLike, setBusyLike] = useState(false);
@@ -191,7 +203,8 @@ function UltraFeedCard({ post, active, user, onRefresh, chromeVisible }) {
   const avatar = post.bot ? post.bot_avatar || "🤖" : String(author || "P").slice(0, 1).toUpperCase();
   const why = post.rank_reason || (post.ai_similarity > 0 ? `AI match ${Math.round(post.ai_similarity * 100)}%` : whyForYou(post));
 
-  async function likePulse() {
+  async function likePulse(e) {
+    e?.stopPropagation?.();
     setLiked(true); setBurst(true); saveFeedSignal(post, "likes"); haptic("heavy"); setTimeout(() => setBurst(false), 650);
     if (!user?.id || post.bot || busyLike) return;
     setBusyLike(true);
@@ -203,7 +216,8 @@ function UltraFeedCard({ post, active, user, onRefresh, chromeVisible }) {
     } finally { setBusyLike(false); }
   }
 
-  async function sharePost() {
+  async function sharePost(e) {
+    e?.stopPropagation?.();
     haptic("tap"); saveFeedSignal(post, "shares");
     const text = `${post.content}\n\nKolehti`;
     try { if (navigator.share) await navigator.share({ title: "Kolehti", text, url: window.location.href }); else await navigator.clipboard?.writeText(window.location.href); } catch {}
@@ -225,17 +239,91 @@ function UltraFeedCard({ post, active, user, onRefresh, chromeVisible }) {
       {shareToast && <div className="pointer-events-none absolute left-1/2 top-32 z-50 -translate-x-1/2 rounded-full bg-black/60 px-5 py-2 text-xs font-black text-white backdrop-blur-xl">Jaettu / linkki kopioitu</div>}
       <header className={`absolute left-4 right-4 top-4 z-20 flex items-center gap-2.5 transition-all duration-300 ${chromeVisible ? "translate-y-0 opacity-80" : "-translate-y-5 opacity-0"}`}><div className="grid h-10 w-10 place-items-center rounded-2xl border border-cyan-200/20 bg-cyan-300/10 text-lg font-black shadow-xl shadow-cyan-500/10 backdrop-blur-xl">K</div><div><div className="text-2xl font-black tracking-tight drop-shadow">KOLEHTI</div><div className="text-[9px] font-black uppercase tracking-[0.24em] text-cyan-100/55">Äänestä · nosta · voita</div></div></header>
       <aside className={`absolute bottom-[112px] right-3 z-30 flex flex-col items-center gap-3 transition-all duration-300 ${chromeVisible ? "translate-x-0 opacity-100" : "translate-x-16 opacity-0"}`}><button type="button" onClick={likePulse} className="transition active:scale-90"><ActionBubble icon="♥" label={votes || 0} active={liked} /></button><ActionBubble icon="👀" label={views || 0} /><button type="button" onClick={sharePost} className="transition active:scale-90"><ActionBubble icon="↗" label={shares || 0} /></button><ActionBubble icon="AI" label={score} small /></aside>
-      <section className={`absolute left-0 right-0 z-20 px-4 transition-all duration-500 ${active ? "translate-y-0 opacity-100" : "translate-y-5 opacity-80"}`}>
-        <div className="max-h-[54dvh] overflow-y-auto rounded-[34px] border border-white/18 bg-black/40 p-5 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <section className={`feed-overlay absolute left-0 right-0 z-20 px-4 transition-all duration-500 ${active ? "translate-y-0 opacity-100" : "translate-y-5 opacity-80"}`}>
+        <button type="button" onClick={(e) => { e.stopPropagation(); onOpen?.(post); }} className="feed-card w-full text-left rounded-[34px] border border-white/18 bg-black/40 p-5 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className={`mb-3 inline-flex rounded-full border border-cyan-200/20 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/85 transition-opacity ${chromeVisible ? "opacity-100" : "opacity-0"}`}>AI For You · {why}</div>
           <div className="flex items-center gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-lg font-black">{avatar}</div><div className="min-w-0 flex-1"><div className="truncate text-lg font-black">{author}</div><div className="text-[11px] font-black uppercase tracking-wide text-cyan-100/70">{post.bot ? "Pelibotti" : "Osallistuminen / viikko"}</div></div><div className="rounded-full border border-cyan-100/20 bg-cyan-300/12 px-3 py-2 text-sm font-black text-cyan-100">{score} XP</div></div>
           <p className="mt-5 text-[25px] font-black leading-[1.18] tracking-tight text-white drop-shadow-xl sm:text-[28px]">{post.content}</p>
           <div className={`mt-4 flex gap-4 text-sm font-black text-white/60 transition-opacity ${chromeVisible ? "opacity-100" : "opacity-0"}`}><span>♥ {votes}</span><span>👀 {views}</span><span>↗ {shares}</span></div>
-          {chromeVisible && <BotReplyStrip replies={replies} />}
-        </div>
+          <div className="mt-3 text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100/55">Napauta avataksesi replies</div>
+        </button>
       </section>
     </article>
   );
+}
+
+function PostDetailModal({ post, user, onClose }) {
+  const replies = useMemo(() => makeBotRepliesForPost(post, post?.bot ? 2 : 4), [post?.id, post?.score, post?.votes]);
+  const media = getPostMedia(post);
+  const score = Math.round(post.backend_score || post.score || post.winner_score || post.ai_score || 0);
+  const votes = Number(post.votes || post.vote_count || 0);
+  const views = Number(post.watch_time_total || post.views || 0);
+  const shares = Number(post.shares || 0);
+  const author = post.bot ? post.bot_name : post.display_name || post.username || "Pelaaja";
+  const avatar = post.bot ? post.bot_avatar || "🤖" : String(author || "P").slice(0, 1).toUpperCase();
+  const why = post.rank_reason || (post.ai_similarity > 0 ? `AI match ${Math.round(post.ai_similarity * 100)}%` : whyForYou(post));
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-black/62 backdrop-blur-sm" onClick={onClose}>
+      <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-hidden rounded-t-[34px] border border-white/14 bg-[#07111f]/94 shadow-2xl shadow-black/70 animate-[slideUp_.22s_ease-out]" onClick={(e) => e.stopPropagation()}>
+        <style>{`@keyframes slideUp { from { transform: translateY(32px); opacity: .72; } to { transform: translateY(0); opacity: 1; } }`}</style>
+        <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-white/24" />
+        <div className="max-h-[86dvh] overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+28px)] pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="relative overflow-hidden rounded-[28px] border border-white/12 bg-black/30">
+            <img src={media.url || FALLBACK_BG} alt="" className="h-40 w-full object-cover opacity-78" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#07111f] via-transparent to-black/20" />
+            <button type="button" onClick={onClose} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/50 text-xl font-black text-white backdrop-blur-xl">×</button>
+          </div>
+
+          <div className="mt-5 flex items-center gap-3">
+            <div className="grid h-13 w-13 min-h-13 min-w-13 place-items-center rounded-2xl border border-white/16 bg-white/10 text-xl font-black">{avatar}</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xl font-black">{author}</div>
+              <div className="text-[11px] font-black uppercase tracking-[0.22em] text-cyan-100/58">{post.bot ? "Pelibotti" : "Feed detail"}</div>
+            </div>
+            <div className="rounded-full border border-cyan-100/20 bg-cyan-300/12 px-3 py-2 text-sm font-black text-cyan-100">{score} XP</div>
+          </div>
+
+          <p className="mt-5 text-[25px] font-black leading-[1.18] tracking-tight text-white drop-shadow-xl">{post.content}</p>
+
+          <div className="mt-5 grid grid-cols-4 gap-2">
+            <StatPill label="Votes" value={votes} />
+            <StatPill label="Views" value={views} />
+            <StatPill label="Shares" value={shares} />
+            <StatPill label="AI" value={score} />
+          </div>
+
+          <div className="mt-5 rounded-[24px] border border-cyan-100/12 bg-cyan-300/8 p-4">
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/60">Miksi tämä näkyi?</div>
+            <div className="mt-2 text-sm font-bold leading-snug text-white/78">{why}</div>
+          </div>
+
+          <div className="mt-6">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/65">Bot replies</h3>
+              <span className="rounded-full border border-cyan-100/16 bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100">{replies.length}</span>
+            </div>
+            <div className="space-y-3">
+              {replies.map((reply, index) => <BotReplyCard key={`${reply.bot_name}-${index}`} reply={reply} />)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatPill({ label, value }) {
+  return <div className="rounded-2xl border border-white/10 bg-white/7 px-2 py-3 text-center"><div className="text-base font-black text-white">{value || 0}</div><div className="mt-1 text-[9px] font-black uppercase tracking-wide text-white/45">{label}</div></div>;
+}
+
+function BotReplyCard({ reply }) {
+  return <div className="flex items-start gap-3 rounded-[24px] border border-cyan-100/12 bg-[#030816]/62 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-cyan-200/18 bg-cyan-300/10 text-sm font-black text-cyan-100">{reply.bot_avatar || "🤖"}</div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-black">🤖 {reply.bot_name}</p><p className="shrink-0 text-[9px] font-black uppercase tracking-wide text-cyan-100/55">{reply.disclosure}</p></div><p className="mt-1 text-sm font-bold leading-snug text-white/78">{reply.text}</p></div></div>;
 }
 
 function ActionBubble({ icon, label, small, active }) {
