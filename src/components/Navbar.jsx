@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
@@ -23,11 +23,27 @@ function KHeartgramLogo({ compact = false }) {
   );
 }
 
+function pageMeta(pathname) {
+  if (pathname === "/feed") return { title: "Feed", sub: "AI valitsee seuraavan", glow: "rgba(59,130,246,.20)", href: "/feed" };
+  if (pathname === "/pots") return { title: "Potit", sub: "Live · päivä · viikko", glow: "rgba(250,204,21,.16)", href: "/pots" };
+  if (pathname === "/new") return { title: "Uusi", sub: "Kirjoita vahva entry", glow: "rgba(34,211,238,.22)", href: "/new" };
+  if (pathname === "/groups") return { title: "Porukat", sub: "Yhteisö · ranking", glow: "rgba(45,212,191,.18)", href: "/groups" };
+  if (pathname === "/profile") return { title: "Profiili", sub: "XP · status · omat", glow: "rgba(96,165,250,.18)", href: "/profile" };
+  if (pathname === "/growth") return { title: "Kasvu", sub: "Loopit · streakit", glow: "rgba(168,85,247,.20)", href: "/growth" };
+  if (pathname === "/leaderboard") return { title: "Ranking", sub: "Top tekijät", glow: "rgba(59,130,246,.18)", href: "/leaderboard" };
+  if (pathname === "/war") return { title: "War", sub: "Rival battle", glow: "rgba(250,204,21,.18)", href: "/war" };
+  return { title: "KOLEHTI", sub: "Live · AI · Potit", glow: "rgba(139,238,255,.18)", href: "/feed" };
+}
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const [magnet, setMagnet] = useState({ x: 0, y: 0 });
   const location = useLocation();
   const navigate = useNavigate();
+  const lastY = useRef(0);
+  const meta = useMemo(() => pageMeta(location.pathname), [location.pathname]);
 
   const links = [
     { to: "/feed", label: "Feed" },
@@ -38,30 +54,61 @@ export default function Navbar() {
   ];
 
   useEffect(() => {
-    let lastY = 0;
+    let ticking = false;
     function readScrollY() {
       const feedScroller = document.getElementById("feed-scroll-root");
       return feedScroller ? feedScroller.scrollTop : window.scrollY;
     }
     function update() {
+      ticking = false;
       const y = readScrollY();
-      const goingDown = y > lastY;
-      setHidden(goingDown && y > 70 && !open);
-      lastY = Math.max(0, y);
+      const delta = y - lastY.current;
+      setCompact(y > 22);
+      if (!open) {
+        if (delta > 8 && y > 70) setHidden(true);
+        if (delta < -7 || y < 36) setHidden(false);
+      }
+      lastY.current = Math.max(0, y);
+    }
+    function onScroll() {
+      if (!ticking) {
+        requestAnimationFrame(update);
+        ticking = true;
+      }
+    }
+    function onTouchMove(e) {
+      const y = e.touches?.[0]?.clientY || 0;
+      if (y < 86) setHidden(false);
+      onScroll();
+    }
+    function onPointerMove(e) {
+      if (e.clientY < 105) {
+        const pullX = Math.max(-8, Math.min(8, (e.clientX - window.innerWidth / 2) / 28));
+        const pullY = Math.max(-2, Math.min(5, (e.clientY - 56) / 20));
+        setMagnet({ x: pullX, y: pullY });
+        setHidden(false);
+      } else if (magnet.x || magnet.y) {
+        setMagnet({ x: 0, y: 0 });
+      }
     }
     const feedScroller = document.getElementById("feed-scroll-root");
     const target = feedScroller || window;
-    target.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("touchmove", update, { passive: true });
+    target.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
     return () => {
-      target.removeEventListener("scroll", update);
-      window.removeEventListener("touchmove", update);
+      target.removeEventListener("scroll", onScroll);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("pointermove", onPointerMove);
     };
-  }, [location.pathname, open]);
+  }, [location.pathname, open, magnet.x, magnet.y]);
 
   useEffect(() => {
     setHidden(false);
     setOpen(false);
+    setCompact(false);
+    setMagnet({ x: 0, y: 0 });
+    lastY.current = 0;
   }, [location.pathname]);
 
   async function logout() {
@@ -75,24 +122,30 @@ export default function Navbar() {
   }
 
   return (
-    <header className={`pointer-events-none fixed left-0 right-0 top-[max(10px,env(safe-area-inset-top))] z-50 px-3 text-white transition-all duration-500 ease-[cubic-bezier(.2,.9,.2,1)] ${hidden ? "-translate-y-[120%] opacity-0" : "translate-y-0 opacity-100"}`}>
-      <div className="pointer-events-auto mx-auto flex max-w-md items-center justify-between gap-3 rounded-full border border-white/12 bg-[#020611]/28 px-3 py-2 shadow-2xl shadow-black/28 backdrop-blur-2xl">
-        <Link to="/feed" className="flex min-w-0 items-center gap-2" onClick={() => setOpen(false)}>
+    <header className={`pointer-events-none fixed left-0 right-0 top-[max(10px,env(safe-area-inset-top))] z-50 px-3 text-white transition-all duration-500 ease-[cubic-bezier(.2,.9,.2,1)] ${hidden ? "-translate-y-[125%] opacity-0" : "translate-y-0 opacity-100"}`}>
+      <div
+        className={`pointer-events-auto mx-auto flex max-w-md items-center justify-between gap-3 overflow-hidden border border-white/12 bg-[#020611]/24 shadow-2xl shadow-black/24 backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(.2,.9,.2,1)] ${compact ? "rounded-full px-2.5 py-1.5" : "rounded-[30px] px-3 py-2"}`}
+        style={{ transform: `translate3d(${magnet.x}px, ${magnet.y}px, 0)` }}
+      >
+        <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(circle at 18% 0%, ${meta.glow}, transparent 46%)` }} />
+        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-100/55 to-transparent" />
+
+        <Link to={meta.href} className="relative flex min-w-0 items-center gap-2" onClick={() => setOpen(false)}>
           <KHeartgramLogo compact />
           <div className="min-w-0">
-            <div className="truncate bg-gradient-to-r from-cyan-100 via-white to-cyan-100 bg-clip-text text-lg font-black leading-none tracking-tight text-transparent">KOLEHTI</div>
-            <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.20em] text-cyan-100/62">Live · AI · Potit</div>
+            <div className="truncate bg-gradient-to-r from-cyan-100 via-white to-cyan-100 bg-clip-text text-lg font-black leading-none tracking-tight text-transparent">{meta.title}</div>
+            {!compact && <div className="mt-0.5 truncate text-[9px] font-black uppercase tracking-[0.20em] text-cyan-100/62">{meta.sub}</div>}
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="relative hidden items-center gap-1 md:flex">
           {links.map((link) => (
             <Link key={link.to} to={link.to} className={`rounded-2xl px-3 py-2 text-xs font-black transition ${isActive(link.to) ? "bg-cyan-300/90 text-[#061126] shadow-lg shadow-cyan-300/20" : "border border-white/8 bg-white/[.055] text-white/72 hover:bg-white/12"}`}>{link.label}</Link>
           ))}
           <button onClick={logout} className="rounded-2xl bg-pink-500/80 px-3 py-2 text-xs font-black text-white shadow-lg shadow-pink-500/15">Ulos</button>
         </nav>
 
-        <button onClick={() => setOpen(!open)} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.075] text-2xl font-black shadow-lg shadow-black/18 md:hidden" aria-label="Avaa valikko">
+        <button onClick={() => setOpen(!open)} className="relative grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.075] text-2xl font-black shadow-lg shadow-black/18 md:hidden" aria-label="Avaa valikko">
           {open ? "×" : "☰"}
         </button>
       </div>
