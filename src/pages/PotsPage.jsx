@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import AppBottomNav from "../components/AppBottomNav";
 import WinnerScreen from "../components/WinnerScreen";
 import LossScreen from "../components/LossScreen";
-import EgoPanel from "../components/EgoPanel";
 import LiveRivalBattle from "../components/LiveRivalBattle";
 import { haptic } from "../lib/effects";
 import { mergeWithBots } from "../lib/bots";
@@ -22,6 +20,108 @@ function buildVoteMap(votes = []) {
     map[vote.post_id] = (map[vote.post_id] || 0) + Number(vote.value || 1);
   });
   return map;
+}
+
+function endOfDay() {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function endOfWeek() {
+  const d = new Date();
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() + (7 - day));
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function endOfMonth() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+function endOfFinal() {
+  const d = endOfMonth();
+  d.setDate(d.getDate() + 7);
+  return d;
+}
+
+function formatEnds(date) {
+  const diff = Math.max(0, date.getTime() - Date.now());
+  const hours = Math.floor(diff / 36e5);
+  const minutes = Math.floor((diff % 36e5) / 6e4);
+  if (hours >= 24) return `${Math.floor(hours / 24)} pv ${hours % 24} h`;
+  if (hours > 0) return `${hours} h ${minutes} min`;
+  return `${minutes} min`;
+}
+
+function potAmount(base, posts, votes, multiplier = 1) {
+  return Math.round((base + posts * 0.35 + votes * 0.08) * multiplier);
+}
+
+function periodFilter(post, period) {
+  const t = new Date(post.created_at || 0);
+  const now = new Date();
+  if (period === "day") return t.toDateString() === now.toDateString();
+  if (period === "week") {
+    const start = new Date(now);
+    const day = start.getDay() || 7;
+    start.setDate(start.getDate() - day + 1);
+    start.setHours(0, 0, 0, 0);
+    return t >= start;
+  }
+  if (period === "month") return t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth();
+  return true;
+}
+
+function PotCard({ title, label, amount, entrants, endsAt, leader, accent, index }) {
+  const leaderName = leader?.identity?.alias || leader?.display_name || leader?.username || leader?.bot_name || "Ei johtajaa";
+  const leaderScore = Math.round(leader?.score || leader?.backend_score || leader?.ai_score || 0);
+  return (
+    <section className="premium-card relative overflow-hidden rounded-[34px] p-5">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-cyan-500/10" />
+      <div className="relative">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/72">{label}</div>
+            <h2 className="mt-1 text-[32px] font-black leading-none tracking-tight">{title}</h2>
+          </div>
+          <div className="rounded-full border border-cyan-100/18 bg-cyan-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-100">Live</div>
+        </div>
+
+        <div className="mt-6 flex items-end justify-between gap-3">
+          <div>
+            <div className="text-[12px] font-black uppercase tracking-[0.18em] text-white/52">Potti</div>
+            <div className="mt-1 text-[54px] font-black leading-none text-white">{amount}€</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[12px] font-black uppercase tracking-[0.18em] text-white/52">Porukka</div>
+            <div className="mt-1 text-3xl font-black text-cyan-100">{entrants}</div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-[24px] border border-white/10 bg-black/28 p-3">
+            <div className="text-[10px] font-black uppercase tracking-wide text-white/48">Päättyy</div>
+            <div className="mt-1 text-lg font-black text-white">{formatEnds(endsAt)}</div>
+          </div>
+          <div className="rounded-[24px] border border-white/10 bg-black/28 p-3">
+            <div className="text-[10px] font-black uppercase tracking-wide text-white/48">Johtaja</div>
+            <div className="mt-1 truncate text-lg font-black text-white">{leaderName}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/45">
+          <div className={`h-full rounded-full bg-gradient-to-r ${accent}`} style={{ width: `${Math.max(14, Math.min(96, 28 + index * 16 + entrants * 4))}%` }} />
+        </div>
+        <div className="mt-2 flex justify-between text-[11px] font-black text-white/52">
+          <span>Score {leaderScore}</span>
+          <span>reaaliajassa</span>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export default function PotsPage() {
@@ -43,7 +143,7 @@ export default function PotsPage() {
     load();
 
     const channel = supabase
-      .channel("kolehti-live-vote-impact-v2")
+      .channel("kolehti-pots-live-v3")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "votes" }, (payload) => {
         if (!mounted) return;
         handleVoteInsert(payload?.new);
@@ -58,13 +158,16 @@ export default function PotsPage() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, () => {
         if (!mounted) return;
-        showImpact("Uusi entry muutti kilpailua");
+        showImpact("Uusi entry muutti potteja");
         loadPostsOnly();
       })
       .subscribe();
 
+    const timer = setInterval(() => setLivePulse((v) => v + 1), 30000);
+
     return () => {
       mounted = false;
+      clearInterval(timer);
       if (pulseTimerRef.current) clearTimeout(pulseTimerRef.current);
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
       supabase.removeChannel(channel);
@@ -95,7 +198,7 @@ export default function PotsPage() {
   function handleVoteInsert(vote) {
     if (!vote?.post_id) return;
     setVotes((prev) => [vote, ...prev].slice(0, 500));
-    showImpact("Ääni vaikutti tilanteeseen");
+    showImpact("Ääni vaikutti potteihin");
   }
 
   function handleVoteUpdate(vote) {
@@ -142,6 +245,37 @@ export default function PotsPage() {
     result.ranked = decorateLeaderboard(result.ranked || []);
     return result;
   }, [scoredPosts, votes.length, livePulse]);
+
+  const potData = useMemo(() => {
+    const decoratedAll = decorateLeaderboard(mergeWithBots(scoredPosts, 10));
+    const uniquePeople = new Set(decoratedAll.map((p) => p.user_id || p.id)).size;
+    const countVotesFor = (period) => votes.filter((v) => {
+      const linked = posts.find((p) => p.id === v.post_id);
+      return linked ? periodFilter(linked, period) : true;
+    }).length;
+    const build = (period, title, label, base, endsAt, accent, index, multiplier = 1) => {
+      const entries = decorateLeaderboard(decoratedAll.filter((p) => periodFilter(p, period))).sort((a, b) => Number(b.score || b.backend_score || 0) - Number(a.score || a.backend_score || 0));
+      const entrants = Math.max(0, new Set(entries.map((p) => p.user_id || p.id)).size);
+      const periodVotes = countVotesFor(period);
+      return {
+        title,
+        label,
+        amount: potAmount(base, entrants || uniquePeople, periodVotes, multiplier),
+        entrants,
+        endsAt,
+        leader: entries[0] || race?.winner,
+        accent,
+        index,
+      };
+    };
+
+    return [
+      build("day", "Päivä", "Tämän päivän potti", 25, endOfDay(), "from-cyan-200 via-sky-400 to-blue-600", 0),
+      build("week", "Viikko", "Viikon pääpotti", 200, endOfWeek(), "from-blue-200 via-cyan-400 to-blue-700", 1),
+      build("month", "Kuukausi", "Kuukauden megakierros", 650, endOfMonth(), "from-violet-200 via-cyan-300 to-blue-700", 2),
+      build("final", "Finaali", "Top-porukan finaalipotti", 1500, endOfFinal(), "from-yellow-200 via-cyan-300 to-blue-700", 3, 1.25),
+    ];
+  }, [scoredPosts, votes, posts, race?.winner, livePulse]);
 
   useEffect(() => {
     const currentTopId = race?.winner?.id;
@@ -197,39 +331,52 @@ export default function PotsPage() {
       {lossData && <LossScreen userEntry={lossData.userEntry} winner={lossData.winner} race={lossData.race} amount={lossData.amount} onClose={() => setLossData(null)} onRevenge={() => window.location.href = "/new"} />}
 
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
-        <h1 className="text-4xl font-black">Potit</h1>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-cyan-100/70">Live potit</p>
+            <h1 className="text-[46px] font-black leading-none tracking-tight">Potit</h1>
+          </div>
+          <div className="rounded-full border border-cyan-200/18 bg-cyan-300/10 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-100">reaaliaika</div>
+        </div>
 
-        <div className="mt-4"><EgoPanel /></div>
+        <section className="mt-5 grid gap-4">
+          {potData.map((pot) => <PotCard key={pot.title} {...pot} />)}
+        </section>
 
-        <div className="mt-4">
+        <div className="mt-5">
           <LiveRivalBattle ranked={race?.ranked || []} userId={user?.id} pulse={livePulse} />
         </div>
 
         <section className="mt-6 space-y-3">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/60">Top live</p>
+              <h2 className="text-2xl font-black">Johtajat</h2>
+            </div>
+            <span className="text-xs font-black text-white/48">{race?.ranked?.length || 0} osallistujaa</span>
+          </div>
           {race?.ranked?.slice(0,5).map((entry, i) => (
-            <div key={entry.id} className={`rounded-xl p-3 transition-all duration-500 ${i === 0 ? "bg-cyan-300/10 ring-1 ring-cyan-200/20" : "bg-white/5"}`}>
-              <div className="flex justify-between">
-                <div>
-                  <div className="font-black">{entry.identity.badge} {entry.identity.alias}</div>
-                  <div className="text-xs text-white/60">{entry.identity.title}</div>
+            <div key={entry.id} className={`rounded-[24px] border p-4 transition-all duration-500 ${i === 0 ? "border-cyan-200/24 bg-cyan-300/10" : "border-white/8 bg-white/5"}`}>
+              <div className="flex justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate font-black">{entry.identity?.badge} {entry.identity?.alias}</div>
+                  <div className="text-xs text-white/60">{entry.identity?.title}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-black">{entry.score}</div>
-                  <div className="text-[10px] font-black uppercase text-cyan-100/60">♥ {entry.votes || 0}{entry.backend_scored ? " · backend" : ""}</div>
+                  <div className="font-black">{Math.round(entry.score || 0)}</div>
+                  <div className="text-[10px] font-black uppercase text-cyan-100/60">♥ {entry.votes || 0}</div>
                 </div>
               </div>
-              <div className="mt-1 text-xs text-cyan-200/70">{getIdentityStory(entry)}</div>
+              <div className="mt-2 text-xs text-cyan-200/70">{getIdentityStory(entry)}</div>
             </div>
           ))}
         </section>
 
-        <div className="mt-4 flex gap-3">
+        <div className="mt-5 flex gap-3">
           <Link to="/new" className="flex-1 rounded-[26px] bg-cyan-500 px-4 py-4 text-center font-black text-white">Oma entry</Link>
           <Link to="/feed" className="flex-1 rounded-[26px] border border-cyan-100/10 bg-[#030816]/70 px-4 py-4 text-center font-black text-white">Feed</Link>
         </div>
       </main>
-
-      <AppBottomNav />
     </div>
   );
 }
