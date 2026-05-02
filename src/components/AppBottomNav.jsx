@@ -13,6 +13,7 @@ function Icon({ type, active, suggested }) {
 }
 
 const NAV_MEMORY_KEY = "kolehti_ai_nav_memory_v1";
+const NAV_XP_KEY = "kolehti_nav_xp_v1";
 
 function readNavMemory() {
   try { return JSON.parse(localStorage.getItem(NAV_MEMORY_KEY) || "{}"); } catch { return {}; }
@@ -20,6 +21,14 @@ function readNavMemory() {
 
 function saveNavMemory(memory) {
   try { localStorage.setItem(NAV_MEMORY_KEY, JSON.stringify(memory)); } catch {}
+}
+
+function readNavXp() {
+  try { return Number(localStorage.getItem(NAV_XP_KEY) || 0); } catch { return 0; }
+}
+
+function saveNavXp(xp) {
+  try { localStorage.setItem(NAV_XP_KEY, String(xp)); } catch {}
 }
 
 function predictNext(pathname, items) {
@@ -42,15 +51,25 @@ function predictNext(pathname, items) {
   return Object.entries(scores).sort((a, b) => b[1] - a[1])[0]?.[0] || "/feed";
 }
 
+function navMode(pathname) {
+  if (pathname === "/feed") return "feed";
+  if (pathname === "/new") return "focus";
+  if (pathname === "/pots" || pathname === "/war" || pathname === "/leaderboard") return "competitive";
+  return "calm";
+}
+
 export default function AppBottomNav({ hidden = false, floating = false, gesture = false, onPulse }) {
   const location = useLocation();
   const [expanded, setExpanded] = useState(false);
   const [smartHidden, setSmartHidden] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [magnet, setMagnet] = useState({ x: 0, y: 0, active: false });
+  const [navXp, setNavXp] = useState(() => readNavXp());
+  const [burst, setBurst] = useState(false);
   const pressTimer = useRef(null);
+  const burstTimer = useRef(null);
   const touchStartY = useRef(0);
   const lastY = useRef(0);
-  const lastShowAt = useRef(Date.now());
   const items = [
     { to: "/", icon: "home", label: "Koti" },
     { to: "/feed", icon: "feed", label: "Feed" },
@@ -59,12 +78,17 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     { to: "/profile", icon: "profile", label: "Profiili" },
   ];
   const suggestedPath = useMemo(() => predictNext(location.pathname, items), [location.pathname]);
+  const mode = navMode(location.pathname);
+  const energy = Math.min(1, navXp / 40);
 
   useEffect(() => {
     setSmartHidden(false);
     setExpanded(false);
+    setMagnet({ x: 0, y: 0, active: false });
     lastY.current = window.scrollY || 0;
   }, [location.pathname]);
+
+  useEffect(() => () => clearTimeout(burstTimer.current), []);
 
   useEffect(() => {
     if (!floating) return;
@@ -83,15 +107,12 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
         return;
       }
 
-      if (y < 80) {
-        setSmartHidden(false);
-        lastShowAt.current = Date.now();
-      } else if (delta > 10) {
-        setSmartHidden(true);
-      } else if (delta < -8) {
-        setSmartHidden(false);
-        lastShowAt.current = Date.now();
-      }
+      const hideThreshold = mode === "feed" ? 8 : mode === "focus" ? 18 : 10;
+      const showThreshold = mode === "focus" ? -14 : -8;
+
+      if (y < 80) setSmartHidden(false);
+      else if (delta > hideThreshold) setSmartHidden(true);
+      else if (delta < showThreshold) setSmartHidden(false);
 
       lastY.current = y;
     }
@@ -104,9 +125,14 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     }
 
     function onPointerMove(e) {
-      if (e.clientY > window.innerHeight - 72) {
+      if (e.clientY > window.innerHeight - 86) {
         setSmartHidden(false);
-        lastShowAt.current = Date.now();
+        const centerX = window.innerWidth / 2;
+        const pullX = Math.max(-10, Math.min(10, (e.clientX - centerX) / 18));
+        const pullY = Math.max(-7, Math.min(0, (e.clientY - window.innerHeight + 70) / 10));
+        setMagnet({ x: pullX, y: pullY, active: true });
+      } else if (magnet.active) {
+        setMagnet({ x: 0, y: 0, active: false });
       }
     }
 
@@ -117,7 +143,7 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pointermove", onPointerMove);
     };
-  }, [floating, expanded]);
+  }, [floating, expanded, mode, magnet.active]);
 
   if (!floating) return null;
 
@@ -127,8 +153,18 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     saveNavMemory(memory);
   }
 
+  function addNavXp(amount = 1) {
+    const next = Math.min(40, readNavXp() + amount);
+    saveNavXp(next);
+    setNavXp(next);
+    setBurst(true);
+    clearTimeout(burstTimer.current);
+    burstTimer.current = setTimeout(() => setBurst(false), 700);
+  }
+
   function pulse(type = "tap", to) {
     if (to) rememberClick(to);
+    addNavXp(type === "heavy" ? 3 : 1);
     haptic(type);
     onPulse?.();
   }
@@ -139,6 +175,7 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     pressTimer.current = setTimeout(() => {
       setExpanded(true);
       setSmartHidden(false);
+      addNavXp(2);
       haptic("heavy");
     }, 420);
   }
@@ -151,33 +188,51 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     startPress();
   }
 
+  function onTouchMove(e) {
+    const touch = e.touches?.[0];
+    if (!touch) return;
+    if (touch.clientY > window.innerHeight - 132) {
+      const centerX = window.innerWidth / 2;
+      setMagnet({ x: Math.max(-12, Math.min(12, (touch.clientX - centerX) / 18)), y: -4, active: true });
+    }
+  }
+
   function onTouchEnd(e) {
     endPress();
+    setMagnet({ x: 0, y: 0, active: false });
     const endY = e.changedTouches?.[0]?.clientY || touchStartY.current;
     const delta = endY - touchStartY.current;
     if (!gesture || !floating) return;
     if (delta > 26) { setExpanded(false); setSmartHidden(true); haptic("tap"); }
-    else if (delta < -26) { setExpanded(true); setSmartHidden(false); haptic("tap"); }
+    else if (delta < -26) { setExpanded(true); setSmartHidden(false); addNavXp(2); haptic("tap"); }
   }
 
   const isHidden = (hidden || smartHidden) && !expanded;
+  const modeGlow = mode === "competitive" ? "rgba(250,204,21,.18)" : mode === "focus" ? "rgba(34,211,238,.22)" : mode === "feed" ? "rgba(59,130,246,.22)" : "rgba(139,238,255,.18)";
 
   return (
     <nav
       gesture-nav="true"
+      data-nav-mode={mode}
       onMouseDown={startPress}
       onMouseUp={endPress}
-      onMouseLeave={endPress}
+      onMouseLeave={() => { endPress(); setMagnet({ x: 0, y: 0, active: false }); }}
       onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       className={`fixed bottom-[max(14px,env(safe-area-inset-bottom))] left-1/2 z-[70] text-white transition-all duration-500 ease-[cubic-bezier(.2,.9,.2,1)] ${expanded ? "w-[calc(100%-28px)] max-w-[360px]" : "w-[min(276px,calc(100%-72px))] max-w-[276px]"} ${isHidden ? "translate-y-[calc(100%+10px)] opacity-0 scale-95 pointer-events-none" : "translate-y-0 opacity-100 scale-100"} -translate-x-1/2`}
-      style={{ filter: `brightness(${1 + scrollProgress * 0.05})` }}
+      style={{
+        filter: `brightness(${1 + scrollProgress * 0.05 + energy * 0.04})`,
+        marginLeft: `${magnet.x}px`,
+        marginBottom: `${magnet.y}px`,
+      }}
     >
       <div className={`relative overflow-hidden border border-white/14 bg-[#020611]/64 shadow-2xl shadow-black/45 backdrop-blur-2xl transition-all duration-300 ${expanded ? "rounded-[28px] px-3 py-2.5" : "rounded-full px-3 py-2"}`}>
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(139,238,255,.18),transparent_48%)]" />
+        <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(circle at 50% 0%, ${modeGlow}, transparent 48%)` }} />
+        <div className={`pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,.10)_45%,transparent_60%)] transition-transform duration-700 ${burst ? "translate-x-[35%] opacity-100" : "-translate-x-[75%] opacity-0"}`} />
         <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-cyan-100/60 to-transparent" />
-        <div className="pointer-events-none absolute bottom-0 left-0 h-[2px] bg-cyan-300/70 transition-all duration-300" style={{ width: `${Math.round(scrollProgress * 100)}%` }} />
-        {expanded && <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full border border-cyan-200/16 bg-black/42 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-cyan-100/62 backdrop-blur-xl">AI next</div>}
+        <div className="pointer-events-none absolute bottom-0 left-0 h-[2px] bg-cyan-300/70 transition-all duration-300" style={{ width: `${Math.round(Math.max(scrollProgress, energy) * 100)}%` }} />
+        {expanded && <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full border border-cyan-200/16 bg-black/42 px-3 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-cyan-100/62 backdrop-blur-xl">AI next · {mode}</div>}
         <div className={`relative grid grid-cols-5 items-center gap-1 text-center font-black transition-all duration-300 ${expanded ? "text-[10px]" : "text-[0px]"}`}>
           {items.map((item) => {
             const active = location.pathname === item.to;
