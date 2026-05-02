@@ -1,15 +1,16 @@
-/* Potit page polish: keep old transparent glass style and remove redundant leaders list */
+/* Potit page polish: reliable selectors, glass parity with Rival Battle */
 
-/* Hide the extra Johtajat/Top live list on Potit page. The rival battle already gives the competitive view. */
-#root main > section.mt-6.space-y-3 {
+/* Hide the redundant Johtajat/Top live list. */
+#root main > section.mt-6.space-y-3,
+#root section.mt-6.space-y-3:has(h2) {
   display: none !important;
 }
 
-/* Make the four pot cards match the Rival Battle translucent glass layer. */
-#root main > section.mt-5.grid.gap-4 > section.premium-card {
+/* Reliable targeting: pot cards are the premium cards that contain the 54px pot amount. */
+#root .premium-card:has(.text-\[54px\]) {
   background:
     linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.05) 38%, rgba(14,165,255,.12)),
-    linear-gradient(180deg, rgba(8, 22, 48, .32), rgba(2, 6, 17, .22)) !important;
+    linear-gradient(180deg, rgba(8, 22, 48, .30), rgba(2, 6, 17, .18)) !important;
   border: 1px solid rgba(255,255,255,.18) !important;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.28),
@@ -21,8 +22,32 @@
   transform: translateZ(0);
 }
 
-/* AI pot highlight: guide the user without breaking the old glass style. */
-#root main > section.mt-5.grid.gap-4 > section.premium-card:first-child {
+#root .premium-card:has(.text-\[54px\])::after {
+  opacity: .75 !important;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,.35), transparent 40%),
+    radial-gradient(circle at 90% 10%, rgba(14,165,255,.25), transparent 40%),
+    linear-gradient(110deg, transparent 0%, transparent 40%, rgba(255,255,255,.18) 50%, transparent 65%, transparent 100%) !important;
+}
+
+#root .premium-card:has(.text-\[54px\]) > .absolute.inset-0 {
+  background: linear-gradient(135deg, rgba(255,255,255,.04), transparent 48%, rgba(14,165,255,.05)) !important;
+}
+
+#root .premium-card:has(.text-\[54px\]) [class*="bg-black/28"] {
+  background: rgba(255,255,255,.075) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+#root .premium-card:has(.text-\[54px\]) [class*="bg-black/45"] {
+  background: rgba(2,6,17,.30) !important;
+}
+
+/* AI highlight on the first pot card only. */
+#root .premium-card:has(.text-\[54px\]):first-of-type {
   border-color: rgba(139,238,255,.42) !important;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.30),
@@ -31,7 +56,7 @@
     0 0 34px rgba(139,238,255,.24) !important;
 }
 
-#root main > section.mt-5.grid.gap-4 > section.premium-card:first-child::before {
+#root .premium-card:has(.text-\[54px\]):first-of-type::before {
   content: "AI suosittelee · helpoin aloittaa";
   position: absolute;
   right: 18px;
@@ -51,7 +76,7 @@
   box-shadow: 0 0 18px rgba(139,238,255,.16);
 }
 
-#root main > section.mt-5.grid.gap-4 > section.premium-card:first-child > .relative::before {
+#root .premium-card:has(.text-\[54px\]):first-of-type > .relative::before {
   content: "⚡ Paras mahdollisuus juuri nyt";
   display: block;
   width: fit-content;
@@ -69,31 +94,6 @@
   -webkit-backdrop-filter: blur(14px);
 }
 
-#root main > section.mt-5.grid.gap-4 > section.premium-card::after {
-  opacity: .75 !important;
-  background:
-    radial-gradient(circle at 20% 0%, rgba(255,255,255,.35), transparent 40%),
-    radial-gradient(circle at 90% 10%, rgba(14,165,255,.25), transparent 40%),
-    linear-gradient(110deg, transparent 0%, transparent 40%, rgba(255,255,255,.18) 50%, transparent 65%, transparent 100%) !important;
-}
-
-#root main > section.mt-5.grid.gap-4 > section.premium-card > .absolute.inset-0 {
-  background: linear-gradient(135deg, rgba(255,255,255,.04), transparent 48%, rgba(14,165,255,.05)) !important;
-}
-
-#root main > section.mt-5.grid.gap-4 > section.premium-card [class*="bg-black/28"] {
-  background: rgba(255,255,255,.075) !important;
-  border-color: rgba(255,255,255,.14) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-#root main > section.mt-5.grid.gap-4 > section.premium-card [class*="bg-black/45"] {
-  background: rgba(2,6,17,.32) !important;
-}
-
-/* Tighten the pot page after removing leaders so the nav does not cover meaningful content. */
 #root main .mt-5.flex.gap-3 {
   margin-bottom: 1.5rem;
 }
