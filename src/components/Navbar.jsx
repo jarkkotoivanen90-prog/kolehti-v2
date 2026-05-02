@@ -2,13 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
-const BUILD_MARKER = "BUILD 2026-04-30-BUST-3";
-
 function KHeartgramLogo({ compact = false }) {
   return (
-    <div className={`relative grid shrink-0 place-items-center ${compact ? "h-11 w-11" : "h-14 w-14"}`}>
-      <div className="absolute inset-0 rounded-[22px] bg-gradient-to-br from-cyan-200 via-blue-400 to-blue-800 shadow-[0_0_18px_rgba(34,211,238,.28)]" />
-      <div className="absolute inset-[4px] rounded-[18px] border border-white/35 bg-[#061126]/25" />
+    <div className={`relative grid shrink-0 place-items-center ${compact ? "h-10 w-10" : "h-11 w-11"}`}>
+      <div className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-cyan-100 via-blue-400 to-blue-900 shadow-[0_0_22px_rgba(34,211,238,.34)]" />
+      <div className="absolute inset-[4px] rounded-[16px] border border-white/35 bg-[#061126]/22 backdrop-blur" />
       <svg viewBox="0 0 120 120" className="relative h-[72%] w-[72%] drop-shadow-[0_0_10px_rgba(255,255,255,.45)]">
         <defs>
           <linearGradient id="heartBlueNav" x1="0" y1="0" x2="1" y2="1">
@@ -32,7 +30,6 @@ export default function Navbar() {
   const navigate = useNavigate();
 
   const links = [
-    { to: "/", label: "Koti" },
     { to: "/feed", label: "Feed" },
     { to: "/pots", label: "Potit" },
     { to: "/new", label: "Uusi" },
@@ -49,7 +46,7 @@ export default function Navbar() {
     function update() {
       const y = readScrollY();
       const goingDown = y > lastY;
-      setHidden(location.pathname === "/feed" && goingDown && y > 90 && !open);
+      setHidden(goingDown && y > 70 && !open);
       lastY = Math.max(0, y);
     }
     const feedScroller = document.getElementById("feed-scroll-root");
@@ -78,36 +75,35 @@ export default function Navbar() {
   }
 
   return (
-    <header className={`kolehti-header sticky top-0 z-50 border-b border-cyan-200/10 text-white transition-transform duration-300 ease-out ${hidden ? "-translate-y-[92%]" : "translate-y-0"}`}>
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link to="/" className="flex min-w-0 items-center gap-3" onClick={() => setOpen(false)}>
-          <KHeartgramLogo />
+    <header className={`pointer-events-none fixed left-0 right-0 top-[max(10px,env(safe-area-inset-top))] z-50 px-3 text-white transition-all duration-500 ease-[cubic-bezier(.2,.9,.2,1)] ${hidden ? "-translate-y-[120%] opacity-0" : "translate-y-0 opacity-100"}`}>
+      <div className="pointer-events-auto mx-auto flex max-w-md items-center justify-between gap-3 rounded-full border border-white/12 bg-[#020611]/28 px-3 py-2 shadow-2xl shadow-black/28 backdrop-blur-2xl">
+        <Link to="/feed" className="flex min-w-0 items-center gap-2" onClick={() => setOpen(false)}>
+          <KHeartgramLogo compact />
           <div className="min-w-0">
-            <div className="truncate bg-gradient-to-r from-cyan-100 via-white to-yellow-100 bg-clip-text text-2xl font-black leading-none tracking-tight text-transparent">KOLEHTI</div>
-            <div className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-cyan-100/85">Äänestä · Nosta · Voita</div>
-            <div className="mt-1 text-[8px] font-black uppercase tracking-wide text-white/25">{BUILD_MARKER}</div>
+            <div className="truncate bg-gradient-to-r from-cyan-100 via-white to-cyan-100 bg-clip-text text-lg font-black leading-none tracking-tight text-transparent">KOLEHTI</div>
+            <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.20em] text-cyan-100/62">Live · AI · Potit</div>
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-2 md:flex">
+        <nav className="hidden items-center gap-1 md:flex">
           {links.map((link) => (
-            <Link key={link.to} to={link.to} className={`rounded-2xl px-4 py-2 text-sm font-black transition ${isActive(link.to) ? "bg-cyan-400 text-[#061126] shadow-lg shadow-cyan-400/20" : "border border-white/10 bg-white/8 text-white/78 hover:bg-white/15"}`}>{link.label}</Link>
+            <Link key={link.to} to={link.to} className={`rounded-2xl px-3 py-2 text-xs font-black transition ${isActive(link.to) ? "bg-cyan-300/90 text-[#061126] shadow-lg shadow-cyan-300/20" : "border border-white/8 bg-white/[.055] text-white/72 hover:bg-white/12"}`}>{link.label}</Link>
           ))}
-          <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-pink-500/20">Ulos</button>
+          <button onClick={logout} className="rounded-2xl bg-pink-500/80 px-3 py-2 text-xs font-black text-white shadow-lg shadow-pink-500/15">Ulos</button>
         </nav>
 
-        <button onClick={() => setOpen(!open)} className="grid h-14 w-14 place-items-center rounded-[24px] border border-white/10 bg-white/10 text-3xl font-black shadow-lg shadow-black/20 md:hidden" aria-label="Avaa valikko">
+        <button onClick={() => setOpen(!open)} className="grid h-11 w-11 place-items-center rounded-full border border-white/10 bg-white/[.075] text-2xl font-black shadow-lg shadow-black/18 md:hidden" aria-label="Avaa valikko">
           {open ? "×" : "☰"}
         </button>
       </div>
 
       {open && (
-        <div className="border-t border-white/10 bg-[#071124]/98 px-4 pb-4 md:hidden">
-          <div className="mx-auto grid max-w-6xl gap-2 pt-3">
+        <div className="pointer-events-auto mx-auto mt-2 max-w-md overflow-hidden rounded-[28px] border border-white/12 bg-[#020611]/72 px-3 pb-3 shadow-2xl shadow-black/30 backdrop-blur-2xl md:hidden">
+          <div className="grid gap-2 pt-3">
             {links.map((link) => (
-              <Link key={link.to} to={link.to} onClick={() => setOpen(false)} className={`rounded-2xl px-4 py-3 text-sm font-black transition ${isActive(link.to) ? "bg-cyan-400 text-[#061126]" : "border border-white/10 bg-white/10 text-white/80"}`}>{link.label}</Link>
+              <Link key={link.to} to={link.to} onClick={() => setOpen(false)} className={`rounded-2xl px-4 py-3 text-sm font-black transition ${isActive(link.to) ? "bg-cyan-300 text-[#061126]" : "border border-white/10 bg-white/[.065] text-white/80"}`}>{link.label}</Link>
             ))}
-            <button onClick={logout} className="rounded-2xl bg-pink-500 px-4 py-3 text-left text-sm font-black text-white">Kirjaudu ulos</button>
+            <button onClick={logout} className="rounded-2xl bg-pink-500/85 px-4 py-3 text-left text-sm font-black text-white">Kirjaudu ulos</button>
           </div>
         </div>
       )}
