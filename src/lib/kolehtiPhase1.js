@@ -27,6 +27,29 @@ export function getReasonScore(post) {
   return votes * 0.7 + ai * 0.3;
 }
 
+function publishKolehtiPhase1(result) {
+  if (typeof window === "undefined") return;
+  const leader = result.dailyLeader;
+  const payload = {
+    groupSize: result.groupSize,
+    groupMax: result.groupMax,
+    fillPercent: result.fillPercent,
+    dailyPot: result.dailyPot,
+    dailyLeaderScore: result.dailyLeaderScore,
+    dailyLeader: leader
+      ? {
+          id: leader.id,
+          content: leader.content || "",
+          votes: getPostVoteCount(leader),
+          aiScore: getPostAiScore(leader),
+          author: leader.display_name || leader.username || leader.bot_name || "Pelaaja",
+        }
+      : null,
+  };
+  window.__KOLEHTI_PHASE1__ = payload;
+  window.dispatchEvent(new CustomEvent("kolehti:phase1", { detail: payload }));
+}
+
 export function calculateKolehtiPhase1(posts = []) {
   const realPosts = posts.filter((post) => !post?.bot);
   const uniquePlayers = new Set(realPosts.map(getAuthorKey)).size;
@@ -44,7 +67,7 @@ export function calculateKolehtiPhase1(posts = []) {
   const pool = todaysPosts.length ? todaysPosts : realPosts;
   const dailyLeader = [...pool].sort((a, b) => getReasonScore(b) - getReasonScore(a))[0] || null;
 
-  return {
+  const result = {
     groupMax: KOLEHTI_GROUP_MAX,
     groupSize: estimatedGroupSize,
     fillPercent,
@@ -55,6 +78,9 @@ export function calculateKolehtiPhase1(posts = []) {
     dailyLeader,
     dailyLeaderScore: dailyLeader ? Math.round(getReasonScore(dailyLeader)) : 0,
   };
+
+  publishKolehtiPhase1(result);
+  return result;
 }
 
 export function formatEuro(value) {
