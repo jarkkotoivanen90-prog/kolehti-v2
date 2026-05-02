@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { haptic } from "../lib/effects";
+import AdaptiveBackground from "../components/AdaptiveBackground";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1200";
 
@@ -35,9 +36,7 @@ export default function ProfilePageClean() {
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
-      <img src={BG} alt="" className="fixed inset-0 h-full w-full object-cover" loading="eager" decoding="async" />
-      <div className="fixed inset-0 bg-gradient-to-b from-black/42 via-[#061126]/76 to-black/95" />
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,rgba(21,131,255,.13),transparent_34%)]" />
+      <AdaptiveBackground src={BG} strength="balanced" />
 
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <header className="pb-1">
