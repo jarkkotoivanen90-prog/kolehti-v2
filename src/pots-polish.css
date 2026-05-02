@@ -1,0 +1,48 @@
+/* Potit page polish: keep old transparent glass style and remove redundant leaders list */
+
+/* Hide the extra Johtajat/Top live list on Potit page. The rival battle already gives the competitive view. */
+#root main > section.mt-6.space-y-3 {
+  display: none !important;
+}
+
+/* Make the four new pot cards match the older translucent glass cards. */
+#root main > section.mt-5.grid.gap-4 > section.premium-card {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.115), rgba(255,255,255,.035) 38%, rgba(14,165,255,.10)),
+    linear-gradient(180deg, rgba(8, 22, 48, .46), rgba(2, 6, 17, .38)) !important;
+  border-color: rgba(139,238,255,.28) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.20),
+    inset 0 -1px 0 rgba(14,165,255,.10),
+    0 14px 38px rgba(0,0,0,.30),
+    0 0 22px rgba(14,165,255,.13) !important;
+  backdrop-filter: blur(9px) saturate(1.05) !important;
+  -webkit-backdrop-filter: blur(9px) saturate(1.05) !important;
+}
+
+#root main > section.mt-5.grid.gap-4 > section.premium-card::after {
+  opacity: .58 !important;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255,255,255,.20), transparent 34%),
+    radial-gradient(circle at 88% 12%, rgba(14,165,255,.18), transparent 34%),
+    linear-gradient(105deg, transparent 0%, transparent 40%, rgba(255,255,255,.12) 48%, transparent 60%, transparent 100%) !important;
+}
+
+#root main > section.mt-5.grid.gap-4 > section.premium-card > .absolute.inset-0 {
+  background: linear-gradient(135deg, rgba(255,255,255,.045), transparent 48%, rgba(14,165,255,.055)) !important;
+}
+
+#root main > section.mt-5.grid.gap-4 > section.premium-card [class*="bg-black/28"] {
+  background: rgba(255,255,255,.055) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.09);
+}
+
+#root main > section.mt-5.grid.gap-4 > section.premium-card [class*="bg-black/45"] {
+  background: rgba(2,6,17,.42) !important;
+}
+
+/* Tighten the pot page after removing leaders so the nav does not cover meaningful content. */
+#root main .mt-5.flex.gap-3 {
+  margin-bottom: 1.5rem;
+}
