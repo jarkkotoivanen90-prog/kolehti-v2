@@ -4,6 +4,7 @@ import { mergeWithBots, botTicker, makeBotRepliesForPost } from "../lib/bots";
 import { haptic } from "../lib/effects";
 import { rankGodFeed, saveFeedSignal, whyForYou } from "../lib/godFeed";
 import { installFeedUltraProMotion } from "../lib/feedUltraProMotion";
+import { installFeedAddictionLayer } from "../lib/feedAddictionLayer";
 
 const FEED_BACKGROUNDS = [
   "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2600&q=95",
@@ -53,9 +54,13 @@ export default function FeedPageClean() {
   useEffect(() => {
     const startTimer = setTimeout(() => hideChrome(), 1900);
     let cleanupMotion = () => {};
+    let cleanupAddiction = () => {};
     const motionTimer = setTimeout(() => {
       cleanupMotion = installFeedUltraProMotion();
     }, 80);
+    const addictionTimer = setTimeout(() => {
+      cleanupAddiction = installFeedAddictionLayer();
+    }, 180);
     load();
     supabase.auth.getUser().then(({ data }) => setUser(data?.user || null));
     const tickerTimer = setInterval(() => setTicker(botTicker()), 5000);
@@ -71,8 +76,10 @@ export default function FeedPageClean() {
       clearTimeout(hintTimer);
       clearTimeout(startTimer);
       clearTimeout(motionTimer);
+      clearTimeout(addictionTimer);
       clearTimeout(chromeTimer.current);
       cleanupMotion?.();
+      cleanupAddiction?.();
       supabase.removeChannel(channel);
     };
   }, []);
