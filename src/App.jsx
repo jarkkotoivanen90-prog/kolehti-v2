@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { installGlobalHaptics, installReactiveUI } from "./lib/effects";
 import { startVersionCheck } from "./lib/versionCheck";
@@ -7,7 +7,6 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import FeedPage from "./pages/FeedPageClean";
-import VotePage from "./pages/VotePage";
 import NewPostPage from "./pages/NewPostPage";
 import ProfilePage from "./pages/ProfilePageClean";
 import GroupPage from "./pages/GroupPage";
@@ -75,7 +74,7 @@ function AppShell() {
         <Route path="/reset" element={<ResetPasswordPage />} />
 
         <Route path="/feed" element={<AuthGate><FeedPage /></AuthGate>} />
-        <Route path="/vote" element={<AuthGate><VotePage /></AuthGate>} />
+        <Route path="/vote" element={<Navigate to="/feed" replace />} />
         <Route path="/new" element={<AuthGate><NewPostPage /></AuthGate>} />
         <Route path="/groups" element={<AuthGate><GroupPage /></AuthGate>} />
         <Route path="/profile" element={<AuthGate><ProfilePage /></AuthGate>} />
