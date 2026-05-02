@@ -81,13 +81,11 @@ function PotCard({ title, label, amount, entrants, endsAt, leader, accent, index
   const recommended = index === 0;
 
   return (
-    <section className="relative overflow-hidden rounded-[34px] border border-white/18 bg-white/[0.075] p-5 shadow-[0_18px_42px_rgba(0,0,0,.30),inset_0_1px_0_rgba(255,255,255,.22)] backdrop-blur-2xl">
-      <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-white/[0.025] to-cyan-400/10" />
-      <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-cyan-300/14 blur-3xl" />
-      <div className="absolute -left-14 top-10 h-32 w-32 rounded-full bg-white/10 blur-3xl" />
+    <section className="relative overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#041226]/78 p-5 text-white shadow-2xl shadow-cyan-500/10">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.14),transparent_45%)]" />
 
       {recommended && (
-        <div className="absolute right-4 top-4 z-20 rounded-full border border-cyan-200/24 bg-black/24 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-50/90 backdrop-blur-xl">
+        <div className="absolute right-4 top-4 z-20 rounded-full border border-cyan-100/10 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100">
           AI suosittelee
         </div>
       )}
@@ -95,47 +93,46 @@ function PotCard({ title, label, amount, entrants, endsAt, leader, accent, index
       <div className="relative">
         <div className="flex items-start justify-between gap-3 pr-16">
           <div>
-            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/72">{label}</div>
-            <h2 className="mt-1 text-[32px] font-black leading-none tracking-tight">{title}</h2>
+            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">{label}</div>
+            <h2 className="mt-1 text-2xl font-black leading-tight tracking-tight">{title}</h2>
           </div>
-          {!recommended && <div className="rounded-full border border-cyan-100/16 bg-cyan-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-cyan-100/80">Live</div>}
+          {!recommended && <div className="rounded-full border border-cyan-100/10 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">Live</div>}
         </div>
 
         {recommended && (
-          <div className="mt-4 inline-flex max-w-full rounded-[22px] border border-cyan-100/14 bg-white/[0.065] px-4 py-3 text-sm font-black text-cyan-50/90 backdrop-blur-xl">
+          <div className="relative mt-4 rounded-[22px] border border-cyan-100/15 bg-cyan-300/10 px-4 py-3 text-xs font-black text-cyan-100">
             ⚡ Paras mahdollisuus juuri nyt
           </div>
         )}
 
-        <div className="mt-6 flex items-end justify-between gap-3">
-          <div>
-            <div className="text-[12px] font-black uppercase tracking-[0.18em] text-white/52">Potti</div>
-            <div className="mt-1 text-[54px] font-black leading-none text-white">{amount}€</div>
+        <div className="relative mt-5 grid grid-cols-2 gap-3 text-center">
+          <div className="rounded-[24px] bg-white/[.055] p-4">
+            <div className="text-[10px] font-black uppercase text-white/45">Potti</div>
+            <div className="mt-1 text-4xl font-black leading-none text-white">{amount}€</div>
           </div>
-          <div className="text-right">
-            <div className="text-[12px] font-black uppercase tracking-[0.18em] text-white/52">Porukka</div>
-            <div className="mt-1 text-3xl font-black text-cyan-100">{entrants}</div>
+          <div className="rounded-[24px] bg-white/[.055] p-4">
+            <div className="text-[10px] font-black uppercase text-white/45">Porukka</div>
+            <div className="mt-1 text-4xl font-black leading-none text-cyan-100">{entrants}</div>
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-[24px] border border-white/12 bg-white/[0.065] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-xl">
-            <div className="text-[10px] font-black uppercase tracking-wide text-white/48">Päättyy</div>
+        <div className="relative mt-3 grid grid-cols-2 gap-3 text-center">
+          <div className="rounded-[24px] bg-white/[.055] p-4">
+            <div className="text-[10px] font-black uppercase text-white/45">Päättyy</div>
             <div className="mt-1 text-lg font-black text-white">{formatEnds(endsAt)}</div>
           </div>
-          <div className="rounded-[24px] border border-white/12 bg-white/[0.065] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-xl">
-            <div className="text-[10px] font-black uppercase tracking-wide text-white/48">Johtaja</div>
+          <div className="rounded-[24px] bg-white/[.055] p-4">
+            <div className="text-[10px] font-black uppercase text-white/45">Johtaja</div>
             <div className="mt-1 truncate text-lg font-black text-white">{leaderName}</div>
           </div>
         </div>
 
-        <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/30">
-          <div className={`h-full rounded-full bg-gradient-to-r ${accent}`} style={{ width: `${Math.max(14, Math.min(96, 28 + index * 16 + entrants * 4))}%` }} />
+        <div className="relative mt-5 overflow-hidden rounded-full bg-black/45 p-1">
+          <div className={`h-5 rounded-full bg-gradient-to-r ${accent} transition-all duration-700`} style={{ width: `${Math.max(14, Math.min(96, 28 + index * 16 + entrants * 4))}%` }} />
+          <div className="absolute inset-0 grid place-items-center text-[10px] font-black uppercase tracking-wide text-white/80">Score {leaderScore}</div>
         </div>
-        <div className="mt-2 flex justify-between text-[11px] font-black text-white/52">
-          <span>Score {leaderScore}</span>
-          <span>reaaliajassa</span>
-        </div>
+
+        <p className="relative mt-4 text-xs font-black text-cyan-100/70">Päivittyy reaaliajassa</p>
       </div>
     </section>
   );
@@ -160,7 +157,7 @@ export default function PotsPage() {
     load();
 
     const channel = supabase
-      .channel("kolehti-pots-live-v4")
+      .channel("kolehti-pots-live-v5")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "votes" }, (payload) => {
         if (!mounted) return;
         handleVoteInsert(payload?.new);
@@ -288,9 +285,9 @@ export default function PotsPage() {
 
     return [
       build("day", "Päivä", "Tämän päivän potti", 25, endOfDay(), "from-cyan-200 via-sky-400 to-blue-600", 0),
-      build("week", "Viikko", "Viikon pääpotti", 200, endOfWeek(), "from-blue-200 via-cyan-400 to-blue-700", 1),
-      build("month", "Kuukausi", "Kuukauden megakierros", 650, endOfMonth(), "from-violet-200 via-cyan-300 to-blue-700", 2),
-      build("final", "Finaali", "Top-porukan finaalipotti", 1500, endOfFinal(), "from-yellow-200 via-cyan-300 to-blue-700", 3, 1.25),
+      build("week", "Viikko", "Viikon pääpotti", 200, endOfWeek(), "from-cyan-200 via-sky-400 to-blue-600", 1),
+      build("month", "Kuukausi", "Kuukauden megakierros", 650, endOfMonth(), "from-cyan-200 via-sky-400 to-blue-600", 2),
+      build("final", "Finaali", "Top-porukan finaalipotti", 1500, endOfFinal(), "from-cyan-200 via-sky-400 to-blue-600", 3, 1.25),
     ];
   }, [scoredPosts, votes, posts, race?.winner, livePulse]);
 
