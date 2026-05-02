@@ -68,6 +68,7 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
   const [burst, setBurst] = useState(false);
   const pressTimer = useRef(null);
   const burstTimer = useRef(null);
+  const feedIdleTimer = useRef(null);
   const touchStartY = useRef(0);
   const lastY = useRef(0);
   const items = [
@@ -86,13 +87,32 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     setExpanded(false);
     setMagnet({ x: 0, y: 0, active: false });
     lastY.current = window.scrollY || 0;
+    clearTimeout(feedIdleTimer.current);
+    if (location.pathname === "/feed") {
+      feedIdleTimer.current = setTimeout(() => setSmartHidden(true), 1400);
+    }
   }, [location.pathname]);
 
-  useEffect(() => () => clearTimeout(burstTimer.current), []);
+  useEffect(() => () => {
+    clearTimeout(burstTimer.current);
+    clearTimeout(feedIdleTimer.current);
+  }, []);
 
   useEffect(() => {
     if (!floating) return;
     let ticking = false;
+
+    function hideFeedSoon(delay = 900) {
+      if (mode !== "feed" || expanded) return;
+      clearTimeout(feedIdleTimer.current);
+      feedIdleTimer.current = setTimeout(() => setSmartHidden(true), delay);
+    }
+
+    function showFeedTemporarily(delay = 1200) {
+      if (mode !== "feed") return;
+      setSmartHidden(false);
+      hideFeedSoon(delay);
+    }
 
     function update() {
       ticking = false;
@@ -107,10 +127,12 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
         return;
       }
 
-      const hideThreshold = mode === "feed" ? 8 : mode === "focus" ? 18 : 10;
+      const hideThreshold = mode === "feed" ? 1 : mode === "focus" ? 18 : 10;
       const showThreshold = mode === "focus" ? -14 : -8;
 
-      if (y < 80) setSmartHidden(false);
+      if (mode === "feed") {
+        if (Math.abs(delta) > 0) setSmartHidden(true);
+      } else if (y < 80) setSmartHidden(false);
       else if (delta > hideThreshold) setSmartHidden(true);
       else if (delta < showThreshold) setSmartHidden(false);
 
@@ -127,21 +149,54 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     function onPointerMove(e) {
       if (e.clientY > window.innerHeight - 86) {
         setSmartHidden(false);
+        if (mode === "feed") clearTimeout(feedIdleTimer.current);
         const centerX = window.innerWidth / 2;
         const pullX = Math.max(-10, Math.min(10, (e.clientX - centerX) / 18));
         const pullY = Math.max(-7, Math.min(0, (e.clientY - window.innerHeight + 70) / 10));
         setMagnet({ x: pullX, y: pullY, active: true });
       } else if (magnet.active) {
         setMagnet({ x: 0, y: 0, active: false });
+        hideFeedSoon(700);
       }
+    }
+
+    function onWheel() {
+      if (mode === "feed" && !expanded) setSmartHidden(true);
+    }
+
+    function onTouchStartGlobal(e) {
+      const y = e.touches?.[0]?.clientY || 0;
+      if (mode === "feed" && y > window.innerHeight - 132) showFeedTemporarily(1600);
+    }
+
+    function onTouchMoveGlobal(e) {
+      if (mode !== "feed" || expanded) return;
+      const y = e.touches?.[0]?.clientY || 0;
+      if (y > window.innerHeight - 132) showFeedTemporarily(1600);
+      else setSmartHidden(true);
+    }
+
+    function onKeyDown(e) {
+      if (mode !== "feed") return;
+      if (e.key === "ArrowUp" || e.key === "Escape") showFeedTemporarily(1800);
+      if (e.key === "ArrowDown" || e.key === " ") setSmartHidden(true);
     }
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStartGlobal, { passive: true });
+    window.addEventListener("touchmove", onTouchMoveGlobal, { passive: true });
+    window.addEventListener("keydown", onKeyDown);
     update();
+    if (mode === "feed") hideFeedSoon(900);
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStartGlobal);
+      window.removeEventListener("touchmove", onTouchMoveGlobal);
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, [floating, expanded, mode, magnet.active]);
 
@@ -175,6 +230,7 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     pressTimer.current = setTimeout(() => {
       setExpanded(true);
       setSmartHidden(false);
+      clearTimeout(feedIdleTimer.current);
       addNavXp(2);
       haptic("heavy");
     }, 420);
@@ -185,6 +241,7 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
   function onTouchStart(e) {
     touchStartY.current = e.touches?.[0]?.clientY || 0;
     if (touchStartY.current > window.innerHeight - 120) setSmartHidden(false);
+    clearTimeout(feedIdleTimer.current);
     startPress();
   }
 
@@ -204,7 +261,10 @@ export default function AppBottomNav({ hidden = false, floating = false, gesture
     const delta = endY - touchStartY.current;
     if (!gesture || !floating) return;
     if (delta > 26) { setExpanded(false); setSmartHidden(true); haptic("tap"); }
-    else if (delta < -26) { setExpanded(true); setSmartHidden(false); addNavXp(2); haptic("tap"); }
+    else if (delta < -26) { setExpanded(true); setSmartHidden(false); clearTimeout(feedIdleTimer.current); addNavXp(2); haptic("tap"); }
+    else if (mode === "feed" && !expanded) {
+      feedIdleTimer.current = setTimeout(() => setSmartHidden(true), 900);
+    }
   }
 
   const isHidden = (hidden || smartHidden) && !expanded;
