@@ -3,19 +3,14 @@ import { supabase } from "../lib/supabaseClient";
 import { mergeWithBots, botTicker, makeBotRepliesForPost } from "../lib/bots";
 import { haptic } from "../lib/effects";
 import { rankGodFeed, saveFeedSignal, whyForYou } from "../lib/godFeed";
+import { installFeedUltraProMotion } from "../lib/feedUltraProMotion";
 
 const FEED_BACKGROUNDS = [
-  // 🌲 Klassinen suomalainen metsä (paras baseline)
   "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2000&q=90",
-  // 🌊 Järvi + sumu
   "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=2000&q=90",
-  // 🌌 Revontulet / metsäfiilis
   "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=2000&q=90",
-  // 🌄 Hiljainen metsä järvellä
   "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?auto=format&fit=crop&w=2000&q=90",
-  // 🛣️ Tie Lapissa / syvyys
   "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=2000&q=90",
-  // ❄️ Talvinen maisema
   "https://images.unsplash.com/photo-1482192505345-5655af888cc4?auto=format&fit=crop&w=2000&q=90",
 ];
 
@@ -55,11 +50,15 @@ export default function FeedPageClean() {
   const chromeTimer = useRef(null);
 
   useEffect(() => {
+    const startTimer = setTimeout(() => hideChrome(), 1900);
+    let cleanupMotion = () => {};
+    const motionTimer = setTimeout(() => {
+      cleanupMotion = installFeedUltraProMotion();
+    }, 80);
     load();
     supabase.auth.getUser().then(({ data }) => setUser(data?.user || null));
     const tickerTimer = setInterval(() => setTicker(botTicker()), 5000);
     const hintTimer = setTimeout(() => setHint(false), 4200);
-    const startTimer = setTimeout(() => hideChrome(), 1900);
     const channel = supabase
       .channel("kolehti-ultra-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "posts" }, load)
@@ -70,7 +69,9 @@ export default function FeedPageClean() {
       clearInterval(tickerTimer);
       clearTimeout(hintTimer);
       clearTimeout(startTimer);
+      clearTimeout(motionTimer);
       clearTimeout(chromeTimer.current);
+      cleanupMotion?.();
       supabase.removeChannel(channel);
     };
   }, []);
@@ -141,13 +142,7 @@ export default function FeedPageClean() {
 
   return (
     <div onClick={revealChrome} className="h-[100dvh] overflow-hidden bg-black text-white">
-      <style>{`
-        @keyframes feedLightDrift {
-          0% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .45; }
-          50% { transform: translate3d(2%, 1%, 0) scale(1.08); opacity: .78; }
-          100% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .45; }
-        }
-      `}</style>
+      <style>{`@keyframes feedLightDrift { 0% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .45; } 50% { transform: translate3d(2%, 1%, 0) scale(1.08); opacity: .78; } 100% { transform: translate3d(-2%, -1%, 0) scale(1); opacity: .45; } }`}</style>
       <PreloadMedia posts={posts} activeIndex={activeIndex} />
       <div className={`pointer-events-none fixed left-3 top-[72px] z-50 flex flex-col gap-1.5 transition-opacity duration-300 ${chromeVisible ? "opacity-40" : "opacity-0"}`}>
         {posts.slice(0, 5).map((_, i) => <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? "w-6 bg-cyan-200/80" : "w-2.5 bg-white/20"}`} />)}
@@ -219,11 +214,11 @@ function UltraFeedCard({ post, active, user, onRefresh, chromeVisible }) {
   return (
     <article onDoubleClick={likePulse} className="relative h-[100dvh] snap-start overflow-hidden bg-[#050816]">
       <FeedVisual media={media} active={active} />
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_30%_28%,rgba(125,211,252,.16),transparent_58%)] animate-[feedLightDrift_18s_ease-in-out_infinite]" />
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_var(--feed-light-x,30%)_var(--feed-light-y,28%),rgba(125,211,252,calc(.12+.12*var(--feed-swipe-energy,0))),transparent_58%)] animate-[feedLightDrift_18s_ease-in-out_infinite]" />
       <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_center,transparent_0%,transparent_42%,rgba(0,0,0,.22)_76%,rgba(0,0,0,.52)_100%)]" />
       <div className="pointer-events-none absolute inset-0 z-[1] opacity-[.045] [background-image:radial-gradient(rgba(255,255,255,.9)_1px,transparent_1px)] [background-size:3px_3px]" />
       <div className="absolute inset-0 z-[2] bg-gradient-to-b from-black/50 via-black/8 to-black/95" />
-      <div className="absolute inset-0 z-[2] bg-[radial-gradient(circle_at_72%_24%,rgba(34,211,238,.20),transparent_34%)]" />
+      <div className="absolute inset-0 z-[2] bg-[radial-gradient(circle_at_var(--feed-light-x,72%)_var(--feed-light-y,24%),rgba(34,211,238,.20),transparent_34%)]" />
       <div className={`absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/54 to-transparent transition-opacity duration-300 ${chromeVisible ? "opacity-70" : "opacity-0"}`} />
       <div className="absolute inset-x-0 bottom-0 z-10 h-64 bg-gradient-to-t from-black via-black/68 to-transparent" />
       {burst && <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center text-8xl text-pink-200 drop-shadow-2xl animate-[ping_.65s_ease-out_1]">♥</div>}
