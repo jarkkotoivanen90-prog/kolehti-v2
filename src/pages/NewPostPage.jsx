@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import AppBottomNav from "../components/AppBottomNav";
+import AdaptiveBackground from "../components/AdaptiveBackground";
 import { haptic } from "../lib/effects";
 import { validatePostInput, normalizePostForInsert, logClientError } from "../lib/postSafety";
+
+const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
 
 function scoreText(text) {
   const clean = String(text || "").trim();
@@ -118,48 +120,52 @@ export default function NewPostPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#050816] px-4 pb-[120px] pt-8 text-white">
-      <main className="mx-auto max-w-md">
-        <h1 className="text-4xl font-black">Uusi postaus</h1>
+    <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] px-4 pb-[170px] pt-8 text-white">
+      <AdaptiveBackground src={BG} strength="balanced" />
+      <main className="relative z-10 mx-auto max-w-md">
+        <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Uusi entry</p>
+        <h1 className="mt-2 text-[44px] font-black leading-none tracking-tight">Uusi postaus</h1>
         <p className="mt-2 text-sm font-bold text-cyan-100/70">Kirjoita perustelu ja julkaise feediin.</p>
 
-        <form onSubmit={handleSubmit} className="mt-6 rounded-[32px] border border-white/15 bg-white/10 p-5 backdrop-blur-xl">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Miksi juuri tätä pitäisi tukea?"
-            maxLength={1000}
-            className="min-h-[220px] w-full resize-none rounded-[24px] border border-white/10 bg-black/35 p-5 text-lg font-bold text-white outline-none placeholder:text-white/35"
-          />
+        <form onSubmit={handleSubmit} className="relative mt-6 overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#041226]/78 p-5 text-white shadow-2xl shadow-cyan-500/10">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.14),transparent_45%)]" />
+          <div className="relative">
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Miksi juuri tätä pitäisi tukea?"
+              maxLength={1000}
+              className="min-h-[220px] w-full resize-none rounded-[24px] border border-cyan-100/10 bg-white/[.055] p-5 text-lg font-bold text-white outline-none placeholder:text-white/35"
+            />
 
-          <div className="mt-3 flex items-center justify-between text-xs font-black text-white/55">
-            <span>{content.length}/1000</span>
-            <span>AI {aiPreview.score} · {aiPreview.label}</span>
+            <div className="mt-3 flex items-center justify-between text-xs font-black text-white/55">
+              <span>{content.length}/1000</span>
+              <span>AI {aiPreview.score} · {aiPreview.label}</span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setMediaType("image")} className={`rounded-2xl px-4 py-3 font-black ${mediaType === "image" ? "bg-cyan-500" : "bg-white/[.055]"}`}>Kuva</button>
+              <button type="button" onClick={() => setMediaType("video")} className={`rounded-2xl px-4 py-3 font-black ${mediaType === "video" ? "bg-cyan-500" : "bg-white/[.055]"}`}>Video</button>
+            </div>
+
+            <input
+              value={mediaUrl}
+              onChange={(e) => setMediaUrl(e.target.value)}
+              placeholder="Kuvan tai videon URL (valinnainen)"
+              className="mt-3 w-full rounded-[22px] border border-cyan-100/10 bg-white/[.055] px-4 py-4 font-bold text-white outline-none placeholder:text-white/35"
+            />
+
+            <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-50/80">{aiPreview.tip}</p>
+
+            {errorMessage && <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm font-black text-red-100">{errorMessage}</div>}
+            {successMessage && <div className="mt-4 rounded-2xl border border-green-400/30 bg-green-500/15 px-4 py-3 text-sm font-black text-green-100">{successMessage}</div>}
+
+            <button type="submit" disabled={posting || !validation.ok} className="mt-5 w-full rounded-[28px] bg-gradient-to-r from-cyan-400 to-blue-600 px-6 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/25 disabled:opacity-40">
+              {posting ? "Julkaistaan..." : "Julkaise"}
+            </button>
           </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setMediaType("image")} className={`rounded-2xl px-4 py-3 font-black ${mediaType === "image" ? "bg-cyan-500" : "bg-black/35"}`}>Kuva</button>
-            <button type="button" onClick={() => setMediaType("video")} className={`rounded-2xl px-4 py-3 font-black ${mediaType === "video" ? "bg-cyan-500" : "bg-black/35"}`}>Video</button>
-          </div>
-
-          <input
-            value={mediaUrl}
-            onChange={(e) => setMediaUrl(e.target.value)}
-            placeholder="Kuvan tai videon URL (valinnainen)"
-            className="mt-3 w-full rounded-[22px] border border-white/10 bg-black/35 px-4 py-4 font-bold text-white outline-none placeholder:text-white/35"
-          />
-
-          <p className="mt-4 rounded-2xl border border-cyan-300/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-50/80">{aiPreview.tip}</p>
-
-          {errorMessage && <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm font-black text-red-100">{errorMessage}</div>}
-          {successMessage && <div className="mt-4 rounded-2xl border border-green-400/30 bg-green-500/15 px-4 py-3 text-sm font-black text-green-100">{successMessage}</div>}
-
-          <button type="submit" disabled={posting || !validation.ok} className="mt-5 w-full rounded-[28px] bg-gradient-to-r from-cyan-400 to-blue-600 px-6 py-5 text-xl font-black text-white shadow-2xl shadow-cyan-500/25 disabled:opacity-40">
-            {posting ? "Julkaistaan..." : "Julkaise"}
-          </button>
         </form>
       </main>
-      <AppBottomNav />
     </div>
   );
 }
