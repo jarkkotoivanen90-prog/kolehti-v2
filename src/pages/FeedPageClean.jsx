@@ -6,12 +6,12 @@ import { rankGodFeed, saveFeedSignal, whyForYou } from "../lib/godFeed";
 import { installFeedUltraProMotion } from "../lib/feedUltraProMotion";
 
 const FEED_BACKGROUNDS = [
-  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2000&q=90",
-  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=2000&q=90",
-  "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=2000&q=90",
-  "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?auto=format&fit=crop&w=2000&q=90",
-  "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=2000&q=90",
-  "https://images.unsplash.com/photo-1482192505345-5655af888cc4?auto=format&fit=crop&w=2000&q=90",
+  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2600&q=95",
+  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=2600&q=95",
+  "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=2600&q=95",
+  "https://images.unsplash.com/photo-1549880338-65ddcdfd017b?auto=format&fit=crop&w=2600&q=95",
+  "https://images.unsplash.com/photo-1526779259212-939e64788e3c?auto=format&fit=crop&w=2600&q=95",
+  "https://images.unsplash.com/photo-1482192505345-5655af888cc4?auto=format&fit=crop&w=2600&q=95",
 ];
 
 const FALLBACK_BG = FEED_BACKGROUNDS[0];
@@ -170,7 +170,7 @@ function EmptyFeed() {
 }
 
 function FeedVisual({ media, active }) {
-  const className = `absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 ${active ? "scale-100" : "scale-[1.018]"} ${media.curated ? "feed-sharp-fallback" : "feed-user-media"}`;
+  const className = `absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 ${active ? "scale-100" : "scale-[1.006]"} ${media.curated ? "feed-sharp-fallback" : "feed-user-media"}`;
   if (media.type === "video" && media.url) return <video src={media.url} className={className} autoPlay={active} muted loop playsInline preload={active ? "auto" : "metadata"} />;
   return <img src={media.url || FALLBACK_BG} alt="" className={className} loading={active ? "eager" : "lazy"} decoding="async" />;
 }
