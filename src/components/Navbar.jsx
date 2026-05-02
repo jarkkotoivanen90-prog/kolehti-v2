@@ -64,6 +64,7 @@ export default function Navbar() {
       const y = readScrollY();
       const delta = y - lastY.current;
       setCompact(y > 22);
+      document.documentElement.style.setProperty("--kolehti-header-offset", y > 22 ? "92px" : "118px");
       if (!open) {
         if (delta > 8 && y > 70) setHidden(true);
         if (delta < -7 || y < 36) setHidden(false);
@@ -96,6 +97,7 @@ export default function Navbar() {
     target.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("touchmove", onTouchMove, { passive: true });
     window.addEventListener("pointermove", onPointerMove, { passive: true });
+    update();
     return () => {
       target.removeEventListener("scroll", onScroll);
       window.removeEventListener("touchmove", onTouchMove);
@@ -109,6 +111,12 @@ export default function Navbar() {
     setCompact(false);
     setMagnet({ x: 0, y: 0 });
     lastY.current = 0;
+    document.body.dataset.kolehtiRoute = location.pathname.replace(/^\//, "") || "home";
+    document.documentElement.style.setProperty("--kolehti-header-offset", "118px");
+    return () => {
+      document.body.dataset.kolehtiRoute = "";
+      document.documentElement.style.removeProperty("--kolehti-header-offset");
+    };
   }, [location.pathname]);
 
   async function logout() {
