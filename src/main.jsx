@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./next-level-ux.css";
+import "./pots-polish.css";
 
 // 🔥 HARD CACHE BUST + CLEANUP
 (async () => {
