@@ -12,6 +12,26 @@ import { useFeedHUD } from "../../hooks/useFeedHUD";
 import FeedCard from "./FeedCard";
 import { getScore, getVotes, getViews, getShares } from "./utils/feedFormatters";
 
+function preloadPostMedia(post) {
+  if (!post) return;
+  const imageUrl = post.image_url || post.photo_url || post.media_url;
+  const videoUrl = post.video_url || (post.media_type === "video" ? post.media_url : null);
+
+  if (imageUrl) {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = imageUrl;
+  }
+
+  if (videoUrl) {
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+    video.src = videoUrl;
+  }
+}
+
 export default function FeedScreen() {
   const [posts, setPosts] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -24,6 +44,7 @@ export default function FeedScreen() {
   const lastIndexRef = useRef(0);
   const toastTimerRef = useRef(null);
   const pulseTimerRef = useRef(null);
+  const preloadedRef = useRef(new Set());
   const { visible, onScroll, reveal, trackLeader, pulseKey } = useFeedHUD();
   const kolehti = useMemo(() => calculateKolehtiPhase1(posts), [posts]);
 
@@ -38,6 +59,17 @@ export default function FeedScreen() {
   useEffect(() => {
     if (posts.length) trackLeader(posts[0].id);
   }, [posts, trackLeader]);
+
+  useEffect(() => {
+    [activeIndex, activeIndex + 1, activeIndex + 2]
+      .filter((index) => index >= 0 && index < posts.length)
+      .forEach((index) => {
+        const post = posts[index];
+        if (!post?.id || preloadedRef.current.has(post.id)) return;
+        preloadedRef.current.add(post.id);
+        preloadPostMedia(post);
+      });
+  }, [activeIndex, posts]);
 
   async function load() {
     const startupFeed = await supabase.rpc("get_kolehti_startup_feed", { match_count: 80 });
@@ -75,8 +107,9 @@ export default function FeedScreen() {
   }
 
   function handleScroll(event) {
-    const height = window.innerHeight || 1;
-    const next = Math.max(0, Math.min(Math.round(event.currentTarget.scrollTop / height), posts.length - 1));
+    const container = event.currentTarget;
+    const height = container.clientHeight || window.innerHeight || 1;
+    const next = Math.max(0, Math.min(Math.round(container.scrollTop / height), posts.length - 1));
     const previous = posts[lastIndexRef.current];
 
     if (next !== lastIndexRef.current && previous) {
@@ -86,8 +119,8 @@ export default function FeedScreen() {
       haptic?.("tap");
     }
 
-    setActiveIndex(next);
-    onScroll(event.currentTarget.scrollTop);
+    setActiveIndex((current) => (current === next ? current : next));
+    onScroll(container.scrollTop);
   }
 
   async function likePost(post) {
