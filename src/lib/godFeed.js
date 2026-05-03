@@ -157,6 +157,47 @@ export function rankGodFeed(posts = []) {
   return [...posts].sort((a, b) => godScore(b, prefs, profile, vector) - godScore(a, prefs, profile, vector));
 }
 
+function pickNextByFlow(pool, picked, phase) {
+  if (!pool.length) return null;
+  const seenTopics = new Set(picked.slice(-2).flatMap((post) => detectTopics(post)));
+  return pool
+    .map((post) => {
+      const topics = detectTopics(post);
+      const repeatPenalty = topics.some((topic) => seenTopics.has(topic)) ? 18 : 0;
+      const mediaBoost = phase === "breather" && hasMedia(post) ? 14 : 0;
+      const sparkBoost = phase === "spark" ? viralVelocity(post) * 0.35 : 0;
+      const heartBoost = phase === "heart" && semanticVector(post)[1] > 0.15 ? 14 : 0;
+      return { post, value: Number(post.__flowScore || 0) - repeatPenalty + mediaBoost + sparkBoost + heartBoost };
+    })
+    .sort((a, b) => b.value - a.value)[0]?.post || pool[0];
+}
+
+export function buildEngagingFeed(posts = []) {
+  const prefs = getFeedPrefs();
+  const profile = getInterestProfile();
+  const vector = getVectorProfile();
+  const ranked = [...posts]
+    .map((post) => ({ ...post, __flowScore: godScore(post, prefs, profile, vector) }))
+    .sort((a, b) => Number(b.__flowScore || 0) - Number(a.__flowScore || 0));
+
+  const pool = [...ranked];
+  const picked = [];
+  const phases = ["hook", "spark", "heart", "breather", "spark", "heart"];
+
+  while (pool.length) {
+    const phase = phases[picked.length % phases.length];
+    const limit = phase === "hook" ? 8 : 18;
+    const searchPool = pool.slice(0, Math.min(limit, pool.length));
+    const next = pickNextByFlow(searchPool, picked, phase) || pool[0];
+    picked.push(next);
+    const removeAt = pool.findIndex((post) => post.id === next.id);
+    if (removeAt >= 0) pool.splice(removeAt, 1);
+    else pool.shift();
+  }
+
+  return picked.map(({ __flowScore, ...post }) => post);
+}
+
 export function godScore(post, prefs = getFeedPrefs(), profile = getInterestProfile(), vector = getVectorProfile()) {
   const pref = prefs[post.id] || {};
   const global = Number(post.boost_score || 0) * 5 + Number(post.ai_score || post.score || 0) + Number(post.votes || 0) * 11 + Number(post.views || 0) * 0.7;
