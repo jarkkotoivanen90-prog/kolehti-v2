@@ -4,12 +4,11 @@ import { Link } from "react-router-dom";
 const items = [
   { label: "Etusivu", to: "/" },
   { label: "Feed", to: "/feed" },
-  { label: "Uusi postaus", to: "/new" },
-  { label: "Porukka", to: "/groups" },
+  { label: "Uusi", to: "/new" },
+  { label: "Porukat", to: "/groups" },
   { label: "Potit", to: "/pots" },
   { label: "Top-lista", to: "/leaderboard" },
   { label: "Profiili", to: "/profile" },
-  { label: "Asetukset", to: "/profile" },
 ];
 
 export default function BottomSheetMenu({ open, onClose, onLogout }) {
