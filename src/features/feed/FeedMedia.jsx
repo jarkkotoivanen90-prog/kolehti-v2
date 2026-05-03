@@ -25,6 +25,7 @@ export default function FeedMedia({ post, active }) {
       alt=""
       className={className}
       loading={active ? "eager" : "lazy"}
+      fetchPriority={active ? "high" : "auto"}
       decoding="async"
       animate={{ scale: active ? 1.01 : 1.05 }}
       transition={{ duration: 1.2 }}
