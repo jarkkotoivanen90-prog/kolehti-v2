@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
+import { motion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
@@ -71,10 +72,7 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <button
-              onClick={logout}
-              className="rounded-2xl bg-pink-500/85 px-4 py-3 text-sm font-black text-white active:scale-[0.97]"
-            >
+            <button onClick={logout} className="rounded-2xl bg-pink-500/85 px-4 py-3 text-sm font-black text-white active:scale-[0.97]">
               Kirjaudu ulos
             </button>
           </div>
