@@ -155,20 +155,22 @@ function getSessionSeed() {
   }
 }
 
-function getRouteConfig(cityKey, fallback, seed) {
+function getRouteConfig(cityKey, fallback, seed, path) {
   try {
-    const path = window.location.pathname;
     const citySet = CITY_BACKGROUND_SETS[cityKey] || CITY_BACKGROUND_SETS.helsinki;
     const images = Object.values(citySet);
     const routeIndex = ROUTE_IMAGE_KEYS[path] ?? 0;
-    const selected = images[(routeIndex + seed) % images.length] || images[0];
+    const selectedIndex = (routeIndex + seed) % images.length;
+    const selected = images[selectedIndex] || images[0];
+    const next = images[(selectedIndex + 1) % images.length] || images[0];
     return {
       ...selected,
       src: selected.src || fallback || CITY_BACKGROUND_SETS.helsinki.skyline.src,
+      preload: next.src,
       vibe: cityKey === "turku" ? "rgba(45,212,191,.12)" : cityKey === "tampere" ? "rgba(96,165,250,.13)" : cityKey === "joensuu" ? "rgba(34,211,238,.11)" : "rgba(59,130,246,.12)",
     };
   } catch {
-    return { src: fallback || CITY_BACKGROUND_SETS.helsinki.skyline.src, position: "center", vibe: "rgba(34,211,238,.10)" };
+    return { src: fallback || CITY_BACKGROUND_SETS.helsinki.skyline.src, preload: CITY_BACKGROUND_SETS.helsinki.city.src, position: "center", vibe: "rgba(34,211,238,.10)" };
   }
 }
 
@@ -176,6 +178,7 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
   const [cityKey, setCityKey] = useState(() => readPreferredCity() || readSavedCity());
   const [seed] = useState(getSessionSeed);
   const [loadedSrc, setLoadedSrc] = useState("");
+  const path = typeof window !== "undefined" ? window.location.pathname : "/";
 
   useEffect(() => {
     const preferred = readPreferredCity();
@@ -215,7 +218,7 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
       if (ticking) return;
       ticking = true;
       window.requestAnimationFrame(() => {
-        const offset = Math.min(18, Math.max(-18, window.scrollY * 0.035));
+        const offset = Math.min(14, Math.max(-14, window.scrollY * 0.028));
         document.documentElement.style.setProperty("--kolehti-bg-offset", `${offset}px`);
         ticking = false;
       });
@@ -229,37 +232,45 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
   const modes = {
     soft: {
       image: "brightness-[0.84] saturate-[1.08] contrast-[1.04]",
-      gradient: "from-black/42 via-[#061126]/68 to-black/94",
-      veil: "bg-black/6",
+      gradient: "from-black/46 via-[#061126]/70 to-black/94",
+      veil: "bg-black/8",
     },
     balanced: {
-      image: "brightness-[0.72] saturate-[1.12] contrast-[1.07]",
-      gradient: "from-black/54 via-[#061126]/76 to-black/96",
-      veil: "bg-black/10",
+      image: "brightness-[0.70] saturate-[1.10] contrast-[1.08]",
+      gradient: "from-black/58 via-[#061126]/78 to-black/97",
+      veil: "bg-black/12",
     },
     strong: {
-      image: "brightness-[0.62] saturate-[1.04] contrast-[1.04]",
-      gradient: "from-black/66 via-[#020617]/88 to-black",
-      veil: "bg-black/20 backdrop-blur-[1px]",
+      image: "brightness-[0.60] saturate-[1.04] contrast-[1.05]",
+      gradient: "from-black/68 via-[#020617]/88 to-black",
+      veil: "bg-black/22 backdrop-blur-[1px]",
     },
   };
 
   const mode = modes[strength] || modes.balanced;
-  const route = useMemo(() => getRouteConfig(cityKey, src, seed), [cityKey, src, seed]);
+  const route = useMemo(() => getRouteConfig(cityKey, src, seed, path), [cityKey, src, seed, path]);
   const visible = loadedSrc === route.src;
+
+  useEffect(() => {
+    if (!route.preload || typeof Image === "undefined") return;
+    const image = new Image();
+    image.decoding = "async";
+    image.loading = "lazy";
+    image.src = route.preload;
+  }, [route.preload]);
 
   return (
     <>
       <style>{`
         @keyframes kolehtiBgFloat {
-          0% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.055) translate3d(-0.45%, -0.25%, 0); }
-          50% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.085) translate3d(0.45%, 0.25%, 0); }
-          100% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.055) translate3d(-0.45%, -0.25%, 0); }
+          0% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.06) translate3d(-0.35%, -0.2%, 0); }
+          50% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.08) translate3d(0.35%, 0.2%, 0); }
+          100% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.06) translate3d(-0.35%, -0.2%, 0); }
         }
         @keyframes kolehtiLightDrift {
-          0% { opacity: .55; transform: translate3d(-3%, -1%, 0) scale(1); }
-          50% { opacity: .9; transform: translate3d(3%, 1%, 0) scale(1.08); }
-          100% { opacity: .55; transform: translate3d(-3%, -1%, 0) scale(1); }
+          0% { opacity: .48; transform: translate3d(-2%, -1%, 0) scale(1); }
+          50% { opacity: .78; transform: translate3d(2%, 1%, 0) scale(1.06); }
+          100% { opacity: .48; transform: translate3d(-2%, -1%, 0) scale(1); }
         }
         @media (prefers-reduced-motion: reduce) {
           .kolehti-bg-float, .kolehti-light-drift { animation: none !important; transition: none !important; }
@@ -270,16 +281,17 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
         src={route.src}
         alt={alt}
         className={`kolehti-bg-float fixed inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-700 ease-out ${visible ? "opacity-100" : ""} ${mode.image}`}
-        style={{ objectPosition: route.position, animation: "kolehtiBgFloat 26s ease-in-out infinite", willChange: "transform, opacity" }}
+        style={{ objectPosition: route.position, animation: "kolehtiBgFloat 30s ease-in-out infinite", willChange: "transform, opacity" }}
         loading="eager"
         decoding="async"
         onLoad={() => setLoadedSrc(route.src)}
       />
       <div className={`fixed inset-0 bg-gradient-to-b ${mode.gradient}`} />
       <div className={`fixed inset-0 ${mode.veil}`} />
-      <div className="kolehti-light-drift fixed inset-0" style={{ background: `radial-gradient(circle at 50% 0%, ${route.vibe}, transparent 38%)`, animation: "kolehtiLightDrift 10s ease-in-out infinite", willChange: "transform, opacity" }} />
-      <div className="fixed inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,.18)_76%,rgba(0,0,0,.42)_100%)]" />
+      <div className="fixed inset-x-0 top-0 h-44 bg-gradient-to-b from-black/70 via-black/28 to-transparent" />
+      <div className="kolehti-light-drift fixed inset-0" style={{ background: `radial-gradient(circle at 50% 0%, ${route.vibe}, transparent 38%)`, animation: "kolehtiLightDrift 12s ease-in-out infinite", willChange: "transform, opacity" }} />
+      <div className="fixed inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/78 via-black/22 to-transparent" />
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,.20)_74%,rgba(0,0,0,.46)_100%)]" />
     </>
   );
 }
