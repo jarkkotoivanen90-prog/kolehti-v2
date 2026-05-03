@@ -31,20 +31,23 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
     <section className="relative h-[100dvh] snap-start overflow-hidden bg-[#050816]">
       <FeedMedia post={post} active={active} />
 
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,.08),rgba(0,0,0,.01)_35%,rgba(0,0,0,.45))]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/55 via-black/12 to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,.055),rgba(0,0,0,.005)_38%,rgba(0,0,0,.34)),linear-gradient(to_bottom,rgba(34,211,238,.045),transparent_32%)]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-black/42 via-black/8 to-transparent" />
 
       {active && trending && (
-        <div className="pointer-events-none absolute inset-x-10 top-24 h-28 rounded-full bg-cyan-400/12 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-10 top-24 h-28 rounded-full bg-cyan-400/10 blur-3xl" />
       )}
 
       <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+112px)] left-0 right-0 top-[calc(env(safe-area-inset-top)+106px)] z-10 px-4">
         <motion.article
           initial={false}
-          animate={{ y: active ? 0 : 24, opacity: active ? 1 : 0.7, scale: active ? 1 : 0.985 }}
+          animate={{ y: active ? 0 : 24, opacity: active ? 1 : 0.72, scale: active ? 1 : 0.985 }}
           transition={{ type: "spring", stiffness: 230, damping: 27 }}
-          className="flex h-full flex-col rounded-[34px] border border-white/12 bg-transparent p-4 shadow-2xl shadow-black/12 backdrop-blur-0"
+          className="relative flex h-full flex-col overflow-hidden rounded-[34px] bg-[linear-gradient(135deg,rgba(255,255,255,.045),rgba(255,255,255,.004)_45%,rgba(34,211,238,.025))] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,.075),0_22px_60px_rgba(0,0,0,.16),0_0_34px_rgba(34,211,238,.055)] backdrop-blur-0"
         >
+          <div className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-cyan-100/12 to-transparent" />
+
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
             {index === 0 && <Badge tone="yellow">🏆 johtaja</Badge>}
             {trending && <Badge tone="cyan">🔥 trendaa</Badge>}
@@ -54,7 +57,7 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-cyan-200/25 bg-cyan-400/12 text-lg font-black shadow-[0_0_20px_rgba(34,211,238,0.15)]">{avatar}</div>
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-cyan-400/10 text-lg font-black shadow-[inset_0_0_0_1px_rgba(165,243,252,.22),0_0_20px_rgba(34,211,238,.13)]">{avatar}</div>
 
             <div className="min-w-0 flex-1">
               <div className="truncate text-lg font-black tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,.75)]">{author}</div>
@@ -69,7 +72,7 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
               transition={{ duration: 0.22 }}
               type="button"
               onClick={(event) => { event.stopPropagation(); onLike?.(); }}
-              className={`grid h-13 w-13 place-items-center rounded-full border text-xl font-black shadow-[0_0_28px_rgba(34,211,238,0.25)] backdrop-blur-md transition active:scale-95 ${liked ? "border-pink-200/45 bg-pink-500/28 text-pink-50" : "border-cyan-200/28 bg-cyan-400/14 text-white"}`}
+              className={`grid h-13 w-13 place-items-center rounded-full text-xl font-black shadow-[inset_0_0_0_1px_rgba(165,243,252,.22),0_0_26px_rgba(34,211,238,.18)] backdrop-blur-md transition active:scale-95 ${liked ? "bg-pink-500/24 text-pink-50 shadow-[inset_0_0_0_1px_rgba(251,207,232,.30),0_0_26px_rgba(244,114,182,.20)]" : "bg-cyan-400/12 text-white"}`}
               aria-label="Tykkää tai anna ääni"
             >♥</motion.button>
           </div>
@@ -97,7 +100,7 @@ function ActionButton({ children, onClick }) {
     <button
       type="button"
       onClick={(event) => { event.stopPropagation(); onClick?.(); }}
-      className="rounded-2xl border border-cyan-200/28 bg-cyan-400/12 px-2 py-3 text-white shadow-[0_0_22px_rgba(34,211,238,0.12)] backdrop-blur-md transition active:scale-95 active:bg-cyan-400/20"
+      className="rounded-2xl bg-cyan-400/11 px-2 py-3 text-white shadow-[inset_0_0_0_1px_rgba(165,243,252,.20),0_0_20px_rgba(34,211,238,.10)] backdrop-blur-md transition active:scale-95 active:bg-cyan-400/18"
     >
       {children}
     </button>
@@ -106,13 +109,13 @@ function ActionButton({ children, onClick }) {
 
 function Badge({ children, tone = "white" }) {
   const toneClass = tone === "yellow"
-    ? "border-yellow-200/22 bg-yellow-300/12 text-yellow-100"
+    ? "bg-yellow-300/10 text-yellow-100 shadow-[inset_0_0_0_1px_rgba(254,240,138,.18)]"
     : tone === "cyan"
-      ? "border-cyan-200/22 bg-cyan-300/12 text-cyan-100"
-      : "border-white/10 bg-black/14 text-white/86";
+      ? "bg-cyan-300/10 text-cyan-100 shadow-[inset_0_0_0_1px_rgba(165,243,252,.18)]"
+      : "bg-white/7 text-white/86 shadow-[inset_0_0_0_1px_rgba(255,255,255,.10)]";
 
   return (
-    <span className={`rounded-full border px-3 py-1 shadow-lg shadow-black/10 ${toneClass}`}>
+    <span className={`rounded-full px-3 py-1 shadow-black/10 backdrop-blur-md ${toneClass}`}>
       {children}
     </span>
   );
