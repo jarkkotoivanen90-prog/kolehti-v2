@@ -69,7 +69,6 @@ export default function FeedScreen() {
   const toastTimerRef = useRef(null);
   const pulseTimerRef = useRef(null);
   const scrollFrameRef = useRef(null);
-  const snapTimerRef = useRef(null);
   const idleTaskRef = useRef(null);
   const lastHapticAtRef = useRef(0);
   const lastScrollTopRef = useRef(0);
@@ -84,7 +83,6 @@ export default function FeedScreen() {
     return () => {
       window.clearTimeout(toastTimerRef.current);
       window.clearTimeout(pulseTimerRef.current);
-      window.clearTimeout(snapTimerRef.current);
       cancelIdleTask(idleTaskRef.current);
       if (scrollFrameRef.current) window.cancelAnimationFrame(scrollFrameRef.current);
     };
@@ -138,17 +136,6 @@ export default function FeedScreen() {
     pulseTimerRef.current = window.setTimeout(() => setPulse(null), 520);
   }
 
-  function settleToNearestCard(container, index, height, velocity) {
-    window.clearTimeout(snapTimerRef.current);
-    const delay = velocity > 1.35 ? 175 : velocity > 0.75 ? 145 : 105;
-    snapTimerRef.current = window.setTimeout(() => {
-      const target = index * height;
-      if (Math.abs(container.scrollTop - target) > 8) {
-        container.scrollTo({ top: target, behavior: "smooth" });
-      }
-    }, delay);
-  }
-
   function handleScroll(event) {
     const container = event.currentTarget;
     const scrollTop = container.scrollTop;
@@ -160,19 +147,17 @@ export default function FeedScreen() {
       const now = Date.now();
       const delta = Math.abs(scrollTop - lastScrollTopRef.current);
       const dt = Math.max(16, now - lastScrollAtRef.current);
-      const velocity = delta / dt;
       lastScrollTopRef.current = scrollTop;
       lastScrollAtRef.current = now;
 
-      const rawIndex = scrollTop / height;
-      const next = Math.max(0, Math.min(Math.round(rawIndex), posts.length - 1));
+      const next = Math.max(0, Math.min(Math.round(scrollTop / height), posts.length - 1));
       const previous = posts[lastIndexRef.current];
 
       if (next !== lastIndexRef.current && previous) {
         saveFeedSignal?.(previous, "skips");
         if (!previous.bot) supabase.rpc("record_ai_feed_signal", { target_post_id: previous.id, event: "feed_skip" });
         lastIndexRef.current = next;
-        if (now - lastHapticAtRef.current > 260) {
+        if (now - lastHapticAtRef.current > 320 && delta > 12) {
           haptic?.("tap");
           lastHapticAtRef.current = now;
         }
@@ -180,7 +165,6 @@ export default function FeedScreen() {
 
       setActiveIndex((currentIndex) => (currentIndex === next ? currentIndex : next));
       onScroll(scrollTop);
-      settleToNearestCard(container, next, height, velocity);
       scrollFrameRef.current = null;
     });
   }
