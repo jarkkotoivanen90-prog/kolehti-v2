@@ -50,6 +50,8 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
           }}
         >
           <div className="pointer-events-none absolute inset-0 rounded-[34px] bg-[radial-gradient(ellipse_at_center,transparent_58%,rgba(255,255,255,.045)_100%)] opacity-60" />
+          <div className="pointer-events-none absolute inset-x-3 top-[26%] h-[56%] rounded-[34px] bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,.30),rgba(0,0,0,.13)_46%,transparent_74%)] blur-2xl" />
+          <div className="pointer-events-none absolute inset-x-4 bottom-12 h-36 rounded-[34px] bg-gradient-to-t from-black/24 via-black/8 to-transparent blur-xl" />
 
           <div className="relative mb-3 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
             {index === 0 && <Badge>🏆 johtaja</Badge>}
@@ -63,8 +65,8 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-black" style={{ background: "var(--feed-accent-bg)", boxShadow: "0 0 18px var(--feed-accent-glow)" }}>{avatar}</div>
 
             <div className="min-w-0 flex-1">
-              <div className="truncate text-lg font-black tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,.75)]">{author}</div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
+              <div className="truncate text-lg font-black tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,.82)]">{author}</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/76 drop-shadow-[0_2px_8px_rgba(0,0,0,.70)]">
                 {post?.bot ? "AI-pelibotti" : `#${index + 1} päivän perustelu`}
               </div>
             </div>
@@ -80,8 +82,13 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
             >♥</motion.button>
           </div>
 
-          <div className="relative mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
-            <p className={`${textClass} pb-5 font-black tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,.92)]`}>
+          <div className="relative mt-4 min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <p
+              className={`${textClass} pb-5 font-black tracking-tight text-white`}
+              style={{
+                textShadow: "0 2px 0 rgba(0,0,0,.28), 0 5px 18px rgba(0,0,0,.92), 0 0 34px rgba(0,0,0,.58)",
+              }}
+            >
               {post?.content}
             </p>
           </div>
