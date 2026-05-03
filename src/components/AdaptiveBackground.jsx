@@ -6,6 +6,25 @@ function commonsFile(name) {
   return `${COMMONS}${encodeURIComponent(name)}?width=1600`;
 }
 
+export const CITY_BACKGROUND_OPTIONS = [
+  { key: "auto", label: "Automaattinen" },
+  { key: "joensuu", label: "Joensuu" },
+  { key: "helsinki", label: "Helsinki" },
+  { key: "tampere", label: "Tampere" },
+  { key: "turku", label: "Turku" },
+  { key: "oulu", label: "Oulu" },
+  { key: "kuopio", label: "Kuopio" },
+];
+
+const CITY_ALIASES = {
+  joensuu: "joensuu",
+  helsinki: "helsinki",
+  tampere: "tampere",
+  turku: "turku",
+  oulu: "oulu",
+  kuopio: "kuopio",
+};
+
 const CITY_BACKGROUND_SETS = {
   joensuu: {
     center: { src: commonsFile("Joensuu city centre.jpg"), position: "center" },
@@ -72,6 +91,10 @@ const ROUTE_IMAGE_KEYS = {
   "/war": 3,
 };
 
+function normalizeCityName(value) {
+  return String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 function distanceKm(aLat, aLon, bLat, bLon) {
   const radius = 6371;
   const dLat = ((bLat - aLat) * Math.PI) / 180;
@@ -89,12 +112,34 @@ function nearestSupportedCity(lat, lon) {
   }, { key: "helsinki", distance: Infinity }).key;
 }
 
+async function reverseGeocodeCity(lat, lon) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=10&addressdetails=1`;
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!response.ok) return null;
+  const data = await response.json();
+  const address = data?.address || {};
+  return address.city || address.town || address.municipality || address.village || address.county || null;
+}
+
 function readSavedCity() {
   try {
     return localStorage.getItem("kolehti_city_background") || "helsinki";
   } catch {
     return "helsinki";
   }
+}
+
+function readPreferredCity() {
+  try {
+    const value = localStorage.getItem("kolehti_preferred_city");
+    return value && CITY_BACKGROUND_SETS[value] ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveCity(value) {
+  try { localStorage.setItem("kolehti_city_background", value); } catch {}
 }
 
 function getSessionSeed() {
@@ -128,22 +173,57 @@ function getRouteConfig(cityKey, fallback, seed) {
 }
 
 export default function AdaptiveBackground({ src, alt = "", strength = "balanced" }) {
-  const [cityKey, setCityKey] = useState(readSavedCity);
+  const [cityKey, setCityKey] = useState(() => readPreferredCity() || readSavedCity());
   const [seed] = useState(getSessionSeed);
   const [loadedSrc, setLoadedSrc] = useState("");
 
   useEffect(() => {
+    const preferred = readPreferredCity();
+    if (preferred) {
+      setCityKey(preferred);
+      saveCity(preferred);
+      return;
+    }
+
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nextCity = nearestSupportedCity(position.coords.latitude, position.coords.longitude);
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const nearest = nearestSupportedCity(latitude, longitude);
+        let nextCity = nearest;
+
+        try {
+          const cityName = await reverseGeocodeCity(latitude, longitude);
+          const exact = CITY_ALIASES[normalizeCityName(cityName)];
+          if (exact && CITY_BACKGROUND_SETS[exact]) nextCity = exact;
+        } catch {}
+
         setCityKey(nextCity);
-        try { localStorage.setItem("kolehti_city_background", nextCity); } catch {}
+        saveCity(nextCity);
       },
       () => {},
       { enableHighAccuracy: false, maximumAge: 1000 * 60 * 60 * 24, timeout: 4500 }
     );
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let ticking = false;
+
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const offset = Math.min(18, Math.max(-18, window.scrollY * 0.035));
+        document.documentElement.style.setProperty("--kolehti-bg-offset", `${offset}px`);
+        ticking = false;
+      });
+    }
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const modes = {
@@ -172,9 +252,9 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
     <>
       <style>{`
         @keyframes kolehtiBgFloat {
-          0% { transform: scale(1.045) translate3d(-0.7%, -0.4%, 0); }
-          50% { transform: scale(1.085) translate3d(0.7%, 0.45%, 0); }
-          100% { transform: scale(1.045) translate3d(-0.7%, -0.4%, 0); }
+          0% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.055) translate3d(-0.45%, -0.25%, 0); }
+          50% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.085) translate3d(0.45%, 0.25%, 0); }
+          100% { transform: translateY(var(--kolehti-bg-offset, 0px)) scale(1.055) translate3d(-0.45%, -0.25%, 0); }
         }
         @keyframes kolehtiLightDrift {
           0% { opacity: .55; transform: translate3d(-3%, -1%, 0) scale(1); }
@@ -190,14 +270,14 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
         src={route.src}
         alt={alt}
         className={`kolehti-bg-float fixed inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-700 ease-out ${visible ? "opacity-100" : ""} ${mode.image}`}
-        style={{ objectPosition: route.position, animation: "kolehtiBgFloat 24s ease-in-out infinite", willChange: "transform, opacity" }}
+        style={{ objectPosition: route.position, animation: "kolehtiBgFloat 26s ease-in-out infinite", willChange: "transform, opacity" }}
         loading="eager"
         decoding="async"
         onLoad={() => setLoadedSrc(route.src)}
       />
       <div className={`fixed inset-0 bg-gradient-to-b ${mode.gradient}`} />
       <div className={`fixed inset-0 ${mode.veil}`} />
-      <div className="kolehti-light-drift fixed inset-0" style={{ background: `radial-gradient(circle at 50% 0%, ${route.vibe}, transparent 38%)`, animation: "kolehtiLightDrift 9s ease-in-out infinite", willChange: "transform, opacity" }} />
+      <div className="kolehti-light-drift fixed inset-0" style={{ background: `radial-gradient(circle at 50% 0%, ${route.vibe}, transparent 38%)`, animation: "kolehtiLightDrift 10s ease-in-out infinite", willChange: "transform, opacity" }} />
       <div className="fixed inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent" />
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,.18)_76%,rgba(0,0,0,.42)_100%)]" />
     </>
