@@ -62,6 +62,8 @@ export default function FeedScreen() {
   const snapTimerRef = useRef(null);
   const idleTaskRef = useRef(null);
   const lastHapticAtRef = useRef(0);
+  const lastScrollTopRef = useRef(0);
+  const lastScrollAtRef = useRef(Date.now());
   const preloadedRef = useRef(new Set());
   const { visible, onScroll, reveal, trackLeader, pulseKey } = useFeedHUD();
   const kolehti = useMemo(() => calculateKolehtiPhase1(posts), [posts]);
@@ -82,11 +84,12 @@ export default function FeedScreen() {
   }, [posts, trackLeader]);
 
   useEffect(() => {
-    const nextPost = posts[activeIndex + 1];
-    if (!nextPost?.id || preloadedRef.current.has(nextPost.id)) return;
-    preloadedRef.current.add(nextPost.id);
+    const candidates = [activeIndex + 1, activeIndex - 1].filter((index) => index >= 0 && index < posts.length);
+    const fresh = candidates.filter((index) => posts[index]?.id && !preloadedRef.current.has(posts[index].id));
+    if (!fresh.length) return;
+    fresh.forEach((index) => preloadedRef.current.add(posts[index].id));
     cancelIdleTask(idleTaskRef.current);
-    idleTaskRef.current = runWhenIdle(() => preloadPostMedia(nextPost));
+    idleTaskRef.current = runWhenIdle(() => fresh.forEach((index) => preloadPostMedia(posts[index])));
   }, [activeIndex, posts]);
 
   async function load() {
@@ -124,14 +127,15 @@ export default function FeedScreen() {
     pulseTimerRef.current = window.setTimeout(() => setPulse(null), 520);
   }
 
-  function settleToNearestCard(container, index, height) {
+  function settleToNearestCard(container, index, height, velocity) {
     window.clearTimeout(snapTimerRef.current);
+    const delay = velocity > 1.35 ? 175 : velocity > 0.75 ? 145 : 105;
     snapTimerRef.current = window.setTimeout(() => {
       const target = index * height;
       if (Math.abs(container.scrollTop - target) > 8) {
         container.scrollTo({ top: target, behavior: "smooth" });
       }
-    }, 115);
+    }, delay);
   }
 
   function handleScroll(event) {
@@ -142,15 +146,22 @@ export default function FeedScreen() {
     if (scrollFrameRef.current) return;
 
     scrollFrameRef.current = window.requestAnimationFrame(() => {
-      const next = Math.max(0, Math.min(Math.round(scrollTop / height), posts.length - 1));
+      const now = Date.now();
+      const delta = Math.abs(scrollTop - lastScrollTopRef.current);
+      const dt = Math.max(16, now - lastScrollAtRef.current);
+      const velocity = delta / dt;
+      lastScrollTopRef.current = scrollTop;
+      lastScrollAtRef.current = now;
+
+      const rawIndex = scrollTop / height;
+      const next = Math.max(0, Math.min(Math.round(rawIndex), posts.length - 1));
       const previous = posts[lastIndexRef.current];
 
       if (next !== lastIndexRef.current && previous) {
         saveFeedSignal?.(previous, "skips");
         if (!previous.bot) supabase.rpc("record_ai_feed_signal", { target_post_id: previous.id, event: "feed_skip" });
         lastIndexRef.current = next;
-        const now = Date.now();
-        if (now - lastHapticAtRef.current > 220) {
+        if (now - lastHapticAtRef.current > 260) {
           haptic?.("tap");
           lastHapticAtRef.current = now;
         }
@@ -158,7 +169,7 @@ export default function FeedScreen() {
 
       setActiveIndex((current) => (current === next ? current : next));
       onScroll(scrollTop);
-      settleToNearestCard(container, next, height);
+      settleToNearestCard(container, next, height, velocity);
       scrollFrameRef.current = null;
     });
   }
