@@ -1,36 +1,54 @@
+const FINLAND_BACKGROUNDS = {
+  lakeForest: "https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1600",
+  ikaalinenLake: "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1600",
+  rukaAurora: "https://commons.wikimedia.org/wiki/Special:FilePath/Northern_Lights_%2824798830390%29.jpg?width=1600",
+  rukaAuroraWide: "https://commons.wikimedia.org/wiki/Special:FilePath/Northern_Lights_%2840234785864%29.jpg?width=1600",
+  helsinkiAurora: "https://commons.wikimedia.org/wiki/Special:FilePath/Northern_Lights_%288566030147%29.jpg?width=1600",
+};
+
 const ROUTE_BACKGROUNDS = {
+  "/login": {
+    src: FINLAND_BACKGROUNDS.helsinkiAurora,
+    position: "center",
+    vibe: "rgba(34,211,238,.12)",
+  },
+  "/reset": {
+    src: FINLAND_BACKGROUNDS.rukaAurora,
+    position: "center",
+    vibe: "rgba(96,165,250,.14)",
+  },
   "/pots": {
-    src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1800&q=92",
+    src: FINLAND_BACKGROUNDS.ikaalinenLake,
     position: "center",
     vibe: "rgba(34,211,238,.10)",
   },
   "/profile": {
-    src: "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1800&q=92",
-    position: "center top",
+    src: FINLAND_BACKGROUNDS.lakeForest,
+    position: "center",
     vibe: "rgba(96,165,250,.12)",
   },
   "/new": {
-    src: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1800&q=92",
+    src: FINLAND_BACKGROUNDS.ikaalinenLake,
     position: "center",
     vibe: "rgba(125,211,252,.14)",
   },
   "/groups": {
-    src: "https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1800&q=92",
+    src: FINLAND_BACKGROUNDS.lakeForest,
     position: "center",
     vibe: "rgba(45,212,191,.12)",
   },
   "/growth": {
-    src: "https://images.unsplash.com/photo-1531366936337-7c912a4589a7?auto=format&fit=crop&w=1800&q=92",
-    position: "center top",
+    src: FINLAND_BACKGROUNDS.rukaAuroraWide,
+    position: "center",
     vibe: "rgba(168,85,247,.14)",
   },
   "/leaderboard": {
-    src: "https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?auto=format&fit=crop&w=1800&q=92",
+    src: FINLAND_BACKGROUNDS.helsinkiAurora,
     position: "center",
     vibe: "rgba(59,130,246,.12)",
   },
   "/war": {
-    src: "https://images.unsplash.com/photo-1477346611705-65d1883cee1e?auto=format&fit=crop&w=1800&q=92",
+    src: FINLAND_BACKGROUNDS.rukaAurora,
     position: "center",
     vibe: "rgba(14,165,233,.12)",
   },
@@ -39,9 +57,9 @@ const ROUTE_BACKGROUNDS = {
 function getRouteConfig(fallback) {
   try {
     const path = window.location.pathname;
-    return ROUTE_BACKGROUNDS[path] || { src: fallback, position: "center", vibe: "rgba(34,211,238,.10)" };
+    return ROUTE_BACKGROUNDS[path] || { src: fallback || FINLAND_BACKGROUNDS.lakeForest, position: "center", vibe: "rgba(34,211,238,.10)" };
   } catch {
-    return { src: fallback, position: "center", vibe: "rgba(34,211,238,.10)" };
+    return { src: fallback || FINLAND_BACKGROUNDS.lakeForest, position: "center", vibe: "rgba(34,211,238,.10)" };
   }
 }
 
