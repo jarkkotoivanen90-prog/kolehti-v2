@@ -19,6 +19,7 @@ import AuthGate from "./components/auth/AuthGate";
 import Navbar from "./components/Navbar";
 import BrandFX from "./components/BrandFX";
 import AppBottomNav from "./components/AppBottomNav";
+import AdaptiveBackground from "./components/AdaptiveBackground";
 
 function AppShell() {
   const location = useLocation();
@@ -35,10 +36,13 @@ function AppShell() {
   }, []);
 
   const authPage = location.pathname === "/login" || location.pathname === "/reset";
+  const isHome = location.pathname === "/";
   const isFeed = location.pathname === "/feed";
+  const showCityBackground = !isHome && !isFeed;
 
   return (
     <>
+      {showCityBackground && <AdaptiveBackground strength="balanced" />}
       <BrandFX />
       {!authPage && !isFeed && <Navbar />}
 
