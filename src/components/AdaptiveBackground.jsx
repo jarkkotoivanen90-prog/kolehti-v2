@@ -19,7 +19,7 @@ const CITY_BACKGROUND_SETS = {
     city: { src: commonsFile("City of Helsinki.jpg"), position: "center" },
     jatkasaari: { src: commonsFile("Helsinki skyline from Jätkäsaari.jpg"), position: "center" },
     center: { src: commonsFile("Helsinki City Centre.jpg"), position: "center" },
-    night: { src: commonsFile("Helsinki Skyline (52432702085).jpg"), position: "center" },
+    sea: { src: commonsFile("Helsinki Skyline (52432702085).jpg"), position: "center" },
   },
   tampere: {
     nasinneula: { src: commonsFile("Näsinneula view 18.jpg"), position: "center" },
@@ -99,24 +99,15 @@ function readSavedCity() {
 
 function getSessionSeed() {
   try {
-    const today = new Date().toISOString().slice(0, 10);
-    const key = "kolehti_city_bg_seed";
-    const saved = JSON.parse(localStorage.getItem(key) || "null");
-    if (saved?.date === today && Number.isFinite(saved.seed)) return saved.seed;
+    const key = "kolehti_city_bg_session_seed";
+    const saved = sessionStorage.getItem(key);
+    if (saved && Number.isFinite(Number(saved))) return Number(saved);
     const next = Math.floor(Math.random() * 1000);
-    localStorage.setItem(key, JSON.stringify({ date: today, seed: next }));
+    sessionStorage.setItem(key, String(next));
     return next;
   } catch {
     return Math.floor(Math.random() * 1000);
   }
-}
-
-function getTimeMood() {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 11) return "morning";
-  if (hour >= 11 && hour < 18) return "day";
-  if (hour >= 18 && hour < 22) return "evening";
-  return "night";
 }
 
 function getRouteConfig(cityKey, fallback, seed) {
@@ -155,20 +146,19 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
     );
   }, []);
 
-  const mood = getTimeMood();
   const modes = {
     soft: {
-      image: "brightness-[0.86] saturate-[1.08] contrast-[1.04]",
+      image: "brightness-[0.84] saturate-[1.08] contrast-[1.04]",
       gradient: "from-black/42 via-[#061126]/68 to-black/94",
       veil: "bg-black/6",
     },
     balanced: {
-      image: mood === "night" ? "brightness-[0.58] saturate-[1.12] contrast-[1.08]" : mood === "evening" ? "brightness-[0.68] saturate-[1.16] contrast-[1.07]" : "brightness-[0.76] saturate-[1.10] contrast-[1.06]",
-      gradient: mood === "night" ? "from-black/70 via-[#020617]/82 to-black" : mood === "evening" ? "from-black/58 via-[#061126]/78 to-black/96" : "from-black/52 via-[#061126]/76 to-black/96",
-      veil: mood === "night" ? "bg-black/16" : "bg-black/10",
+      image: "brightness-[0.72] saturate-[1.12] contrast-[1.07]",
+      gradient: "from-black/54 via-[#061126]/76 to-black/96",
+      veil: "bg-black/10",
     },
     strong: {
-      image: "brightness-[0.62] saturate-[1.02] contrast-[1.02]",
+      image: "brightness-[0.62] saturate-[1.04] contrast-[1.04]",
       gradient: "from-black/66 via-[#020617]/88 to-black",
       veil: "bg-black/20 backdrop-blur-[1px]",
     },
