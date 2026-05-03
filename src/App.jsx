@@ -27,52 +27,25 @@ function AppShell() {
     let cleanHaptics = () => {};
     let cleanReactive = () => {};
 
-    try {
-      cleanHaptics = installGlobalHaptics?.() || (() => {});
-    } catch (error) {
-      console.warn("global haptics disabled", error);
-    }
+    try { cleanHaptics = installGlobalHaptics?.() || (() => {}); } catch {}
+    try { cleanReactive = installReactiveUI?.() || (() => {}); } catch {}
+    try { startVersionCheck?.(); } catch {}
 
-    try {
-      cleanReactive = installReactiveUI?.() || (() => {});
-    } catch (error) {
-      console.warn("reactive UI disabled", error);
-    }
-
-    try {
-      startVersionCheck?.();
-    } catch (error) {
-      console.warn("version check disabled", error);
-    }
-
-    return () => {
-      try { cleanHaptics(); } catch {}
-      try { cleanReactive(); } catch {}
-    };
+    return () => { try { cleanHaptics(); } catch {} try { cleanReactive(); } catch {} };
   }, []);
 
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get("ref");
-      if (ref) localStorage.setItem("kolehti_ref", ref);
-    } catch {}
-  }, [location.search]);
-
   const authPage = location.pathname === "/login" || location.pathname === "/reset";
-  const hideNavbar = location.pathname === "/" || authPage;
-  const showGlobalBottomNav = !authPage;
+  const isFeed = location.pathname === "/feed";
 
   return (
     <>
       <BrandFX />
-      {!hideNavbar && <Navbar />}
+      {!authPage && !isFeed && <Navbar />}
 
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/reset" element={<ResetPasswordPage />} />
-
         <Route path="/feed" element={<AuthGate><FeedPage /></AuthGate>} />
         <Route path="/vote" element={<Navigate to="/feed" replace />} />
         <Route path="/new" element={<AuthGate><NewPostPage /></AuthGate>} />
@@ -82,11 +55,10 @@ function AppShell() {
         <Route path="/leaderboard" element={<AuthGate><LeaderboardPage /></AuthGate>} />
         <Route path="/pots" element={<AuthGate><PotsPage /></AuthGate>} />
         <Route path="/war" element={<AuthGate><LeaderboardWarPage /></AuthGate>} />
-
         <Route path="*" element={<HomePage />} />
       </Routes>
 
-      {showGlobalBottomNav && <AppBottomNav floating gesture />}
+      {!authPage && !isFeed && <AppBottomNav floating gesture />}
     </>
   );
 }
