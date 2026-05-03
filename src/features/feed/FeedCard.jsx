@@ -10,6 +10,13 @@ function getTextSize(content = "") {
   return "text-[clamp(1.9rem,7.4vw,3.55rem)] leading-[1.04]";
 }
 
+function getConfidenceLabel(score) {
+  if (score >= 88) return "vahva";
+  if (score >= 72) return "hyvä";
+  if (score >= 52) return "nousee";
+  return "uusi";
+}
+
 export default function FeedCard({ post, active, index, liked, shared, onLike, onShare, onExplain, onMoney }) {
   const author = getAuthor(post);
   const avatar = getAvatar(post);
@@ -17,12 +24,15 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
   const shares = getShares(post) + (shared ? 1 : 0);
   const ai = Math.max(0, Math.min(99, getScore(post)));
   const textClass = getTextSize(post?.content);
+  const trending = likes >= 5 || shares >= 2 || post?.viral_score >= 70;
+  const confidence = getConfidenceLabel(ai);
 
   return (
     <section className="relative h-[100dvh] snap-start overflow-hidden bg-[#050816]">
       <FeedMedia post={post} active={active} />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,.10),rgba(0,0,0,.015)_35%,rgba(0,0,0,.56))]" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/64 via-black/18 to-transparent" />
+      {active && trending && <div className="pointer-events-none absolute inset-x-10 top-24 h-28 rounded-full bg-orange-400/12 blur-3xl" />}
 
       <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+112px)] left-0 right-0 top-[calc(env(safe-area-inset-top)+106px)] z-10 px-4">
         <motion.article
@@ -33,7 +43,8 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
         >
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
             {index === 0 && <Badge tone="yellow">🏆 johtaja</Badge>}
-            <Badge tone="cyan">🧠 {ai}%</Badge>
+            {trending && <Badge tone="orange">🔥 trendaa</Badge>}
+            <Badge tone="cyan">🧠 {ai}% · {confidence}</Badge>
             <Badge>❤️ {likes}</Badge>
             <Badge>↗ {shares}</Badge>
           </div>
@@ -76,6 +87,12 @@ function ActionButton({ children, onClick }) {
 }
 
 function Badge({ children, tone = "white" }) {
-  const toneClass = tone === "yellow" ? "border-yellow-200/22 bg-yellow-300/12 text-yellow-100" : tone === "cyan" ? "border-cyan-200/22 bg-cyan-300/12 text-cyan-100" : "border-white/10 bg-black/14 text-white/86";
+  const toneClass = tone === "yellow"
+    ? "border-yellow-200/22 bg-yellow-300/12 text-yellow-100"
+    : tone === "cyan"
+      ? "border-cyan-200/22 bg-cyan-300/12 text-cyan-100"
+      : tone === "orange"
+        ? "border-orange-200/22 bg-orange-400/13 text-orange-100"
+        : "border-white/10 bg-black/14 text-white/86";
   return <span className={`rounded-full border px-3 py-1 shadow-lg shadow-black/10 ${toneClass}`}>{children}</span>;
 }
