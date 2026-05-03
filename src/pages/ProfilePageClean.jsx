@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { haptic } from "../lib/effects";
-import AdaptiveBackground from "../components/AdaptiveBackground";
+import AdaptiveBackground, { CITY_BACKGROUND_OPTIONS } from "../components/AdaptiveBackground";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1200";
 
@@ -18,9 +18,16 @@ export default function ProfilePageClean() {
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [xp] = useState(320);
+  const [cityPref, setCityPref] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    try {
+      setCityPref(localStorage.getItem("kolehti_preferred_city") || "auto");
+    } catch {}
+  }, []);
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -58,6 +65,30 @@ export default function ProfilePageClean() {
           <div className="relative mt-5 overflow-hidden rounded-full bg-black/45 p-1">
             <div className="h-5 rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} />
             <div className="absolute inset-0 grid place-items-center text-[10px] font-black uppercase tracking-wide text-white/80">seuraava level</div>
+          </div>
+        </section>
+
+        <section className={`${panel} mt-4`}>
+          <GlassGlow />
+          <div className="relative">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">Tausta</p>
+            <select
+              value={cityPref}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCityPref(value);
+                if (value === "auto") localStorage.removeItem("kolehti_preferred_city");
+                else localStorage.setItem("kolehti_preferred_city", value);
+                window.location.reload();
+              }}
+              className="mt-3 w-full rounded-xl bg-white/10 px-4 py-3 font-bold text-white backdrop-blur"
+            >
+              {CITY_BACKGROUND_OPTIONS.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
         </section>
 
