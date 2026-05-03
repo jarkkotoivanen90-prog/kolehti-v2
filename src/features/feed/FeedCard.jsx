@@ -17,6 +17,18 @@ function getConfidenceLabel(score) {
   return "uusi";
 }
 
+const readabilityVeilStyle = {
+  background:
+    "radial-gradient(ellipse at 50% 46%, rgba(0,0,0,.44) 0%, rgba(0,0,0,.30) 28%, rgba(0,0,0,.13) 56%, transparent 78%), linear-gradient(180deg, transparent 0%, rgba(0,0,0,.12) 28%, rgba(0,0,0,.24) 64%, transparent 100%)",
+  filter: "blur(18px)",
+  WebkitMaskImage: "linear-gradient(180deg, transparent 0%, #000 18%, #000 82%, transparent 100%)",
+  maskImage: "linear-gradient(180deg, transparent 0%, #000 18%, #000 82%, transparent 100%)",
+  transform: "translate3d(0,0,0)",
+};
+
+const feedTextShadow =
+  "0 1px 1px rgba(0,0,0,.50), 0 4px 14px rgba(0,0,0,.88), 0 12px 34px rgba(0,0,0,.62), 0 0 1px rgba(0,0,0,.72)";
+
 export default function FeedCard({ post, active, index, liked, shared, onLike, onShare, onExplain, onMoney }) {
   const author = getAuthor(post);
   const avatar = getAvatar(post);
@@ -42,8 +54,8 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
             boxShadow: "inset 0 0 0 1px rgba(255,255,255,.042), 0 14px 38px rgba(0,0,0,.11)",
           }}
         >
-          <div className="pointer-events-none absolute inset-x-4 top-[29%] h-[48%] rounded-[32px] bg-black/15" />
-          <div className="pointer-events-none absolute inset-x-4 bottom-12 h-28 rounded-[32px] bg-gradient-to-t from-black/16 via-black/5 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-[-2.5rem] top-[20%] h-[64%] rounded-full opacity-95" style={readabilityVeilStyle} />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/30 via-black/10 to-transparent" />
 
           <div className="relative mb-3 flex flex-wrap items-center gap-1.5 text-[9.5px] font-black uppercase tracking-[0.15em]">
             {index === 0 && <Badge>🏆 johtaja</Badge>}
@@ -77,7 +89,7 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
           <div className="relative mt-4 min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <p
               className={`${textClass} pb-5 font-black tracking-tight text-white`}
-              style={{ textShadow: "0 2px 0 rgba(0,0,0,.22), 0 5px 15px rgba(0,0,0,.86), 0 0 22px rgba(0,0,0,.45)" }}
+              style={{ textShadow: feedTextShadow }}
             >
               {post?.content}
             </p>
