@@ -12,6 +12,19 @@ import { useFeedHUD } from "../../hooks/useFeedHUD";
 import FeedCard from "./FeedCard";
 import { getScore, getVotes, getViews, getShares } from "./utils/feedFormatters";
 
+function runWhenIdle(task) {
+  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    return window.requestIdleCallback(task, { timeout: 700 });
+  }
+  return window.setTimeout(task, 160);
+}
+
+function cancelIdleTask(id) {
+  if (!id) return;
+  if (typeof window !== "undefined" && "cancelIdleCallback" in window) window.cancelIdleCallback(id);
+  else window.clearTimeout(id);
+}
+
 function preloadPostMedia(post) {
   if (!post) return;
   const imageUrl = post.image_url || post.photo_url || (post.media_type !== "video" ? post.media_url : null);
@@ -20,6 +33,7 @@ function preloadPostMedia(post) {
   if (imageUrl) {
     const img = new Image();
     img.decoding = "async";
+    img.loading = "eager";
     img.src = imageUrl;
   }
 
@@ -45,6 +59,9 @@ export default function FeedScreen() {
   const toastTimerRef = useRef(null);
   const pulseTimerRef = useRef(null);
   const scrollFrameRef = useRef(null);
+  const snapTimerRef = useRef(null);
+  const idleTaskRef = useRef(null);
+  const lastHapticAtRef = useRef(0);
   const preloadedRef = useRef(new Set());
   const { visible, onScroll, reveal, trackLeader, pulseKey } = useFeedHUD();
   const kolehti = useMemo(() => calculateKolehtiPhase1(posts), [posts]);
@@ -54,6 +71,8 @@ export default function FeedScreen() {
     return () => {
       window.clearTimeout(toastTimerRef.current);
       window.clearTimeout(pulseTimerRef.current);
+      window.clearTimeout(snapTimerRef.current);
+      cancelIdleTask(idleTaskRef.current);
       if (scrollFrameRef.current) window.cancelAnimationFrame(scrollFrameRef.current);
     };
   }, []);
@@ -63,14 +82,11 @@ export default function FeedScreen() {
   }, [posts, trackLeader]);
 
   useEffect(() => {
-    [activeIndex + 1]
-      .filter((index) => index >= 0 && index < posts.length)
-      .forEach((index) => {
-        const post = posts[index];
-        if (!post?.id || preloadedRef.current.has(post.id)) return;
-        preloadedRef.current.add(post.id);
-        preloadPostMedia(post);
-      });
+    const nextPost = posts[activeIndex + 1];
+    if (!nextPost?.id || preloadedRef.current.has(nextPost.id)) return;
+    preloadedRef.current.add(nextPost.id);
+    cancelIdleTask(idleTaskRef.current);
+    idleTaskRef.current = runWhenIdle(() => preloadPostMedia(nextPost));
   }, [activeIndex, posts]);
 
   async function load() {
@@ -108,6 +124,16 @@ export default function FeedScreen() {
     pulseTimerRef.current = window.setTimeout(() => setPulse(null), 520);
   }
 
+  function settleToNearestCard(container, index, height) {
+    window.clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = window.setTimeout(() => {
+      const target = index * height;
+      if (Math.abs(container.scrollTop - target) > 8) {
+        container.scrollTo({ top: target, behavior: "smooth" });
+      }
+    }, 115);
+  }
+
   function handleScroll(event) {
     const container = event.currentTarget;
     const scrollTop = container.scrollTop;
@@ -123,11 +149,16 @@ export default function FeedScreen() {
         saveFeedSignal?.(previous, "skips");
         if (!previous.bot) supabase.rpc("record_ai_feed_signal", { target_post_id: previous.id, event: "feed_skip" });
         lastIndexRef.current = next;
-        haptic?.("tap");
+        const now = Date.now();
+        if (now - lastHapticAtRef.current > 220) {
+          haptic?.("tap");
+          lastHapticAtRef.current = now;
+        }
       }
 
       setActiveIndex((current) => (current === next ? current : next));
       onScroll(scrollTop);
+      settleToNearestCard(container, next, height);
       scrollFrameRef.current = null;
     });
   }
@@ -182,7 +213,7 @@ export default function FeedScreen() {
     <div className="h-[100dvh] overflow-hidden bg-black text-white" onClick={reveal}>
       <TopHUD visible={visible} data={hudData} pulseKey={pulseKey} onMenu={() => setMenuOpen(true)} />
 
-      <main onScroll={handleScroll} className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scroll-behavior:auto] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <main onScroll={handleScroll} className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scroll-behavior:auto] touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {posts.length === 0 && <EmptyState />}
         {posts.map((post, index) => (
           <FeedCard
