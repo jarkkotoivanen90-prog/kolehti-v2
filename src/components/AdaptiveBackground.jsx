@@ -106,7 +106,7 @@ function getRouteConfig(cityKey, fallback) {
     const selected = images[routeIndex % images.length] || images[0];
     return {
       ...selected,
-      src: fallback || selected.src,
+      src: selected.src || fallback || CITY_BACKGROUND_SETS.helsinki.skyline.src,
       vibe: cityKey === "turku" ? "rgba(45,212,191,.12)" : cityKey === "tampere" ? "rgba(96,165,250,.13)" : cityKey === "joensuu" ? "rgba(34,211,238,.11)" : "rgba(59,130,246,.12)",
     };
   } catch {
