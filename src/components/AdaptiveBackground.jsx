@@ -1,10 +1,11 @@
 const FINLAND_CITY_BACKGROUNDS = {
-  helsinkiSkyline: "https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_Skyline.jpg?width=1600",
-  helsinkiCenter: "https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_City_Centre.jpg?width=1600",
-  tampereCenter: "https://commons.wikimedia.org/wiki/Special:FilePath/Tampere_city_centre.jpg?width=1600",
-  tampereView: "https://commons.wikimedia.org/wiki/Special:FilePath/Tampere_from_N%C3%A4sinneula.jpg?width=1600",
-  turkuAura: "https://commons.wikimedia.org/wiki/Special:FilePath/Aurajoki_Turku.jpg?width=1600",
-  turkuCity: "https://commons.wikimedia.org/wiki/Special:FilePath/Turku_city_view.jpg?width=1600",
+  helsinkiSkyline: "https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki%20Skyline%20%2852432702085%29.jpg?width=1600",
+  helsinkiCity: "https://commons.wikimedia.org/wiki/Special:FilePath/City%20of%20Helsinki.jpg?width=1600",
+  helsinkiJatkasaari: "https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki%20skyline%20from%20J%C3%A4tk%C3%A4saari.jpg?width=1600",
+  tampereCenter: "https://commons.wikimedia.org/wiki/Special:FilePath/Tampere%20center%20from%20N%C3%A4sinneula.jpg?width=1600",
+  snowyTampere: "https://commons.wikimedia.org/wiki/Special:FilePath/Snowy%20Tampere%20from%20N%C3%A4sinneula.jpg?width=1600",
+  turkuAura: "https://commons.wikimedia.org/wiki/Special:FilePath/Turku%20-%20Aurajoki.jpg?width=1600",
+  turkuAerial: "https://commons.wikimedia.org/wiki/Special:FilePath/Aurajoki%2C%20Turku%202.jpg?width=1600",
 };
 
 const ROUTE_BACKGROUNDS = {
@@ -14,7 +15,7 @@ const ROUTE_BACKGROUNDS = {
     vibe: "rgba(34,211,238,.12)",
   },
   "/reset": {
-    src: FINLAND_CITY_BACKGROUNDS.helsinkiCenter,
+    src: FINLAND_CITY_BACKGROUNDS.helsinkiCity,
     position: "center",
     vibe: "rgba(96,165,250,.14)",
   },
@@ -24,22 +25,22 @@ const ROUTE_BACKGROUNDS = {
     vibe: "rgba(34,211,238,.10)",
   },
   "/profile": {
-    src: FINLAND_CITY_BACKGROUNDS.tampereView,
+    src: FINLAND_CITY_BACKGROUNDS.tampereCenter,
     position: "center",
     vibe: "rgba(96,165,250,.12)",
   },
   "/new": {
-    src: FINLAND_CITY_BACKGROUNDS.tampereCenter,
+    src: FINLAND_CITY_BACKGROUNDS.snowyTampere,
     position: "center",
     vibe: "rgba(125,211,252,.14)",
   },
   "/groups": {
-    src: FINLAND_CITY_BACKGROUNDS.helsinkiCenter,
+    src: FINLAND_CITY_BACKGROUNDS.helsinkiJatkasaari,
     position: "center top",
     vibe: "rgba(45,212,191,.12)",
   },
   "/growth": {
-    src: FINLAND_CITY_BACKGROUNDS.turkuCity,
+    src: FINLAND_CITY_BACKGROUNDS.turkuAerial,
     position: "center",
     vibe: "rgba(168,85,247,.14)",
   },
@@ -49,7 +50,7 @@ const ROUTE_BACKGROUNDS = {
     vibe: "rgba(59,130,246,.12)",
   },
   "/war": {
-    src: FINLAND_CITY_BACKGROUNDS.tampereView,
+    src: FINLAND_CITY_BACKGROUNDS.tampereCenter,
     position: "center",
     vibe: "rgba(14,165,233,.12)",
   },
