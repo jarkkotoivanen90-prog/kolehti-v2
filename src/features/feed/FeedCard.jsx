@@ -31,27 +31,19 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
     <section className="relative h-[100dvh] snap-start overflow-hidden bg-[#050816]">
       <FeedMedia post={post} active={active} />
 
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,.045),rgba(0,0,0,.004)_40%,rgba(0,0,0,.30)),linear-gradient(to_bottom,rgba(var(--feed-accent),.040),transparent_32%)]" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-black/36 via-black/7 to-transparent" />
-
-      {active && trending && (
-        <div className="pointer-events-none absolute inset-x-10 top-24 h-28 rounded-full blur-3xl" style={{ background: "var(--feed-accent-bg)" }} />
-      )}
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,.07),rgba(0,0,0,.015)_38%,rgba(0,0,0,.36))]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/42 via-black/10 to-transparent" />
 
       <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+112px)] left-0 right-0 top-[calc(env(safe-area-inset-top)+106px)] z-10 px-4">
-        <motion.article
-          initial={false}
-          animate={{ y: active ? 0 : 24, opacity: active ? 1 : 0.72, scale: active ? 1 : 0.985 }}
-          transition={{ type: "spring", stiffness: 230, damping: 27 }}
-          className="relative flex h-full flex-col overflow-hidden rounded-[34px] p-4 backdrop-blur-0"
+        <article
+          className={`relative flex h-full flex-col overflow-hidden rounded-[34px] p-4 transition-opacity duration-200 ${active ? "opacity-100" : "opacity-85"}`}
           style={{
-            background: "linear-gradient(135deg, rgba(255,255,255,.036), rgba(255,255,255,.003) 48%, rgba(var(--feed-accent-soft), .02))",
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,.055), 0 22px 60px rgba(0,0,0,.13), 0 0 34px var(--feed-accent-glow-soft)",
+            background: "linear-gradient(135deg, rgba(255,255,255,.026), rgba(255,255,255,.002) 52%, rgba(var(--feed-accent-soft), .012))",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,.045), 0 16px 42px rgba(0,0,0,.12)",
           }}
         >
-          <div className="pointer-events-none absolute inset-0 rounded-[34px] bg-[radial-gradient(ellipse_at_center,transparent_58%,rgba(255,255,255,.045)_100%)] opacity-60" />
-          <div className="pointer-events-none absolute inset-x-3 top-[26%] h-[56%] rounded-[34px] bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,.30),rgba(0,0,0,.13)_46%,transparent_74%)] blur-2xl" />
-          <div className="pointer-events-none absolute inset-x-4 bottom-12 h-36 rounded-[34px] bg-gradient-to-t from-black/24 via-black/8 to-transparent blur-xl" />
+          <div className="pointer-events-none absolute inset-x-4 top-[30%] h-[46%] rounded-[32px] bg-black/16" />
+          <div className="pointer-events-none absolute inset-x-4 bottom-12 h-28 rounded-[32px] bg-gradient-to-t from-black/18 via-black/6 to-transparent" />
 
           <div className="relative mb-3 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
             {index === 0 && <Badge>🏆 johtaja</Badge>}
@@ -62,32 +54,30 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
           </div>
 
           <div className="relative flex items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-black" style={{ background: "var(--feed-accent-bg)", boxShadow: "0 0 18px var(--feed-accent-glow)" }}>{avatar}</div>
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-black" style={{ background: "var(--feed-accent-bg)", boxShadow: "0 0 12px var(--feed-accent-glow)" }}>{avatar}</div>
 
             <div className="min-w-0 flex-1">
-              <div className="truncate text-lg font-black tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,.82)]">{author}</div>
-              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/76 drop-shadow-[0_2px_8px_rgba(0,0,0,.70)]">
+              <div className="truncate text-lg font-black tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,.82)]">{author}</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/76 drop-shadow-[0_2px_6px_rgba(0,0,0,.70)]">
                 {post?.bot ? "AI-pelibotti" : `#${index + 1} päivän perustelu`}
               </div>
             </div>
 
             <motion.button
-              whileTap={{ scale: 0.88 }}
-              animate={liked ? { scale: [1, 1.18, 1] } : { scale: 1 }}
-              transition={{ duration: 0.22 }}
+              whileTap={{ scale: 0.9 }}
+              animate={liked ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+              transition={{ duration: 0.18 }}
               type="button"
               onClick={(event) => { event.stopPropagation(); onLike?.(); }}
-              className="grid h-13 w-13 place-items-center rounded-full text-xl font-black backdrop-blur-md transition active:scale-95"
-              style={{ background: "var(--feed-accent-bg-strong)", boxShadow: "0 0 24px var(--feed-accent-glow)" }}
+              className="grid h-13 w-13 place-items-center rounded-full text-xl font-black transition active:scale-95"
+              style={{ background: "var(--feed-accent-bg-strong)", boxShadow: "0 0 16px var(--feed-accent-glow)" }}
             >♥</motion.button>
           </div>
 
           <div className="relative mt-4 min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <p
               className={`${textClass} pb-5 font-black tracking-tight text-white`}
-              style={{
-                textShadow: "0 2px 0 rgba(0,0,0,.28), 0 5px 18px rgba(0,0,0,.92), 0 0 34px rgba(0,0,0,.58)",
-              }}
+              style={{ textShadow: "0 2px 0 rgba(0,0,0,.25), 0 5px 16px rgba(0,0,0,.88), 0 0 24px rgba(0,0,0,.48)" }}
             >
               {post?.content}
             </p>
@@ -99,7 +89,7 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
             <ActionButton onClick={onMoney}>potti</ActionButton>
             <ActionButton onClick={onLike}>ääni</ActionButton>
           </div>
-        </motion.article>
+        </article>
       </div>
     </section>
   );
@@ -110,10 +100,10 @@ function ActionButton({ children, onClick }) {
     <button
       type="button"
       onClick={(event) => { event.stopPropagation(); onClick?.(); }}
-      className="rounded-2xl px-2 py-3 text-white backdrop-blur-md transition active:scale-95"
+      className="rounded-2xl px-2 py-3 text-white transition active:scale-95"
       style={{
         background: "var(--feed-accent-bg-strong)",
-        boxShadow: "0 0 18px var(--feed-accent-glow)",
+        boxShadow: "0 0 12px var(--feed-accent-glow)",
         border: "1px solid var(--feed-accent-border)",
       }}
     >
@@ -125,7 +115,7 @@ function ActionButton({ children, onClick }) {
 function Badge({ children }) {
   return (
     <span
-      className="rounded-full px-3 py-1 backdrop-blur-md"
+      className="rounded-full px-3 py-1"
       style={{
         background: "var(--feed-accent-bg)",
         border: "1px solid var(--feed-accent-border)",
