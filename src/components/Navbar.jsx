@@ -30,10 +30,22 @@ function pageMeta(pathname) {
   if (pathname === "/groups") return { title: "Porukat", sub: "Yhteisö · ranking", glow: "rgba(45,212,191,.18)", href: "/groups" };
   if (pathname === "/profile") return { title: "Profiili", sub: "XP · status · omat", glow: "rgba(96,165,250,.18)", href: "/profile" };
   if (pathname === "/growth") return { title: "Kasvu", sub: "Loopit · streakit", glow: "rgba(168,85,247,.20)", href: "/growth" };
-  if (pathname === "/leaderboard") return { title: "Ranking", sub: "Top tekijät", glow: "rgba(59,130,246,.18)", href: "/leaderboard" };
-  if (pathname === "/war") return { title: "War", sub: "Rival battle", glow: "rgba(250,204,21,.18)", href: "/war" };
+  if (pathname === "/leaderboard") return { title: "Top-lista", sub: "Top tekijät", glow: "rgba(59,130,246,.18)", href: "/leaderboard" };
+  if (pathname === "/war") return { title: "Battle", sub: "Rival battle", glow: "rgba(250,204,21,.18)", href: "/war" };
   return { title: "KOLEHTI", sub: "Live · AI · Potit", glow: "rgba(139,238,255,.18)", href: "/feed" };
 }
+
+const links = [
+  { to: "/", label: "Etusivu" },
+  { to: "/feed", label: "Feed" },
+  { to: "/new", label: "Uusi" },
+  { to: "/groups", label: "Porukat" },
+  { to: "/pots", label: "Potit" },
+  { to: "/leaderboard", label: "Top-lista" },
+  { to: "/growth", label: "Kasvu" },
+  { to: "/war", label: "Battle" },
+  { to: "/profile", label: "Profiili" },
+];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -44,14 +56,6 @@ export default function Navbar() {
   const navigate = useNavigate();
   const lastY = useRef(0);
   const meta = useMemo(() => pageMeta(location.pathname), [location.pathname]);
-
-  const links = [
-    { to: "/feed", label: "Feed" },
-    { to: "/pots", label: "Potit" },
-    { to: "/new", label: "Uusi" },
-    { to: "/groups", label: "Porukat" },
-    { to: "/profile", label: "Profiili" },
-  ];
 
   useEffect(() => {
     let ticking = false;
@@ -147,7 +151,7 @@ export default function Navbar() {
         </Link>
 
         <nav className="relative hidden items-center gap-1 md:flex">
-          {links.map((link) => (
+          {links.slice(1, 6).map((link) => (
             <Link key={link.to} to={link.to} className={`rounded-2xl px-3 py-2 text-xs font-black transition ${isActive(link.to) ? "bg-cyan-300/90 text-[#061126] shadow-lg shadow-cyan-300/20" : "border border-white/8 bg-white/[.055] text-white/72 hover:bg-white/12"}`}>{link.label}</Link>
           ))}
           <button onClick={logout} className="rounded-2xl bg-pink-500/80 px-3 py-2 text-xs font-black text-white shadow-lg shadow-pink-500/15">Ulos</button>
@@ -159,7 +163,7 @@ export default function Navbar() {
       </div>
 
       {open && (
-        <div className="pointer-events-auto mx-auto mt-2 max-w-md overflow-hidden rounded-[28px] border border-white/12 bg-[#020611]/72 px-3 pb-3 shadow-2xl shadow-black/30 backdrop-blur-2xl md:hidden">
+        <div className="pointer-events-auto mx-auto mt-2 max-h-[76dvh] max-w-md overflow-y-auto rounded-[28px] border border-white/12 bg-[#020611]/72 px-3 pb-3 shadow-2xl shadow-black/30 backdrop-blur-2xl [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
           <div className="grid gap-2 pt-3">
             {links.map((link) => (
               <Link key={link.to} to={link.to} onClick={() => setOpen(false)} className={`rounded-2xl px-4 py-3 text-sm font-black transition ${isActive(link.to) ? "bg-cyan-300 text-[#061126]" : "border border-white/10 bg-white/[.065] text-white/80"}`}>{link.label}</Link>
