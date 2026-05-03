@@ -29,9 +29,7 @@ function pageMeta(pathname) {
   if (pathname === "/new") return { title: "Uusi", sub: "Kirjoita vahva entry", glow: "rgba(34,211,238,.22)", href: "/new" };
   if (pathname === "/groups") return { title: "Porukat", sub: "Yhteisö · ranking", glow: "rgba(45,212,191,.18)", href: "/groups" };
   if (pathname === "/profile") return { title: "Profiili", sub: "XP · status · omat", glow: "rgba(96,165,250,.18)", href: "/profile" };
-  if (pathname === "/growth") return { title: "Kasvu", sub: "Loopit · streakit", glow: "rgba(168,85,247,.20)", href: "/growth" };
   if (pathname === "/leaderboard") return { title: "Top-lista", sub: "Top tekijät", glow: "rgba(59,130,246,.18)", href: "/leaderboard" };
-  if (pathname === "/war") return { title: "Battle", sub: "Rival battle", glow: "rgba(250,204,21,.18)", href: "/war" };
   return { title: "KOLEHTI", sub: "Live · AI · Potit", glow: "rgba(139,238,255,.18)", href: "/feed" };
 }
 
@@ -42,8 +40,6 @@ const links = [
   { to: "/groups", label: "Porukat" },
   { to: "/pots", label: "Potit" },
   { to: "/leaderboard", label: "Top-lista" },
-  { to: "/growth", label: "Kasvu" },
-  { to: "/war", label: "Battle" },
   { to: "/profile", label: "Profiili" },
 ];
 
