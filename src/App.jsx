@@ -6,7 +6,7 @@ import { startVersionCheck } from "./lib/versionCheck";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import FeedPage from "./pages/FeedPageV3";
+import FeedPage from "./pages/FeedPageV4";
 import NewPostPage from "./pages/NewPostPage";
 import ProfilePage from "./pages/ProfilePageClean";
 import GroupPage from "./pages/GroupPage";
