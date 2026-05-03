@@ -97,13 +97,35 @@ function readSavedCity() {
   }
 }
 
-function getRouteConfig(cityKey, fallback) {
+function getSessionSeed() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = "kolehti_city_bg_seed";
+    const saved = JSON.parse(localStorage.getItem(key) || "null");
+    if (saved?.date === today && Number.isFinite(saved.seed)) return saved.seed;
+    const next = Math.floor(Math.random() * 1000);
+    localStorage.setItem(key, JSON.stringify({ date: today, seed: next }));
+    return next;
+  } catch {
+    return Math.floor(Math.random() * 1000);
+  }
+}
+
+function getTimeMood() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 11) return "morning";
+  if (hour >= 11 && hour < 18) return "day";
+  if (hour >= 18 && hour < 22) return "evening";
+  return "night";
+}
+
+function getRouteConfig(cityKey, fallback, seed) {
   try {
     const path = window.location.pathname;
     const citySet = CITY_BACKGROUND_SETS[cityKey] || CITY_BACKGROUND_SETS.helsinki;
     const images = Object.values(citySet);
     const routeIndex = ROUTE_IMAGE_KEYS[path] ?? 0;
-    const selected = images[routeIndex % images.length] || images[0];
+    const selected = images[(routeIndex + seed) % images.length] || images[0];
     return {
       ...selected,
       src: selected.src || fallback || CITY_BACKGROUND_SETS.helsinki.skyline.src,
@@ -116,6 +138,8 @@ function getRouteConfig(cityKey, fallback) {
 
 export default function AdaptiveBackground({ src, alt = "", strength = "balanced" }) {
   const [cityKey, setCityKey] = useState(readSavedCity);
+  const [seed] = useState(getSessionSeed);
+  const [loadedSrc, setLoadedSrc] = useState("");
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
@@ -131,6 +155,7 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
     );
   }, []);
 
+  const mood = getTimeMood();
   const modes = {
     soft: {
       image: "brightness-[0.86] saturate-[1.08] contrast-[1.04]",
@@ -138,9 +163,9 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
       veil: "bg-black/6",
     },
     balanced: {
-      image: "brightness-[0.76] saturate-[1.10] contrast-[1.06]",
-      gradient: "from-black/52 via-[#061126]/76 to-black/96",
-      veil: "bg-black/10",
+      image: mood === "night" ? "brightness-[0.58] saturate-[1.12] contrast-[1.08]" : mood === "evening" ? "brightness-[0.68] saturate-[1.16] contrast-[1.07]" : "brightness-[0.76] saturate-[1.10] contrast-[1.06]",
+      gradient: mood === "night" ? "from-black/70 via-[#020617]/82 to-black" : mood === "evening" ? "from-black/58 via-[#061126]/78 to-black/96" : "from-black/52 via-[#061126]/76 to-black/96",
+      veil: mood === "night" ? "bg-black/16" : "bg-black/10",
     },
     strong: {
       image: "brightness-[0.62] saturate-[1.02] contrast-[1.02]",
@@ -150,7 +175,8 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
   };
 
   const mode = modes[strength] || modes.balanced;
-  const route = useMemo(() => getRouteConfig(cityKey, src), [cityKey, src]);
+  const route = useMemo(() => getRouteConfig(cityKey, src, seed), [cityKey, src, seed]);
+  const visible = loadedSrc === route.src;
 
   return (
     <>
@@ -166,16 +192,18 @@ export default function AdaptiveBackground({ src, alt = "", strength = "balanced
           100% { opacity: .55; transform: translate3d(-3%, -1%, 0) scale(1); }
         }
         @media (prefers-reduced-motion: reduce) {
-          .kolehti-bg-float, .kolehti-light-drift { animation: none !important; }
+          .kolehti-bg-float, .kolehti-light-drift { animation: none !important; transition: none !important; }
         }
       `}</style>
       <img
+        key={route.src}
         src={route.src}
         alt={alt}
-        className={`kolehti-bg-float fixed inset-0 h-full w-full object-cover ${mode.image}`}
-        style={{ objectPosition: route.position, animation: "kolehtiBgFloat 24s ease-in-out infinite", willChange: "transform" }}
+        className={`kolehti-bg-float fixed inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-700 ease-out ${visible ? "opacity-100" : ""} ${mode.image}`}
+        style={{ objectPosition: route.position, animation: "kolehtiBgFloat 24s ease-in-out infinite", willChange: "transform, opacity" }}
         loading="eager"
         decoding="async"
+        onLoad={() => setLoadedSrc(route.src)}
       />
       <div className={`fixed inset-0 bg-gradient-to-b ${mode.gradient}`} />
       <div className={`fixed inset-0 ${mode.veil}`} />
