@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import AdaptiveBackground from "../components/AdaptiveBackground";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -78,10 +79,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050816] px-4 py-10 text-white">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,#153b92_0%,#050816_45%,#02030a_100%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[#050816] px-4 py-10 text-white">
+      <AdaptiveBackground strength="balanced" />
 
-      <div className="mx-auto max-w-md">
+      <div className="relative z-10 mx-auto max-w-md">
         <div className="mb-8 text-center">
           <div className="mx-auto grid h-24 w-24 place-items-center rounded-[32px] bg-cyan-500 text-6xl shadow-2xl shadow-cyan-500/30">
             🤝
