@@ -1,42 +1,70 @@
 import { motion } from "framer-motion";
-import { getMedia, getScore, getVotes, getShares, getAuthor, getAvatar } from "./utils/feedFormatters";
+import FeedMedia from "./FeedMedia";
+import { getScore, getVotes, getShares, getAuthor, getAvatar } from "./utils/feedFormatters";
 
-export default function FeedCard({ post, active, index, liked, shared, onLike, onShare }) {
-  const media = getMedia(post);
+export default function FeedCard({ post, active, index, liked, shared, onLike, onShare, onExplain, onMoney }) {
   const author = getAuthor(post);
   const avatar = getAvatar(post);
   const likes = getVotes(post) + (liked ? 1 : 0);
   const shares = getShares(post) + (shared ? 1 : 0);
-  const ai = getScore(post);
+  const ai = Math.max(0, Math.min(99, getScore(post)));
 
   return (
-    <section className="relative h-[100dvh] snap-start overflow-hidden">
-      {media.type === "video" ? (
-        <video src={media.url} className="absolute inset-0 h-full w-full object-cover" autoPlay={active} muted loop />
-      ) : (
-        <img src={media.url} className="absolute inset-0 h-full w-full object-cover" />
-      )}
+    <section className="relative h-[100dvh] snap-start overflow-hidden bg-[#050816]">
+      <FeedMedia post={post} active={active} />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,.12),rgba(0,0,0,.02)_36%,rgba(0,0,0,.58))]" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
 
-      <div className="absolute bottom-[120px] left-0 right-0 px-4">
-        <div className="rounded-3xl border border-white/20 bg-transparent p-4">
-          <div className="flex items-center gap-2 mb-2 text-xs">
-            <span>🧠 {ai}%</span>
-            <span>❤️ {likes}</span>
-            <span>↗ {shares}</span>
+      <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+112px)] left-0 right-0 top-[calc(env(safe-area-inset-top)+104px)] z-10 px-4">
+        <motion.article
+          initial={false}
+          animate={{ y: active ? 0 : 24, opacity: active ? 1 : 0.72 }}
+          transition={{ type: "spring", stiffness: 220, damping: 26 }}
+          className="flex h-full flex-col rounded-[34px] border border-white/14 bg-transparent p-4 shadow-2xl shadow-black/20 backdrop-blur-0"
+        >
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
+            {index === 0 && <Badge tone="yellow">🏆 johtaja</Badge>}
+            <Badge tone="cyan">🧠 {ai}%</Badge>
+            <Badge>❤️ {likes}</Badge>
+            <Badge>↗ {shares}</Badge>
           </div>
 
-          <div className="text-lg font-bold mb-2">{author}</div>
-
-          <div className="text-3xl font-black leading-tight">
-            {post.content}
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-white/14 bg-black/12 text-lg font-black shadow-xl shadow-black/20">{avatar}</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-lg font-black tracking-tight">{author}</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-100/64">{post?.bot ? "AI-pelibotti" : `#${index + 1} päivän perustelu`}</div>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.86 }}
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onLike?.(); }}
+              className={`grid h-13 w-13 place-items-center rounded-full border px-4 py-3 text-xl font-black shadow-xl transition ${liked ? "border-pink-200/45 bg-pink-500/35 text-pink-50" : "border-white/14 bg-black/12 text-white"}`}
+              aria-label="Tykkää tai anna ääni"
+            >♥</motion.button>
           </div>
 
-          <div className="flex gap-2 mt-4">
-            <button onClick={onLike}>äänestä</button>
-            <button onClick={onShare}>jaa</button>
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <p className="pb-4 text-[clamp(1.75rem,7vw,3.35rem)] font-black leading-[1.06] tracking-tight text-white drop-shadow-[0_3px_18px_rgba(0,0,0,.9)]">{post?.content}</p>
           </div>
-        </div>
+
+          <div className="mt-3 grid grid-cols-4 gap-2 text-[10px] font-black uppercase tracking-[0.13em]">
+            <ActionButton onClick={onExplain}>miksi</ActionButton>
+            <ActionButton onClick={onShare}>{shared ? "jaettu" : "jaa"}</ActionButton>
+            <ActionButton onClick={onMoney}>potti</ActionButton>
+            <ActionButton onClick={onLike}>ääni</ActionButton>
+          </div>
+        </motion.article>
       </div>
     </section>
   );
+}
+
+function ActionButton({ children, onClick }) {
+  return <button type="button" onClick={(event) => { event.stopPropagation(); onClick?.(); }} className="rounded-2xl border border-white/10 bg-black/12 px-2 py-3 text-white/78 backdrop-blur-0 transition active:scale-95">{children}</button>;
+}
+
+function Badge({ children, tone = "white" }) {
+  const toneClass = tone === "yellow" ? "border-yellow-200/22 bg-yellow-300/12 text-yellow-100" : tone === "cyan" ? "border-cyan-200/22 bg-cyan-300/12 text-cyan-100" : "border-white/10 bg-black/14 text-white/86";
+  return <span className={`rounded-full border px-3 py-1 ${toneClass}`}>{children}</span>;
 }
