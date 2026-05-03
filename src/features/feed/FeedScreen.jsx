@@ -14,7 +14,7 @@ import { getScore, getVotes, getViews, getShares } from "./utils/feedFormatters"
 
 function preloadPostMedia(post) {
   if (!post) return;
-  const imageUrl = post.image_url || post.photo_url || post.media_url;
+  const imageUrl = post.image_url || post.photo_url || (post.media_type !== "video" ? post.media_url : null);
   const videoUrl = post.video_url || (post.media_type === "video" ? post.media_url : null);
 
   if (imageUrl) {
@@ -25,7 +25,7 @@ function preloadPostMedia(post) {
 
   if (videoUrl) {
     const video = document.createElement("video");
-    video.preload = "auto";
+    video.preload = "metadata";
     video.muted = true;
     video.playsInline = true;
     video.src = videoUrl;
@@ -44,6 +44,7 @@ export default function FeedScreen() {
   const lastIndexRef = useRef(0);
   const toastTimerRef = useRef(null);
   const pulseTimerRef = useRef(null);
+  const scrollFrameRef = useRef(null);
   const preloadedRef = useRef(new Set());
   const { visible, onScroll, reveal, trackLeader, pulseKey } = useFeedHUD();
   const kolehti = useMemo(() => calculateKolehtiPhase1(posts), [posts]);
@@ -53,6 +54,7 @@ export default function FeedScreen() {
     return () => {
       window.clearTimeout(toastTimerRef.current);
       window.clearTimeout(pulseTimerRef.current);
+      if (scrollFrameRef.current) window.cancelAnimationFrame(scrollFrameRef.current);
     };
   }, []);
 
@@ -61,7 +63,7 @@ export default function FeedScreen() {
   }, [posts, trackLeader]);
 
   useEffect(() => {
-    [activeIndex, activeIndex + 1, activeIndex + 2]
+    [activeIndex + 1]
       .filter((index) => index >= 0 && index < posts.length)
       .forEach((index) => {
         const post = posts[index];
@@ -108,19 +110,26 @@ export default function FeedScreen() {
 
   function handleScroll(event) {
     const container = event.currentTarget;
+    const scrollTop = container.scrollTop;
     const height = container.clientHeight || window.innerHeight || 1;
-    const next = Math.max(0, Math.min(Math.round(container.scrollTop / height), posts.length - 1));
-    const previous = posts[lastIndexRef.current];
 
-    if (next !== lastIndexRef.current && previous) {
-      saveFeedSignal?.(previous, "skips");
-      if (!previous.bot) supabase.rpc("record_ai_feed_signal", { target_post_id: previous.id, event: "feed_skip" });
-      lastIndexRef.current = next;
-      haptic?.("tap");
-    }
+    if (scrollFrameRef.current) return;
 
-    setActiveIndex((current) => (current === next ? current : next));
-    onScroll(container.scrollTop);
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      const next = Math.max(0, Math.min(Math.round(scrollTop / height), posts.length - 1));
+      const previous = posts[lastIndexRef.current];
+
+      if (next !== lastIndexRef.current && previous) {
+        saveFeedSignal?.(previous, "skips");
+        if (!previous.bot) supabase.rpc("record_ai_feed_signal", { target_post_id: previous.id, event: "feed_skip" });
+        lastIndexRef.current = next;
+        haptic?.("tap");
+      }
+
+      setActiveIndex((current) => (current === next ? current : next));
+      onScroll(scrollTop);
+      scrollFrameRef.current = null;
+    });
   }
 
   async function likePost(post) {
@@ -173,7 +182,7 @@ export default function FeedScreen() {
     <div className="h-[100dvh] overflow-hidden bg-black text-white" onClick={reveal}>
       <TopHUD visible={visible} data={hudData} pulseKey={pulseKey} onMenu={() => setMenuOpen(true)} />
 
-      <main onScroll={handleScroll} className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <main onScroll={handleScroll} className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scroll-behavior:auto] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {posts.length === 0 && <EmptyState />}
         {posts.map((post, index) => (
           <FeedCard
