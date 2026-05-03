@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { getMedia } from "./utils/feedFormatters";
 
 export default function FeedMedia({ post, active }) {
@@ -20,15 +19,13 @@ export default function FeedMedia({ post, active }) {
   }
 
   return (
-    <motion.img
+    <img
       src={media.url}
       alt=""
       className={className}
       loading={active ? "eager" : "lazy"}
       fetchPriority={active ? "high" : "auto"}
       decoding="async"
-      animate={{ scale: active ? 1.01 : 1.05 }}
-      transition={{ duration: 1.2 }}
     />
   );
 }
