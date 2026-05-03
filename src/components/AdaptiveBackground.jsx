@@ -1,54 +1,55 @@
-const FINLAND_BACKGROUNDS = {
-  lakeForest: "https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1600",
-  ikaalinenLake: "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1600",
-  rukaAurora: "https://commons.wikimedia.org/wiki/Special:FilePath/Northern_Lights_%2824798830390%29.jpg?width=1600",
-  rukaAuroraWide: "https://commons.wikimedia.org/wiki/Special:FilePath/Northern_Lights_%2840234785864%29.jpg?width=1600",
-  helsinkiAurora: "https://commons.wikimedia.org/wiki/Special:FilePath/Northern_Lights_%288566030147%29.jpg?width=1600",
+const FINLAND_CITY_BACKGROUNDS = {
+  helsinkiSkyline: "https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_Skyline.jpg?width=1600",
+  helsinkiCenter: "https://commons.wikimedia.org/wiki/Special:FilePath/Helsinki_City_Centre.jpg?width=1600",
+  tampereCenter: "https://commons.wikimedia.org/wiki/Special:FilePath/Tampere_city_centre.jpg?width=1600",
+  tampereView: "https://commons.wikimedia.org/wiki/Special:FilePath/Tampere_from_N%C3%A4sinneula.jpg?width=1600",
+  turkuAura: "https://commons.wikimedia.org/wiki/Special:FilePath/Aurajoki_Turku.jpg?width=1600",
+  turkuCity: "https://commons.wikimedia.org/wiki/Special:FilePath/Turku_city_view.jpg?width=1600",
 };
 
 const ROUTE_BACKGROUNDS = {
   "/login": {
-    src: FINLAND_BACKGROUNDS.helsinkiAurora,
+    src: FINLAND_CITY_BACKGROUNDS.helsinkiSkyline,
     position: "center",
     vibe: "rgba(34,211,238,.12)",
   },
   "/reset": {
-    src: FINLAND_BACKGROUNDS.rukaAurora,
+    src: FINLAND_CITY_BACKGROUNDS.helsinkiCenter,
     position: "center",
     vibe: "rgba(96,165,250,.14)",
   },
   "/pots": {
-    src: FINLAND_BACKGROUNDS.ikaalinenLake,
+    src: FINLAND_CITY_BACKGROUNDS.turkuAura,
     position: "center",
     vibe: "rgba(34,211,238,.10)",
   },
   "/profile": {
-    src: FINLAND_BACKGROUNDS.lakeForest,
+    src: FINLAND_CITY_BACKGROUNDS.tampereView,
     position: "center",
     vibe: "rgba(96,165,250,.12)",
   },
   "/new": {
-    src: FINLAND_BACKGROUNDS.ikaalinenLake,
+    src: FINLAND_CITY_BACKGROUNDS.tampereCenter,
     position: "center",
     vibe: "rgba(125,211,252,.14)",
   },
   "/groups": {
-    src: FINLAND_BACKGROUNDS.lakeForest,
-    position: "center",
+    src: FINLAND_CITY_BACKGROUNDS.helsinkiCenter,
+    position: "center top",
     vibe: "rgba(45,212,191,.12)",
   },
   "/growth": {
-    src: FINLAND_BACKGROUNDS.rukaAuroraWide,
+    src: FINLAND_CITY_BACKGROUNDS.turkuCity,
     position: "center",
     vibe: "rgba(168,85,247,.14)",
   },
   "/leaderboard": {
-    src: FINLAND_BACKGROUNDS.helsinkiAurora,
+    src: FINLAND_CITY_BACKGROUNDS.helsinkiSkyline,
     position: "center",
     vibe: "rgba(59,130,246,.12)",
   },
   "/war": {
-    src: FINLAND_BACKGROUNDS.rukaAurora,
+    src: FINLAND_CITY_BACKGROUNDS.tampereView,
     position: "center",
     vibe: "rgba(14,165,233,.12)",
   },
@@ -57,9 +58,9 @@ const ROUTE_BACKGROUNDS = {
 function getRouteConfig(fallback) {
   try {
     const path = window.location.pathname;
-    return ROUTE_BACKGROUNDS[path] || { src: fallback || FINLAND_BACKGROUNDS.lakeForest, position: "center", vibe: "rgba(34,211,238,.10)" };
+    return ROUTE_BACKGROUNDS[path] || { src: fallback || FINLAND_CITY_BACKGROUNDS.helsinkiSkyline, position: "center", vibe: "rgba(34,211,238,.10)" };
   } catch {
-    return { src: fallback || FINLAND_BACKGROUNDS.lakeForest, position: "center", vibe: "rgba(34,211,238,.10)" };
+    return { src: fallback || FINLAND_CITY_BACKGROUNDS.helsinkiSkyline, position: "center", vibe: "rgba(34,211,238,.10)" };
   }
 }
 
