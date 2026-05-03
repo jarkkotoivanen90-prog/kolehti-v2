@@ -20,14 +20,19 @@ export default function FeedScreen() {
   const [sharedPosts, setSharedPosts] = useState({});
   const [toast, setToast] = useState("");
   const [sheet, setSheet] = useState(null);
+  const [pulse, setPulse] = useState(null);
   const lastIndexRef = useRef(0);
   const toastTimerRef = useRef(null);
+  const pulseTimerRef = useRef(null);
   const { visible, onScroll, reveal, trackLeader, pulseKey } = useFeedHUD();
   const kolehti = useMemo(() => calculateKolehtiPhase1(posts), [posts]);
 
   useEffect(() => {
     load();
-    return () => window.clearTimeout(toastTimerRef.current);
+    return () => {
+      window.clearTimeout(toastTimerRef.current);
+      window.clearTimeout(pulseTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -60,7 +65,13 @@ export default function FeedScreen() {
   function notify(message) {
     setToast(message);
     window.clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = window.setTimeout(() => setToast(""), 1300);
+    toastTimerRef.current = window.setTimeout(() => setToast(""), 1250);
+  }
+
+  function flash(type) {
+    setPulse(type);
+    window.clearTimeout(pulseTimerRef.current);
+    pulseTimerRef.current = window.setTimeout(() => setPulse(null), 520);
   }
 
   function handleScroll(event) {
@@ -72,6 +83,7 @@ export default function FeedScreen() {
       saveFeedSignal?.(previous, "skips");
       if (!previous.bot) supabase.rpc("record_ai_feed_signal", { target_post_id: previous.id, event: "feed_skip" });
       lastIndexRef.current = next;
+      haptic?.("tap");
     }
 
     setActiveIndex(next);
@@ -83,6 +95,7 @@ export default function FeedScreen() {
     haptic?.("heavy");
     saveFeedSignal?.(post, "likes");
     setLikedPosts((current) => ({ ...current, [post.id]: true }));
+    flash("like");
     notify("Ääni kirjattu");
 
     if (post.bot) return;
@@ -100,6 +113,7 @@ export default function FeedScreen() {
     if (!post?.id) return;
     haptic?.("tap");
     setSharedPosts((current) => ({ ...current, [post.id]: true }));
+    flash("share");
     notify("Jako boostasi perustelua");
 
     try {
@@ -148,6 +162,7 @@ export default function FeedScreen() {
       <AppBottomNav floating gesture />
 
       <AnimatePresence>
+        {pulse && <FeedbackPulse type={pulse} />}
         {toast && <Toast message={toast} />}
         {sheet?.type === "explain" && (
           <InfoSheet title="Miksi tämä näkyy?" label="AI" onClose={() => setSheet(null)}>
@@ -164,6 +179,20 @@ export default function FeedScreen() {
 
       <BottomSheetMenu open={menuOpen} onClose={() => setMenuOpen(false)} onLogout={async () => { await supabase.auth.signOut(); window.location.href = "/login"; }} />
     </div>
+  );
+}
+
+function FeedbackPulse({ type }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.82 }}
+      animate={{ opacity: [0, 1, 0], scale: [0.82, 1.08, 1.22] }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.52, ease: "easeOut" }}
+      className="pointer-events-none fixed left-1/2 top-1/2 z-[70] -translate-x-1/2 -translate-y-1/2 text-7xl drop-shadow-2xl"
+    >
+      {type === "share" ? "↗" : "♥"}
+    </motion.div>
   );
 }
 
