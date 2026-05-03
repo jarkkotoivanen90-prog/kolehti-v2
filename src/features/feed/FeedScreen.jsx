@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../../lib/supabaseClient";
 import { mergeWithBots } from "../../lib/bots";
-import { rankGodFeed, saveFeedSignal } from "../../lib/godFeed";
+import { buildEngagingFeed, rankGodFeed, saveFeedSignal } from "../../lib/godFeed";
 import { haptic } from "../../lib/effects";
 import { calculateKolehtiPhase1, formatEuro } from "../../lib/kolehtiPhase1";
 import TopHUD from "../../components/TopHUD";
@@ -104,24 +104,24 @@ export default function FeedScreen() {
   async function load() {
     const startupFeed = await supabase.rpc("get_kolehti_startup_feed", { match_count: 80 });
     if (!startupFeed.error && Array.isArray(startupFeed.data) && startupFeed.data.length) {
-      setPosts(mergeWithBots(startupFeed.data, 6));
+      setPosts(buildEngagingFeed(mergeWithBots(startupFeed.data, 6)));
       return;
     }
 
     const brainFeed = await supabase.rpc("match_ai_feed_brain_v2", { match_count: 80, exploration_rate: 0.14 });
     if (!brainFeed.error && Array.isArray(brainFeed.data) && brainFeed.data.length) {
-      setPosts(mergeWithBots(brainFeed.data, 6));
+      setPosts(buildEngagingFeed(mergeWithBots(brainFeed.data, 6)));
       return;
     }
 
     const aiFeed = await supabase.rpc("match_ai_feed", { match_count: 80 });
     if (!aiFeed.error && Array.isArray(aiFeed.data) && aiFeed.data.length) {
-      setPosts(mergeWithBots(aiFeed.data, 6));
+      setPosts(buildEngagingFeed(mergeWithBots(aiFeed.data, 6)));
       return;
     }
 
     const { data } = await supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(80);
-    setPosts(rankGodFeed(mergeWithBots(data || [], 6)));
+    setPosts(buildEngagingFeed(rankGodFeed(mergeWithBots(data || [], 6))));
   }
 
   function notify(message) {
