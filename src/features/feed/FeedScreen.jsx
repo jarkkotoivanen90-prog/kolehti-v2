@@ -10,8 +10,17 @@ import BottomSheetMenu from "../../components/BottomSheetMenu";
 import AppBottomNav from "../../components/AppBottomNav";
 import { useFeedHUD } from "../../hooks/useFeedHUD";
 import FeedCard from "./FeedCard";
-import useAdaptiveAccent from "./hooks/useAdaptiveAccent";
 import { getScore, getVotes, getViews, getShares } from "./utils/feedFormatters";
+
+const FEED_BLUE_ACCENT = {
+  "--feed-accent": "14,165,255",
+  "--feed-accent-soft": "14,165,255",
+  "--feed-accent-bg": "rgba(14,165,255,0.14)",
+  "--feed-accent-bg-strong": "rgba(14,165,255,0.28)",
+  "--feed-accent-border": "rgba(139,238,255,0.30)",
+  "--feed-accent-glow": "rgba(14,165,255,0.22)",
+  "--feed-accent-glow-soft": "rgba(14,165,255,0.10)",
+};
 
 function runWhenIdle(task) {
   if (typeof window !== "undefined" && "requestIdleCallback" in window) {
@@ -69,7 +78,6 @@ export default function FeedScreen() {
   const { visible, onScroll, reveal, trackLeader, pulseKey } = useFeedHUD();
   const kolehti = useMemo(() => calculateKolehtiPhase1(posts), [posts]);
   const current = posts[activeIndex] || {};
-  const accent = useAdaptiveAccent(current);
 
   useEffect(() => {
     load();
@@ -223,7 +231,7 @@ export default function FeedScreen() {
   };
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-black text-white" onClick={reveal} style={accent.style}>
+    <div className="h-[100dvh] overflow-hidden bg-black text-white" onClick={reveal} style={FEED_BLUE_ACCENT}>
       <TopHUD visible={visible} data={hudData} pulseKey={pulseKey} onMenu={() => setMenuOpen(true)} />
 
       <main onScroll={handleScroll} className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain [scroll-behavior:auto] touch-pan-y [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
