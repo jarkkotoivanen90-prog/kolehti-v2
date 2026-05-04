@@ -5,11 +5,11 @@ import AdaptiveBackground from "../components/AdaptiveBackground";
 import { haptic } from "../lib/effects";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1200";
-const panel = "relative overflow-hidden rounded-[34px] border border-cyan-200/24 bg-white/[.035] bg-gradient-to-br from-[#0ea5ff]/14 via-[#0ea5ff]/7 to-transparent p-5 text-white shadow-[0_0_34px_rgba(14,165,255,.18),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-[10px]";
-const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-white/[.04] bg-gradient-to-br from-[#0ea5ff]/25 via-[#0ea5ff]/15 to-transparent shadow-[0_0_30px_rgba(14,165,255,.25),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-[12px]";
+const panel = "relative overflow-hidden rounded-[34px] border border-cyan-200/24 bg-white/[.035] bg-gradient-to-br from-[#0ea5ff]/14 via-[#0ea5ff]/7 to-transparent p-5 text-white shadow-[0_0_24px_rgba(14,165,255,.14),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-[6px]";
+const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-white/[.04] bg-gradient-to-br from-[#0ea5ff]/22 via-[#0ea5ff]/12 to-transparent shadow-[0_0_22px_rgba(14,165,255,.20),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-[8px]";
 
 function Glow() {
-  return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.10),transparent_45%)]" />;
+  return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.08),transparent_45%)]" />;
 }
 
 function groupXp(groupId, posts, votes) {
@@ -138,7 +138,7 @@ export default function GroupPage() {
   const totalXp = rankedGroups.reduce((s, g) => s + g.xp, 0);
 
   return (
-    <div className="relative min-h-[100dvh] overflow-hidden bg-[#050816] text-white">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#050816] text-white touch-pan-y overscroll-y-contain">
       <style>{`
         @keyframes toastIn{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}
         @keyframes liveDot{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.18)}}
@@ -149,7 +149,7 @@ export default function GroupPage() {
 
       {toast && <div className="toast-in fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">{toast}</div>}
 
-      <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
+      <main className="relative z-10 mx-auto min-h-[100dvh] max-w-md px-4 pb-[210px] pt-6 will-change-auto">
         <header>
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -179,7 +179,7 @@ export default function GroupPage() {
 
         {loading && <div className={`${panel} mt-4 text-center font-black`}><Glow /><div className="relative">Ladataan porukoita...</div></div>}
 
-        <section className="mt-4 space-y-4">
+        <section className="mt-4 space-y-4 pb-6">
           {!loading && rankedGroups.length === 0 ? (
             <div className={`${panel} text-center`}><Glow /><div className="relative"><div className="text-5xl">✨</div><p className="mt-3 text-xl font-black">Ei vielä porukoita</p><p className="mt-2 text-sm font-bold text-white/58">Porukat lisätään adminin kautta myöhemmin.</p></div></div>
           ) : rankedGroups.map((group, index) => (
