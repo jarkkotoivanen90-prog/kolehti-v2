@@ -6,7 +6,7 @@ import { haptic } from "../lib/effects";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1200";
 const panel = "relative overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#041226]/78 p-5 text-white shadow-2xl shadow-cyan-500/10";
-const innerPanel = "rounded-[24px] bg-white/[.055] shadow-[inset_0_1px_0_rgba(255,255,255,.06)]";
+const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-gradient-to-br from-[#0ea5ff]/30 via-[#0ea5ff]/20 to-[#020617]/60 shadow-[0_0_35px_rgba(14,165,255,.35),inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-[10px]";
 
 function Glow() {
   return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.14),transparent_45%)]" />;
@@ -154,7 +154,7 @@ export default function GroupPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Yhteisöt</p>
-              <h1 className="mt-2 text-[48px] font-black leading-none tracking-tight">Porukat</h1>
+              <h1 className="mt-2 text-[48px] font-black leading-none tracking-tight text-glass">Porukat</h1>
               <p className="mt-2 max-w-[280px] text-sm font-bold leading-snug text-white/62">Porukka ei ole lista — se on kilpailu finaalipaikasta.</p>
             </div>
             <Link data-haptic="tap" to="/feed" className={`${innerPanel} px-4 py-3 text-sm font-black text-white/85`}>Feed</Link>
@@ -169,9 +169,9 @@ export default function GroupPage() {
               <span className="flex items-center gap-2 rounded-full border border-cyan-100/12 bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100"><span className="live-dot h-2 w-2 rounded-full bg-cyan-200" /> LIVE</span>
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-black">
-              <div className={`${innerPanel} p-3`}><div className="text-white/45">Porukat</div><div className="mt-1 text-2xl text-white">{groups.length}</div></div>
-              <div className={`${innerPanel} p-3`}><div className="text-white/45">Jäsenet</div><div className="mt-1 text-2xl text-white">{members.length}</div></div>
-              <div className={`${innerPanel} p-3`}><div className="text-white/45">XP</div><div className="mt-1 text-2xl text-white">{totalXp}</div></div>
+              <div className={`${innerPanel} p-3`}><div className="text-cyan-50/70">Porukat</div><div className="mt-1 text-2xl text-white text-glass">{groups.length}</div></div>
+              <div className={`${innerPanel} p-3`}><div className="text-cyan-50/70">Jäsenet</div><div className="mt-1 text-2xl text-white text-glass">{members.length}</div></div>
+              <div className={`${innerPanel} p-3`}><div className="text-cyan-50/70">XP</div><div className="mt-1 text-2xl text-white text-glass">{totalXp}</div></div>
             </div>
             {myGroup && <div className={`${innerPanel} mt-4 p-4 text-sm font-black text-cyan-100`}>Sinun porukka: {myGroup.name} · vaikutuksesi +{myGroup.contribution} XP</div>}
           </div>
@@ -205,16 +205,16 @@ function GroupCard({ group, index, joined, onJoin, onOpen, onLeave }) {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="grid h-10 w-10 place-items-center rounded-2xl bg-white/[.055] text-sm font-black">{rank}</span>
-              <h2 className="truncate text-2xl font-black text-white">{group.name}</h2>
+              <span className={`${innerPanel} grid h-10 w-10 place-items-center rounded-2xl text-sm font-black`}>{rank}</span>
+              <h2 className="truncate text-2xl font-black text-white text-glass">{group.name}</h2>
             </div>
             <p className="mt-2 text-sm font-bold text-white/72">{joined ? "Olet mukana tässä porukassa." : "Liity ja vaikuta rankingiin."}</p>
             {joined && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-cyan-200">Oma porukka</p>}
           </div>
-          <div className={`${innerPanel} shrink-0 px-3 py-2 text-center`}><div className="text-xl font-black text-cyan-100">{group.count}</div><div className="text-[10px] font-black uppercase text-white/45">jäsentä</div></div>
+          <div className={`${innerPanel} shrink-0 px-3 py-2 text-center`}><div className="text-xl font-black text-cyan-100 text-glass">{group.count}</div><div className="text-[10px] font-black uppercase text-cyan-50/70">jäsentä</div></div>
         </div>
 
-        <div className="mt-4 text-[42px] font-black leading-none text-white">{group.xp} XP</div>
+        <div className="mt-4 text-[42px] font-black leading-none text-white text-glass">{group.xp} XP</div>
         <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/45"><div className="h-full rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} /></div>
 
         <div className="mt-4 grid gap-2 text-xs font-black">
