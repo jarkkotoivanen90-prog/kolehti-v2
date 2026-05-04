@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import FeedMedia from "./FeedMedia";
-import GameControls from "../../components/GameControls";
 import { getScore, getVotes, getShares, getAuthor, getAvatar } from "./utils/feedFormatters";
 
 function getTextSize(content = "") {
@@ -60,11 +59,6 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
             <p className={`${textClass} font-black text-white`}>
               {post?.content}
             </p>
-          </div>
-
-          {/* 🔥 NEW: ENTRY + BOOST */}
-          <div className="mt-3">
-            <GameControls postId={post.id} />
           </div>
 
           {/* ACTIONS */}
