@@ -138,7 +138,7 @@ export default function GroupPage() {
   const totalXp = rankedGroups.reduce((s, g) => s + g.xp, 0);
 
   return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#050816] text-white touch-pan-y overscroll-y-contain">
+    <div className="relative h-[100dvh] overflow-y-auto overflow-x-hidden bg-[#050816] text-white touch-pan-y overscroll-y-contain [-webkit-overflow-scrolling:touch]">
       <style>{`
         @keyframes toastIn{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}
         @keyframes liveDot{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.18)}}
@@ -149,7 +149,7 @@ export default function GroupPage() {
 
       {toast && <div className="toast-in fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">{toast}</div>}
 
-      <main className="relative z-10 mx-auto min-h-[100dvh] max-w-md px-4 pb-[210px] pt-6 will-change-auto">
+      <main className="relative z-10 mx-auto max-w-md px-4 pb-[230px] pt-6">
         <header>
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -179,7 +179,7 @@ export default function GroupPage() {
 
         {loading && <div className={`${panel} mt-4 text-center font-black`}><Glow /><div className="relative">Ladataan porukoita...</div></div>}
 
-        <section className="mt-4 space-y-4 pb-6">
+        <section className="mt-4 space-y-4 pb-8">
           {!loading && rankedGroups.length === 0 ? (
             <div className={`${panel} text-center`}><Glow /><div className="relative"><div className="text-5xl">✨</div><p className="mt-3 text-xl font-black">Ei vielä porukoita</p><p className="mt-2 text-sm font-bold text-white/58">Porukat lisätään adminin kautta myöhemmin.</p></div></div>
           ) : rankedGroups.map((group, index) => (
