@@ -5,6 +5,7 @@ import WinnerScreen from "../components/WinnerScreen";
 import LossScreen from "../components/LossScreen";
 import LiveRivalBattle from "../components/LiveRivalBattle";
 import AdaptiveBackground from "../components/AdaptiveBackground";
+import GlassCard from "../components/GlassCard";
 import { haptic } from "../lib/effects";
 import { mergeWithBots } from "../lib/bots";
 import { buildWinnerRace, getWeekId } from "../lib/winnerSystem";
@@ -76,66 +77,67 @@ function periodFilter(post, period) {
   return true;
 }
 
+function PotStat({ label, children }) {
+  return (
+    <GlassCard padding="p-4" className="rounded-[24px] text-center">
+      <div className="text-[10px] font-black uppercase text-white/48">{label}</div>
+      {children}
+    </GlassCard>
+  );
+}
+
 function PotCard({ title, label, amount, entrants, endsAt, leader, accent, index }) {
   const leaderName = leader?.identity?.alias || leader?.display_name || leader?.username || leader?.bot_name || "Ei johtajaa";
   const leaderScore = Math.round(leader?.score || leader?.backend_score || leader?.ai_score || 0);
   const recommended = index === 0;
 
   return (
-    <section className="relative overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#041226]/78 p-5 text-white shadow-2xl shadow-cyan-500/10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.14),transparent_45%)]" />
-
+    <GlassCard as="section" padding="p-5" className="rounded-[34px] text-white">
       {recommended && (
-        <div className="absolute right-4 top-4 z-20 rounded-full border border-cyan-100/10 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100">
+        <div className="absolute right-4 top-4 z-20 rounded-full border border-cyan-100/15 bg-cyan-300/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-100 text-glass">
           AI suosittelee
         </div>
       )}
 
-      <div className="relative">
-        <div className="flex items-start justify-between gap-3 pr-16">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">{label}</div>
-            <h2 className="mt-1 text-2xl font-black leading-tight tracking-tight">{title}</h2>
-          </div>
-          {!recommended && <div className="rounded-full border border-cyan-100/10 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">Live</div>}
+      <div className="flex items-start justify-between gap-3 pr-16">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/66 text-glass">{label}</div>
+          <h2 className="mt-1 text-2xl font-black leading-tight tracking-tight text-glass">{title}</h2>
         </div>
-
-        {recommended && (
-          <div className="relative mt-4 rounded-[22px] border border-cyan-100/15 bg-cyan-300/10 px-4 py-3 text-xs font-black text-cyan-100">
-            ⚡ Paras mahdollisuus juuri nyt
-          </div>
-        )}
-
-        <div className="relative mt-5 grid grid-cols-2 gap-3 text-center">
-          <div className="rounded-[24px] bg-white/[.055] p-4">
-            <div className="text-[10px] font-black uppercase text-white/45">Potti</div>
-            <div className="mt-1 text-4xl font-black leading-none text-white">{amount}€</div>
-          </div>
-          <div className="rounded-[24px] bg-white/[.055] p-4">
-            <div className="text-[10px] font-black uppercase text-white/45">Porukka</div>
-            <div className="mt-1 text-4xl font-black leading-none text-cyan-100">{entrants}</div>
-          </div>
-        </div>
-
-        <div className="relative mt-3 grid grid-cols-2 gap-3 text-center">
-          <div className="rounded-[24px] bg-white/[.055] p-4">
-            <div className="text-[10px] font-black uppercase text-white/45">Päättyy</div>
-            <div className="mt-1 text-lg font-black text-white">{formatEnds(endsAt)}</div>
-          </div>
-          <div className="rounded-[24px] bg-white/[.055] p-4">
-            <div className="text-[10px] font-black uppercase text-white/45">Johtaja</div>
-            <div className="mt-1 truncate text-lg font-black text-white">{leaderName}</div>
-          </div>
-        </div>
-
-        <div className="relative mt-5 overflow-hidden rounded-full bg-black/45 p-1">
-          <div className={`h-5 rounded-full bg-gradient-to-r ${accent} transition-all duration-700`} style={{ width: `${Math.max(14, Math.min(96, 28 + index * 16 + entrants * 4))}%` }} />
-          <div className="absolute inset-0 grid place-items-center text-[10px] font-black uppercase tracking-wide text-white/80">Score {leaderScore}</div>
-        </div>
-
-        <p className="relative mt-4 text-xs font-black text-cyan-100/70">Päivittyy reaaliajassa</p>
+        {!recommended && <div className="rounded-full border border-cyan-100/15 bg-cyan-300/15 px-3 py-1 text-xs font-black text-cyan-100 text-glass">Live</div>}
       </div>
-    </section>
+
+      {recommended && (
+        <div className="mt-4 rounded-[22px] border border-cyan-100/18 bg-cyan-300/12 px-4 py-3 text-xs font-black text-cyan-100 text-glass">
+          ⚡ Paras mahdollisuus juuri nyt
+        </div>
+      )}
+
+      <div className="mt-5 grid grid-cols-2 gap-3 text-center">
+        <PotStat label="Potti">
+          <div className="mt-1 text-4xl font-black leading-none text-white text-glass">{amount}€</div>
+        </PotStat>
+        <PotStat label="Porukka">
+          <div className="mt-1 text-4xl font-black leading-none text-cyan-100 text-glass">{entrants}</div>
+        </PotStat>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 text-center">
+        <PotStat label="Päättyy">
+          <div className="mt-1 text-lg font-black text-white text-glass">{formatEnds(endsAt)}</div>
+        </PotStat>
+        <PotStat label="Johtaja">
+          <div className="mt-1 truncate text-lg font-black text-white text-glass">{leaderName}</div>
+        </PotStat>
+      </div>
+
+      <div className="mt-5 overflow-hidden rounded-full bg-black/45 p-1">
+        <div className={`h-5 rounded-full bg-gradient-to-r ${accent} transition-all duration-700`} style={{ width: `${Math.max(14, Math.min(96, 28 + index * 16 + entrants * 4))}%` }} />
+        <div className="absolute inset-x-0 mt-[-1.25rem] grid place-items-center text-[10px] font-black uppercase tracking-wide text-white/85 text-glass">Score {leaderScore}</div>
+      </div>
+
+      <p className="mt-4 text-xs font-black text-cyan-100/72 text-glass">Päivittyy reaaliajassa</p>
+    </GlassCard>
   );
 }
 
@@ -344,10 +346,10 @@ export default function PotsPage() {
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-cyan-100/70">Live potit</p>
-            <h1 className="text-[46px] font-black leading-none tracking-tight">Potit</h1>
+            <p className="text-[12px] font-black uppercase tracking-[0.28em] text-cyan-100/70 text-glass">Live potit</p>
+            <h1 className="text-[46px] font-black leading-none tracking-tight text-glass">Potit</h1>
           </div>
-          <div className="rounded-full border border-cyan-200/18 bg-cyan-300/10 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-100">reaaliaika</div>
+          <div className="rounded-full border border-cyan-200/18 bg-cyan-300/10 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-100 text-glass">reaaliaika</div>
         </div>
 
         <section className="mt-5 grid gap-4">
