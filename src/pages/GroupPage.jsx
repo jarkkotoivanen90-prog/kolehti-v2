@@ -5,11 +5,11 @@ import AdaptiveBackground from "../components/AdaptiveBackground";
 import { haptic } from "../lib/effects";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1200";
-const panel = "relative overflow-hidden rounded-[34px] border border-cyan-200/24 bg-white/[.035] bg-gradient-to-br from-[#0ea5ff]/14 via-[#0ea5ff]/7 to-transparent p-5 text-white shadow-[0_0_24px_rgba(14,165,255,.14),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-[6px]";
-const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-white/[.04] bg-gradient-to-br from-[#0ea5ff]/22 via-[#0ea5ff]/12 to-transparent shadow-[0_0_22px_rgba(14,165,255,.20),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-[8px]";
+const panel = "relative overflow-hidden rounded-[34px] border border-cyan-100/30 bg-white/[.055] bg-gradient-to-br from-cyan-200/10 via-white/[.045] to-transparent p-5 text-white shadow-[0_0_18px_rgba(14,165,255,.12),inset_0_1px_0_rgba(255,255,255,.10)]";
+const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/35 bg-cyan-400/[.16] bg-gradient-to-br from-[#0ea5ff]/34 via-[#0ea5ff]/22 to-cyan-100/[.06] shadow-[0_0_20px_rgba(14,165,255,.22),inset_0_1px_0_rgba(255,255,255,.12)]";
 
 function Glow() {
-  return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.08),transparent_45%)]" />;
+  return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.06),transparent_42%)]" />;
 }
 
 function groupXp(groupId, posts, votes) {
@@ -166,7 +166,7 @@ export default function GroupPage() {
   const totalXp = rankedGroups.reduce((s, g) => s + g.xp, 0);
 
   return (
-    <div className="relative h-[100dvh] overflow-y-auto overflow-x-hidden bg-[#050816] text-white touch-pan-y overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#050816] text-white touch-pan-y overscroll-y-contain">
       <style>{`
         @keyframes toastIn{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}
         @keyframes liveDot{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.18)}}
@@ -206,19 +206,19 @@ export default function GroupPage() {
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-black">
               <div className={`${innerPanel} p-3`}>
-                <div className="text-cyan-50/70">Porukat</div>
+                <div className="text-cyan-50/80">Porukat</div>
                 <div className="mt-1 text-2xl text-white text-glass">{groups.length}</div>
               </div>
               <div className={`${innerPanel} p-3`}>
-                <div className="text-cyan-50/70">Jäsenet</div>
+                <div className="text-cyan-50/80">Jäsenet</div>
                 <div className="mt-1 text-2xl text-white text-glass">{members.length}</div>
               </div>
               <div className={`${innerPanel} p-3`}>
-                <div className="text-cyan-50/70">XP</div>
+                <div className="text-cyan-50/80">XP</div>
                 <div className="mt-1 text-2xl text-white text-glass">{totalXp}</div>
               </div>
             </div>
-            {myGroup && <div className={`${innerPanel} mt-4 p-4 text-sm font-black text-cyan-100`}>Sinun porukka: {myGroup.name} · vaikutuksesi +{myGroup.contribution} XP</div>}
+            {myGroup && <div className={`${innerPanel} mt-4 p-4 text-sm font-black text-cyan-50`}>Sinun porukka: {myGroup.name} · vaikutuksesi +{myGroup.contribution} XP</div>}
           </div>
         </section>
 
@@ -256,7 +256,7 @@ function GroupCard({ group, index, joined, onJoin, onOpen, onLeave }) {
   const targetText = index === 0 ? "Pidä johto — seuraava postaus voi ratkaista." : `Tavoite: +${group.diffToAbove} XP → sijoitus #${index}`;
 
   return (
-    <article className={`${panel} ${joined ? "border-cyan-200/34" : ""}`}>
+    <article className={`${panel} ${joined ? "border-cyan-100/40" : ""}`}>
       <Glow />
       <div className="relative">
         <div className="flex items-start justify-between gap-4">
@@ -269,31 +269,31 @@ function GroupCard({ group, index, joined, onJoin, onOpen, onLeave }) {
             {joined && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-cyan-200">Oma porukka</p>}
           </div>
           <div className={`${innerPanel} shrink-0 px-3 py-2 text-center`}>
-            <div className="text-xl font-black text-cyan-100 text-glass">{group.count}</div>
-            <div className="text-[10px] font-black uppercase text-cyan-50/70">jäsentä</div>
+            <div className="text-xl font-black text-cyan-50 text-glass">{group.count}</div>
+            <div className="text-[10px] font-black uppercase text-cyan-50/80">jäsentä</div>
           </div>
         </div>
 
         <div className="mt-4 text-[42px] font-black leading-none text-white text-glass">{group.xp} XP</div>
-        <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/45">
+        <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/38">
           <div className="h-full rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
 
         <div className="mt-4 grid gap-2 text-xs font-black">
-          {closeToAbove && <div className={`${innerPanel} px-4 py-3 text-cyan-100`}>Vain {group.diffToAbove} XP edellä olevaan porukkaan</div>}
-          {threatBehind && <div className={`${innerPanel} px-4 py-3 text-white/78`}>Takaa tuleva ero: {group.diffToBelow} XP</div>}
-          {joined && <div className={`${innerPanel} px-4 py-3 text-cyan-100`}>Sinun vaikutus: +{group.contribution} XP</div>}
-          {joined && <div className={`${innerPanel} px-4 py-3 text-white/80`}>{targetText}</div>}
+          {closeToAbove && <div className={`${innerPanel} px-4 py-3 text-cyan-50`}>Vain {group.diffToAbove} XP edellä olevaan porukkaan</div>}
+          {threatBehind && <div className={`${innerPanel} px-4 py-3 text-white/82`}>Takaa tuleva ero: {group.diffToBelow} XP</div>}
+          {joined && <div className={`${innerPanel} px-4 py-3 text-cyan-50`}>Sinun vaikutus: +{group.contribution} XP</div>}
+          {joined && <div className={`${innerPanel} px-4 py-3 text-white/84`}>{targetText}</div>}
         </div>
 
         <div className={`${innerPanel} mt-4 p-4`}>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-wide text-cyan-200">Leaderboard preview</p>
+            <p className="text-xs font-black uppercase tracking-wide text-cyan-100">Leaderboard preview</p>
             <span className="flex items-center gap-1 text-[10px] font-black text-cyan-100">
               <span className="live-dot h-1.5 w-1.5 rounded-full bg-cyan-200" /> LIVE
             </span>
           </div>
-          <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-white/75">Top postaus: {group.topPost?.content || "Ei vielä postauksia"}</p>
+          <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-white/76">Top postaus: {group.topPost?.content || "Ei vielä postauksia"}</p>
         </div>
 
         <div className="mt-4 flex gap-3">
