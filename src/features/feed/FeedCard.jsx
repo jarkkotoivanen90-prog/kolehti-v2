@@ -33,10 +33,20 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40" />
 
       <div className="absolute inset-x-0 bottom-[120px] top-[110px] px-4 z-10">
-        <article className="flex h-full flex-col rounded-[30px] p-4 backdrop-blur-xl border border-white/10 bg-white/5">
+        <article
+          className={`relative flex h-full flex-col overflow-hidden rounded-[34px] p-4 transition-opacity duration-200 ${active ? "opacity-100" : "opacity-85"}`}
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,.025), rgba(255,255,255,.005) 55%, rgba(0,255,255,.015))",
+            backdropFilter: "blur(22px)",
+            WebkitBackdropFilter: "blur(22px)",
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,.06), 0 20px 60px rgba(0,0,0,.25)",
+          }}
+        >
+
+          <div className="pointer-events-none absolute inset-x-[-2rem] top-[20%] h-[60%] rounded-full opacity-90 blur-2xl bg-black/30" />
 
           {/* HEADER */}
-          <div className="flex items-center gap-3 mb-3">
+          <div className="relative flex items-center gap-3 mb-3">
             <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-cyan-500/20 text-white font-bold">
               {avatar}
             </div>
@@ -55,14 +65,14 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
           </div>
 
           {/* CONTENT */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="relative flex-1 overflow-y-auto">
             <p className={`${textClass} font-black text-white`}>
               {post?.content}
             </p>
           </div>
 
           {/* ACTIONS */}
-          <div className="grid grid-cols-4 gap-2 mt-3 text-xs uppercase font-bold">
+          <div className="relative grid grid-cols-4 gap-2 mt-3 text-xs uppercase font-bold">
             <ActionButton onClick={onExplain}>miksi</ActionButton>
             <ActionButton onClick={onShare}>{shared ? "jaettu" : "jaa"}</ActionButton>
             <ActionButton onClick={onMoney}>potti</ActionButton>
@@ -70,7 +80,7 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
           </div>
 
           {/* STATS */}
-          <div className="flex justify-between mt-2 text-xs text-white/60">
+          <div className="relative flex justify-between mt-2 text-xs text-white/60">
             <span>🧠 {ai}% ({confidence})</span>
             <span>❤️ {likes}</span>
             <span>↗ {shares}</span>
