@@ -1,6 +1,12 @@
 import { motion } from "framer-motion";
 import FeedMedia from "./FeedMedia";
-import { getScore, getVotes, getShares, getAuthor, getAvatar } from "./utils/feedFormatters";
+import {
+  getScore,
+  getVotes,
+  getShares,
+  getAuthor,
+  getAvatar,
+} from "./utils/feedFormatters";
 
 function getTextSize(content = "") {
   const length = String(content || "").length;
@@ -17,15 +23,26 @@ function getConfidenceLabel(score) {
   return "uusi";
 }
 
-const transparentGlassStyle = {
-  background: "rgba(255,255,255,0.018)",
-  backdropFilter: "blur(30px)",
-  WebkitBackdropFilter: "blur(30px)",
-  border: "1px solid rgba(255,255,255,0.24)",
-  boxShadow: "0 8px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)",
+// 🔥 CLEAN GLASS (EI SUMUA)
+const glass = {
+  background: "rgba(255,255,255,0.006)",
+  backdropFilter: "blur(14px) saturate(140%)",
+  WebkitBackdropFilter: "blur(14px) saturate(140%)",
+  border: "1px solid rgba(255,255,255,0.28)",
+  boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
 };
 
-export default function FeedCard({ post, active, index, liked, shared, onLike, onShare, onExplain, onMoney }) {
+export default function FeedCard({
+  post,
+  active,
+  index,
+  liked,
+  shared,
+  onLike,
+  onShare,
+  onExplain,
+  onMoney,
+}) {
   const author = getAuthor(post);
   const avatar = getAvatar(post);
   const likes = getVotes(post) + (liked ? 1 : 0);
@@ -36,55 +53,67 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
   const confidence = getConfidenceLabel(ai);
 
   return (
-    <section className="relative h-[100dvh] snap-start overflow-hidden bg-[#050816]">
+    <section className="relative h-[100dvh] snap-start overflow-hidden bg-transparent">
+      {/* 🎥 TAUSTA */}
       <FeedMedia post={post} active={active} />
 
-      <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+112px)] top-[calc(env(safe-area-inset-top)+106px)] z-10 px-4">
+      {/* 🧊 GLASS UI */}
+      <div className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+100px)] bottom-[calc(env(safe-area-inset-bottom)+110px)] z-10 px-4">
         <article
-          className={`relative flex h-full flex-col overflow-hidden rounded-[34px] p-4 transition-opacity duration-200 ${active ? "opacity-100" : "opacity-85"}`}
-          style={transparentGlassStyle}
+          className={`flex h-full flex-col rounded-[34px] p-5 transition-opacity duration-200 ${
+            active ? "opacity-100" : "opacity-90"
+          }`}
+          style={glass}
         >
-          <div className="relative mb-3 flex flex-wrap items-center gap-1.5 text-[9.5px] font-black uppercase tracking-[0.15em]">
-            {index === 0 && <Badge>🏆 johtaja</Badge>}
-            {trending && <Badge>🔥 trendaa</Badge>}
-            <Badge>🧠 {ai}% · {confidence}</Badge>
-            <Badge>❤️ {likes}</Badge>
-            <Badge>↗ {shares}</Badge>
+          {/* 🔝 BADGES */}
+          <div className="mb-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wide">
+            {index === 0 && <Badge>johtaja</Badge>}
+            {trending && <Badge>trendaa</Badge>}
+            <Badge>{ai}% {confidence}</Badge>
+            <Badge>{likes}</Badge>
+            <Badge>{shares}</Badge>
           </div>
 
-          <div className="relative flex items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-black" style={{ background: "rgba(14,165,255,0.16)", boxShadow: "0 0 10px rgba(14,165,255,0.18)" }}>{avatar}</div>
+          {/* 👤 HEADER */}
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-lg font-black">
+              {avatar}
+            </div>
 
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-lg font-black tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,.82)]">{author}</div>
-              <div className="text-[10px] font-black uppercase tracking-[0.19em] text-white/74 drop-shadow-[0_2px_6px_rgba(0,0,0,.70)]">
-                {post?.bot ? "AI-pelibotti" : `#${index + 1} päivän perustelu`}
+            <div className="flex-1 min-w-0">
+              <div className="truncate text-lg font-black">
+                {author}
+              </div>
+              <div className="text-[10px] uppercase text-white/70">
+                {post?.bot ? "AI-pelibotti" : `#${index + 1}`}
               </div>
             </div>
 
             <motion.button
               whileTap={{ scale: 0.9 }}
-              animate={liked ? { scale: [1, 1.1, 1] } : { scale: 1 }}
-              transition={{ duration: 0.16 }}
-              type="button"
-              onClick={(event) => { event.stopPropagation(); onLike?.(); }}
-              className="grid h-13 w-13 place-items-center rounded-full text-xl font-black transition active:scale-95"
-              style={{ background: "rgba(14,165,255,0.25)", boxShadow: "0 0 14px rgba(14,165,255,0.22)", border: "1px solid rgba(139,238,255,0.24)" }}
-            >♥</motion.button>
+              onClick={(e) => {
+                e.stopPropagation();
+                onLike?.();
+              }}
+              className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center font-black"
+            >
+              ♥
+            </motion.button>
           </div>
 
-          <div className="relative mt-4 min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <p
-              className={`${textClass} pb-5 font-black tracking-tight text-white`}
-              style={{ textShadow: "0 1px 1px rgba(0,0,0,.50), 0 4px 14px rgba(0,0,0,.88), 0 12px 34px rgba(0,0,0,.62), 0 0 1px rgba(0,0,0,.72)" }}
-            >
+          {/* 📝 CONTENT */}
+          <div className="mt-5 flex-1 overflow-y-auto">
+            <p className={`${textClass} font-black text-white`}>
               {post?.content}
             </p>
           </div>
 
-          <div className="relative mt-3 grid grid-cols-4 gap-2 text-[10px] font-black uppercase tracking-[0.13em]">
+          {/* 🔘 ACTIONS */}
+          <div className="mt-4 grid grid-cols-4 gap-2 text-xs font-black uppercase">
             <ActionButton onClick={onExplain}>miksi</ActionButton>
-            <ActionButton onClick={onShare}>{shared ? "jaettu" : "jaa"}</ActionButton>
+            <ActionButton onClick={onShare}>
+              {shared ? "jaettu" : "jaa"}
+            </ActionButton>
             <ActionButton onClick={onMoney}>potti</ActionButton>
             <ActionButton onClick={onLike}>ääni</ActionButton>
           </div>
@@ -94,32 +123,25 @@ export default function FeedCard({ post, active, index, liked, shared, onLike, o
   );
 }
 
+// 🔘 BUTTON
 function ActionButton({ children, onClick }) {
   return (
     <button
-      type="button"
-      onClick={(event) => { event.stopPropagation(); onClick?.(); }}
-      className="rounded-2xl px-2 py-3 text-white transition active:scale-[0.97] active:brightness-110"
-      style={{
-        background: "rgba(14,165,255,0.22)",
-        boxShadow: "0 0 10px rgba(14,165,255,0.20)",
-        border: "1px solid rgba(139,238,255,0.30)",
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
       }}
+      className="rounded-2xl py-3 bg-white/10 border border-white/20 active:scale-[0.97]"
     >
       {children}
     </button>
   );
 }
 
+// 🏷 BADGE
 function Badge({ children }) {
   return (
-    <span
-      className="rounded-full px-2.5 py-1"
-      style={{
-        background: "rgba(14,165,255,0.14)",
-        border: "1px solid rgba(139,238,255,0.30)",
-      }}
-    >
+    <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20">
       {children}
     </span>
   );
