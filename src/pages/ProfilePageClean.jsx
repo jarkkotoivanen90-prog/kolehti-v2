@@ -7,8 +7,8 @@ import AdaptiveBackground, { CITY_BACKGROUND_OPTIONS } from "../components/Adapt
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1200";
 
 const panel = "relative overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#041226]/78 p-5 text-white shadow-2xl shadow-cyan-500/10";
-const miniPanel = "relative overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#041226]/78 p-4 text-white shadow-2xl shadow-cyan-500/10";
-const innerPanel = "rounded-[24px] bg-white/[.055] shadow-[inset_0_1px_0_rgba(255,255,255,.06)]";
+const miniPanel = "relative overflow-hidden rounded-[34px] border border-cyan-200/30 bg-gradient-to-br from-[#0ea5ff]/30 via-[#0ea5ff]/20 to-[#020617]/60 p-4 text-white shadow-[0_0_35px_rgba(14,165,255,.35),inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-[10px]";
+const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-gradient-to-br from-[#0ea5ff]/30 via-[#0ea5ff]/20 to-[#020617]/60 shadow-[0_0_35px_rgba(14,165,255,.35),inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-[10px]";
 
 function GlassGlow() {
   return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.14),transparent_45%)]" />;
@@ -48,7 +48,7 @@ export default function ProfilePageClean() {
       <main className="relative z-10 mx-auto max-w-md px-4 pb-[170px] pt-6">
         <header className="pb-1">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Oma taso</p>
-          <h1 className="mt-2 text-[48px] font-black leading-none tracking-tight">Profiili</h1>
+          <h1 className="mt-2 text-[48px] font-black leading-none tracking-tight text-glass">Profiili</h1>
           <p className="mt-2 truncate text-sm font-bold text-white/62">{user?.email}</p>
         </header>
 
@@ -57,7 +57,7 @@ export default function ProfilePageClean() {
           <div className="relative flex items-start justify-between gap-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">Oma XP-taso</p>
-              <div className="mt-2 text-[58px] font-black leading-none text-white">{xp}</div>
+              <div className="mt-2 text-[58px] font-black leading-none text-white text-glass">{xp}</div>
               <p className="mt-1 text-sm font-black text-white/66">Level {level} · {progress}% seuraavaan</p>
             </div>
             <div className="grid h-20 w-20 shrink-0 place-items-center rounded-[28px] border border-cyan-100/10 bg-cyan-300/10 text-4xl shadow-[0_0_24px_rgba(21,131,255,.16)]">⚡</div>
@@ -112,7 +112,7 @@ export default function ProfilePageClean() {
           <GlassGlow />
           <div className="relative">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-black">Omat postaukset</h2>
+              <h2 className="text-2xl font-black text-glass">Omat postaukset</h2>
               <span className="rounded-full border border-cyan-100/10 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase text-cyan-100">{visiblePosts.length}</span>
             </div>
             <div className="mt-4 space-y-3">
@@ -140,8 +140,8 @@ function StatCard({ label, value, icon }) {
       <GlassGlow />
       <div className="relative">
         <div className="text-3xl">{icon}</div>
-        <div className="mt-3 text-[10px] font-black uppercase tracking-wide text-white/45">{label}</div>
-        <div className="mt-1 truncate text-2xl font-black text-white">{value}</div>
+        <div className="mt-3 text-[10px] font-black uppercase tracking-wide text-cyan-50/70">{label}</div>
+        <div className="mt-1 truncate text-2xl font-black text-white text-glass">{value}</div>
       </div>
     </div>
   );
