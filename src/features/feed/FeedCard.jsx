@@ -8,29 +8,23 @@ import {
   getAvatar,
 } from "./utils/feedFormatters";
 
+// 📏 TEKSTIN SKAALAUS
 function getTextSize(content = "") {
   const length = String(content || "").length;
-  if (length > 360) return "text-[clamp(1.16rem,4.8vw,2.1rem)] leading-[1.14]";
-  if (length > 220) return "text-[clamp(1.34rem,5.5vw,2.48rem)] leading-[1.12]";
-  if (length > 120) return "text-[clamp(1.54rem,6.25vw,2.9rem)] leading-[1.09]";
-  return "text-[clamp(1.84rem,7.15vw,3.42rem)] leading-[1.05]";
+  if (length > 360) return "text-[clamp(1.2rem,4.8vw,2rem)] leading-[1.2]";
+  if (length > 220) return "text-[clamp(1.4rem,5.5vw,2.4rem)] leading-[1.15]";
+  if (length > 120) return "text-[clamp(1.6rem,6.2vw,2.8rem)] leading-[1.1]";
+  return "text-[clamp(1.9rem,7vw,3.2rem)] leading-[1.05]";
 }
 
-function getConfidenceLabel(score) {
-  if (score >= 88) return "vahva";
-  if (score >= 72) return "hyvä";
-  if (score >= 52) return "nousee";
-  return "uusi";
+// 🏷 BADGE
+function Badge({ children }) {
+  return (
+    <span className="px-3 py-1 rounded-full bg-black/40 border border-white/20 backdrop-blur-none">
+      {children}
+    </span>
+  );
 }
-
-// 🔥 CLEAN GLASS (EI SUMUA)
-const glass = {
-  background: "rgba(255,255,255,0.006)",
-  backdropFilter: "blur(14px) saturate(140%)",
-  WebkitBackdropFilter: "blur(14px) saturate(140%)",
-  border: "1px solid rgba(255,255,255,0.28)",
-  boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
-};
 
 export default function FeedCard({
   post,
@@ -50,99 +44,78 @@ export default function FeedCard({
   const ai = Math.max(0, Math.min(99, getScore(post)));
   const textClass = getTextSize(post?.content);
   const trending = likes >= 5 || shares >= 2 || post?.viral_score >= 70;
-  const confidence = getConfidenceLabel(ai);
 
   return (
-    <section className="relative h-[100dvh] snap-start overflow-hidden bg-transparent">
-      {/* 🎥 TAUSTA */}
+    <section className="relative h-[100dvh] snap-start overflow-hidden bg-black">
+      
+      {/* 🎥 FULLSCREEN MEDIA */}
       <FeedMedia post={post} active={active} />
 
-      {/* 🧊 GLASS UI */}
-      <div className="absolute inset-x-0 top-[calc(env(safe-area-inset-top)+100px)] bottom-[calc(env(safe-area-inset-bottom)+110px)] z-10 px-4">
-        <article
-          className={`flex h-full flex-col rounded-[34px] p-5 transition-opacity duration-200 ${
-            active ? "opacity-100" : "opacity-90"
-          }`}
-          style={glass}
-        >
-          {/* 🔝 BADGES */}
-          <div className="mb-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wide">
-            {index === 0 && <Badge>johtaja</Badge>}
-            {trending && <Badge>trendaa</Badge>}
-            <Badge>{ai}% {confidence}</Badge>
-            <Badge>{likes}</Badge>
-            <Badge>{shares}</Badge>
+      {/* 🌑 GRADIENT OVERLAY (EI BLURIA) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent pointer-events-none" />
+
+      {/* 📄 CONTENT */}
+      <div className="absolute inset-0 z-10 flex flex-col justify-end px-5 pb-24">
+
+        {/* BADGES */}
+        <div className="mb-3 flex flex-wrap gap-2 text-[10px] font-black uppercase">
+          {index === 0 && <Badge>johtaja</Badge>}
+          {trending && <Badge>trendaa</Badge>}
+          <Badge>{ai}%</Badge>
+          <Badge>{likes}</Badge>
+        </div>
+
+        {/* TEKSTI */}
+        <p className={`${textClass} font-black text-white drop-shadow-xl`}>
+          {post?.content}
+        </p>
+
+        {/* USER */}
+        <div className="mt-4 flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-lg font-black">
+            {avatar}
           </div>
-
-          {/* 👤 HEADER */}
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-lg font-black">
-              {avatar}
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <div className="truncate text-lg font-black">
-                {author}
-              </div>
-              <div className="text-[10px] uppercase text-white/70">
-                {post?.bot ? "AI-pelibotti" : `#${index + 1}`}
-              </div>
-            </div>
-
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onLike?.();
-              }}
-              className="h-12 w-12 rounded-full bg-white/10 flex items-center justify-center font-black"
-            >
-              ♥
-            </motion.button>
+          <div className="text-sm font-bold text-white/80">
+            {author}
           </div>
+        </div>
 
-          {/* 📝 CONTENT */}
-          <div className="mt-5 flex-1 overflow-y-auto">
-            <p className={`${textClass} font-black text-white`}>
-              {post?.content}
-            </p>
-          </div>
-
-          {/* 🔘 ACTIONS */}
-          <div className="mt-4 grid grid-cols-4 gap-2 text-xs font-black uppercase">
-            <ActionButton onClick={onExplain}>miksi</ActionButton>
-            <ActionButton onClick={onShare}>
-              {shared ? "jaettu" : "jaa"}
-            </ActionButton>
-            <ActionButton onClick={onMoney}>potti</ActionButton>
-            <ActionButton onClick={onLike}>ääni</ActionButton>
-          </div>
-        </article>
       </div>
+
+      {/* 🎯 FLOATING ACTIONS */}
+      <div className="absolute right-4 bottom-28 flex flex-col gap-3 z-20">
+
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={onLike}
+          className="w-14 h-14 rounded-full bg-black/50 text-white text-xl flex items-center justify-center"
+        >
+          ♥
+        </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={onShare}
+          className="w-14 h-14 rounded-full bg-black/50 text-white text-xl flex items-center justify-center"
+        >
+          ↗
+        </motion.button>
+
+        <motion.button
+          whileTap={{ scale: 0.9 }}
+          onClick={onMoney}
+          className="w-14 h-14 rounded-full bg-black/50 text-white text-xl flex items-center justify-center"
+        >
+          €
+        </motion.button>
+
+      </div>
+
+      {/* OPTIONAL: TAP AREA */}
+      <div
+        className="absolute inset-0 z-0"
+        onClick={() => onExplain?.()}
+      />
     </section>
-  );
-}
-
-// 🔘 BUTTON
-function ActionButton({ children, onClick }) {
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
-      className="rounded-2xl py-3 bg-white/10 border border-white/20 active:scale-[0.97]"
-    >
-      {children}
-    </button>
-  );
-}
-
-// 🏷 BADGE
-function Badge({ children }) {
-  return (
-    <span className="px-3 py-1 rounded-full bg-white/10 border border-white/20">
-      {children}
-    </span>
   );
 }
