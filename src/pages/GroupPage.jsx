@@ -166,84 +166,79 @@ export default function GroupPage() {
   const totalXp = rankedGroups.reduce((s, g) => s + g.xp, 0);
 
   return (
-    <div className="relative min-h-[100dvh] overflow-x-hidden bg-[#050816] text-white touch-pan-y overscroll-y-contain">
-      <style>{`
-        @keyframes toastIn{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}
-        @keyframes liveDot{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.18)}}
-        .toast-in{animation:toastIn 1.6s ease both}.live-dot{animation:liveDot 1.8s ease-in-out infinite}
-      `}</style>
+    <div className="relative h-[100dvh] overflow-hidden bg-[#050816] text-white">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <AdaptiveBackground src={BG} strength="balanced" />
+      </div>
 
-      <AdaptiveBackground src={BG} strength="balanced" />
+      <div className="absolute inset-0 z-10 overflow-y-auto overflow-x-hidden touch-pan-y overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+        <style>{`
+          @keyframes toastIn{0%{transform:translate(-50%,-12px) scale(.95);opacity:0}15%,85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-12px) scale(.95);opacity:0}}
+          @keyframes liveDot{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.18)}}
+          .toast-in{animation:toastIn 1.6s ease both}.live-dot{animation:liveDot 1.8s ease-in-out infinite}
+        `}</style>
 
-      {toast && (
-        <div className="toast-in fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">
-          {toast}
-        </div>
-      )}
-
-      <main className="relative z-10 mx-auto max-w-md px-4 pb-[230px] pt-6">
-        <header>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Yhteisöt</p>
-              <h1 className="mt-2 text-[48px] font-black leading-none tracking-tight text-glass">Porukat</h1>
-              <p className="mt-2 max-w-[280px] text-sm font-bold leading-snug text-white/62">Porukka ei ole lista — se on kilpailu finaalipaikasta.</p>
-            </div>
-            <Link data-haptic="tap" to="/feed" className={`${innerPanel} px-4 py-3 text-sm font-black text-white/85`}>
-              Feed
-            </Link>
-          </div>
-        </header>
-
-        <section className={`${panel} mt-6`}>
-          <Glow />
-          <div className="relative">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">Porukka ranking</p>
-              <span className="flex items-center gap-2 rounded-full border border-cyan-100/12 bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100">
-                <span className="live-dot h-2 w-2 rounded-full bg-cyan-200" /> LIVE
-              </span>
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-black">
-              <div className={`${innerPanel} p-3`}>
-                <div className="text-cyan-50/80">Porukat</div>
-                <div className="mt-1 text-2xl text-white text-glass">{groups.length}</div>
-              </div>
-              <div className={`${innerPanel} p-3`}>
-                <div className="text-cyan-50/80">Jäsenet</div>
-                <div className="mt-1 text-2xl text-white text-glass">{members.length}</div>
-              </div>
-              <div className={`${innerPanel} p-3`}>
-                <div className="text-cyan-50/80">XP</div>
-                <div className="mt-1 text-2xl text-white text-glass">{totalXp}</div>
-              </div>
-            </div>
-            {myGroup && <div className={`${innerPanel} mt-4 p-4 text-sm font-black text-cyan-50`}>Sinun porukka: {myGroup.name} · vaikutuksesi +{myGroup.contribution} XP</div>}
-          </div>
-        </section>
-
-        {loading && (
-          <div className={`${panel} mt-4 text-center font-black`}>
-            <Glow />
-            <div className="relative">Ladataan porukoita...</div>
+        {toast && (
+          <div className="toast-in fixed left-1/2 top-24 z-[90] w-[calc(100%-32px)] max-w-sm rounded-[26px] border border-cyan-200/20 bg-[#030816]/90 px-5 py-4 text-center text-sm font-black text-cyan-100 shadow-2xl shadow-blue-500/10">
+            {toast}
           </div>
         )}
 
-        <section className="mt-4 space-y-4 pb-8">
-          {!loading && rankedGroups.length === 0 ? (
-            <div className={`${panel} text-center`}>
-              <Glow />
-              <div className="relative">
-                <div className="text-5xl">✨</div>
-                <p className="mt-3 text-xl font-black">Ei vielä porukoita</p>
-                <p className="mt-2 text-sm font-bold text-white/58">Porukat lisätään adminin kautta myöhemmin.</p>
+        <main className="relative mx-auto max-w-md px-4 pb-[230px] pt-6">
+          <header>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">Yhteisöt</p>
+                <h1 className="mt-2 text-[48px] font-black leading-none tracking-tight text-glass">Porukat</h1>
+                <p className="mt-2 max-w-[280px] text-sm font-bold leading-snug text-white/62">Porukka ei ole lista — se on kilpailu finaalipaikasta.</p>
               </div>
+              <Link data-haptic="tap" to="/feed" className={`${innerPanel} px-4 py-3 text-sm font-black text-white/85`}>
+                Feed
+              </Link>
             </div>
-          ) : rankedGroups.map((group, index) => (
-            <GroupCard key={group.id} group={group} index={index} joined={isJoined(group.id)} onJoin={() => joinGroup(group.id)} onOpen={() => openGroup(group.id)} onLeave={() => leaveGroup(group.id)} />
-          ))}
-        </section>
-      </main>
+          </header>
+
+          <section className={`${panel} mt-6`}>
+            <Glow />
+            <div className="relative">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">Porukka ranking</p>
+                <span className="flex items-center gap-2 rounded-full border border-cyan-100/12 bg-cyan-300/10 px-3 py-1 text-[10px] font-black text-cyan-100">
+                  <span className="live-dot h-2 w-2 rounded-full bg-cyan-200" /> LIVE
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs font-black">
+                <div className={`${innerPanel} p-3`}><div className="text-cyan-50/80">Porukat</div><div className="mt-1 text-2xl text-white text-glass">{groups.length}</div></div>
+                <div className={`${innerPanel} p-3`}><div className="text-cyan-50/80">Jäsenet</div><div className="mt-1 text-2xl text-white text-glass">{members.length}</div></div>
+                <div className={`${innerPanel} p-3`}><div className="text-cyan-50/80">XP</div><div className="mt-1 text-2xl text-white text-glass">{totalXp}</div></div>
+              </div>
+              {myGroup && <div className={`${innerPanel} mt-4 p-4 text-sm font-black text-cyan-50`}>Sinun porukka: {myGroup.name} · vaikutuksesi +{myGroup.contribution} XP</div>}
+            </div>
+          </section>
+
+          {loading && (
+            <div className={`${panel} mt-4 text-center font-black`}>
+              <Glow />
+              <div className="relative">Ladataan porukoita...</div>
+            </div>
+          )}
+
+          <section className="mt-4 space-y-4 pb-8">
+            {!loading && rankedGroups.length === 0 ? (
+              <div className={`${panel} text-center`}>
+                <Glow />
+                <div className="relative">
+                  <div className="text-5xl">✨</div>
+                  <p className="mt-3 text-xl font-black">Ei vielä porukoita</p>
+                  <p className="mt-2 text-sm font-bold text-white/58">Porukat lisätään adminin kautta myöhemmin.</p>
+                </div>
+              </div>
+            ) : rankedGroups.map((group, index) => (
+              <GroupCard key={group.id} group={group} index={index} joined={isJoined(group.id)} onJoin={() => joinGroup(group.id)} onOpen={() => openGroup(group.id)} onLeave={() => leaveGroup(group.id)} />
+            ))}
+          </section>
+        </main>
+      </div>
     </div>
   );
 }
@@ -268,16 +263,11 @@ function GroupCard({ group, index, joined, onJoin, onOpen, onLeave }) {
             <p className="mt-2 text-sm font-bold text-white/72">{joined ? "Olet mukana tässä porukassa." : "Liity ja vaikuta rankingiin."}</p>
             {joined && <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-cyan-200">Oma porukka</p>}
           </div>
-          <div className={`${innerPanel} shrink-0 px-3 py-2 text-center`}>
-            <div className="text-xl font-black text-cyan-50 text-glass">{group.count}</div>
-            <div className="text-[10px] font-black uppercase text-cyan-50/80">jäsentä</div>
-          </div>
+          <div className={`${innerPanel} shrink-0 px-3 py-2 text-center`}><div className="text-xl font-black text-cyan-50 text-glass">{group.count}</div><div className="text-[10px] font-black uppercase text-cyan-50/80">jäsentä</div></div>
         </div>
 
         <div className="mt-4 text-[42px] font-black leading-none text-white text-glass">{group.xp} XP</div>
-        <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/38">
-          <div className="h-full rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} />
-        </div>
+        <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/38"><div className="h-full rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} /></div>
 
         <div className="mt-4 grid gap-2 text-xs font-black">
           {closeToAbove && <div className={`${innerPanel} px-4 py-3 text-cyan-50`}>Vain {group.diffToAbove} XP edellä olevaan porukkaan</div>}
@@ -287,30 +277,12 @@ function GroupCard({ group, index, joined, onJoin, onOpen, onLeave }) {
         </div>
 
         <div className={`${innerPanel} mt-4 p-4`}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-wide text-cyan-100">Leaderboard preview</p>
-            <span className="flex items-center gap-1 text-[10px] font-black text-cyan-100">
-              <span className="live-dot h-1.5 w-1.5 rounded-full bg-cyan-200" /> LIVE
-            </span>
-          </div>
+          <div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-cyan-100">Leaderboard preview</p><span className="flex items-center gap-1 text-[10px] font-black text-cyan-100"><span className="live-dot h-1.5 w-1.5 rounded-full bg-cyan-200" /> LIVE</span></div>
           <p className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-white/76">Top postaus: {group.topPost?.content || "Ei vielä postauksia"}</p>
         </div>
 
         <div className="mt-4 flex gap-3">
-          {joined ? (
-            <>
-              <button data-haptic="tap" onClick={onOpen} className="flex-1 rounded-[24px] bg-cyan-500 px-4 py-3 font-black text-white active:scale-[0.98]">
-                Avaa
-              </button>
-              <button data-haptic="warning" onClick={onLeave} className={`${innerPanel} flex-1 px-4 py-3 font-black text-white active:scale-[0.98]`}>
-                Poistu
-              </button>
-            </>
-          ) : (
-            <button data-haptic="success" onClick={onJoin} className="w-full rounded-[24px] bg-cyan-500 px-4 py-4 font-black text-white active:scale-[0.98]">
-              Liity porukkaan
-            </button>
-          )}
+          {joined ? <><button data-haptic="tap" onClick={onOpen} className="flex-1 rounded-[24px] bg-cyan-500 px-4 py-3 font-black text-white active:scale-[0.98]">Avaa</button><button data-haptic="warning" onClick={onLeave} className={`${innerPanel} flex-1 px-4 py-3 font-black text-white active:scale-[0.98]`}>Poistu</button></> : <button data-haptic="success" onClick={onJoin} className="w-full rounded-[24px] bg-cyan-500 px-4 py-4 font-black text-white active:scale-[0.98]">Liity porukkaan</button>}
         </div>
       </div>
     </article>
