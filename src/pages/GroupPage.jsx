@@ -6,7 +6,7 @@ import { haptic } from "../lib/effects";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Finnish_lake_and_forest_landscape_(175928795).jpg?width=1200";
 const panel = "relative overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#041226]/78 p-5 text-white shadow-2xl shadow-cyan-500/10";
-const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-gradient-to-br from-[#0ea5ff]/30 via-[#0ea5ff]/20 to-[#020617]/60 shadow-[0_0_35px_rgba(14,165,255,.35),inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-[10px]";
+const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-white/[.04] bg-gradient-to-br from-[#0ea5ff]/25 via-[#0ea5ff]/15 to-transparent shadow-[0_0_30px_rgba(14,165,255,.25),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-[12px]";
 
 function Glow() {
   return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.14),transparent_45%)]" />;
