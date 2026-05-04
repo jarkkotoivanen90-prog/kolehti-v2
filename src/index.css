@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+.glass-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  background: linear-gradient(to bottom right, rgba(10,31,58,0.65), rgba(10,31,58,0.4));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(56,189,248,0.18);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.text-glass {
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+
 :root {
   --bg: #030712;
   --brand-black: #030712;
@@ -71,17 +86,17 @@ nav, header, section, article, button, a { isolation: isolate; }
     position: relative;
     overflow: hidden;
     border-radius: 30px;
-    border: 1px solid rgba(139,238,255,.32) !important;
+    border: 1px solid rgba(139,238,255,.22) !important;
     background:
-      linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.045) 34%, rgba(7,92,255,.16)),
-      linear-gradient(180deg, rgba(7,18,43,.90), rgba(3,7,18,.86)) !important;
+      linear-gradient(135deg, rgba(255,255,255,.13), rgba(255,255,255,.035) 34%, rgba(7,92,255,.10)),
+      linear-gradient(180deg, rgba(7,18,43,.78), rgba(3,7,18,.76)) !important;
     box-shadow:
-      inset 0 1px 0 rgba(255,255,255,.30),
-      inset 0 -1px 0 rgba(14,165,255,.16),
-      0 18px 46px rgba(0,0,0,.42),
-      0 0 34px rgba(14,165,255,.24) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+      inset 0 1px 0 rgba(255,255,255,.18),
+      inset 0 -1px 0 rgba(14,165,255,.10),
+      0 14px 34px rgba(0,0,0,.32),
+      0 0 22px rgba(14,165,255,.14) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     transition: transform .14s ease, box-shadow .18s ease, border-color .18s ease, filter .18s ease;
     isolation: isolate;
   }
@@ -94,26 +109,16 @@ nav, header, section, article, button, a { isolation: isolate; }
     inset: 0;
     pointer-events: none;
     background:
-      radial-gradient(circle at 16% 0%, rgba(255,255,255,.28), transparent 32%),
-      radial-gradient(circle at 88% 12%, rgba(14,165,255,.28), transparent 32%),
-      linear-gradient(105deg, transparent 0%, transparent 36%, rgba(255,255,255,.18) 45%, transparent 58%, transparent 100%);
-    opacity: .92;
+      radial-gradient(circle at 16% 0%, rgba(255,255,255,.16), transparent 32%),
+      radial-gradient(circle at 88% 12%, rgba(14,165,255,.14), transparent 32%);
+    opacity: .70;
     z-index: 0;
   }
 
   .kolehti-shell::before,
   .premium-card::before,
   .suomi-card::before {
-    content: "";
-    position: absolute;
-    top: -20%;
-    left: -70%;
-    width: 48%;
-    height: 145%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.24), rgba(139,238,255,.30), transparent);
-    animation: overdriveSweep 6.8s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 1;
+    display: none;
   }
 
   .kolehti-shell > *,
@@ -187,19 +192,6 @@ nav, header, section, article, button, a { isolation: isolate; }
     transition: transform .18s cubic-bezier(.2, .9, .2, 1.15), filter .18s ease, opacity .18s ease;
   }
 
-  .kolehti-bottom-shell a:has(.bg-cyan-300\/15)::before,
-  .kolehti-bottom-shell a:has(.text-cyan-200)::before,
-  .kolehti-bottom-shell .text-cyan-200::before {
-    content: "";
-    position: absolute;
-    inset: 2px;
-    border-radius: 24px;
-    background: radial-gradient(circle, rgba(139,238,255,.48), rgba(14,165,255,.12) 48%, transparent 72%);
-    filter: blur(8px);
-    z-index: -1;
-    animation: overdrivePulse 2.2s ease-in-out infinite;
-  }
-
   .suomi-card:active,
   .premium-card:active { transform: scale(.988); }
 
@@ -216,11 +208,11 @@ nav, header, section, article, button, a { isolation: isolate; }
   a[class*="from-cyan"] {
     position: relative;
     overflow: hidden;
-    border: 1px solid rgba(255,255,255,.30) !important;
+    border: 1px solid rgba(255,255,255,.24) !important;
     background: linear-gradient(135deg, #e7fbff 0%, #49d7ff 28%, #0ea5ff 54%, #075cff 100%) !important;
     color: white !important;
     text-shadow: 0 1px 10px rgba(0,0,0,.38);
-    box-shadow: 0 0 0 1px rgba(139,238,255,.18), 0 16px 34px rgba(7,92,255,.38), 0 0 34px rgba(14,165,255,.36) !important;
+    box-shadow: 0 0 0 1px rgba(139,238,255,.14), 0 12px 26px rgba(7,92,255,.28), 0 0 24px rgba(14,165,255,.24) !important;
   }
 
   .cta-button::after,
@@ -228,12 +220,7 @@ nav, header, section, article, button, a { isolation: isolate; }
   a[class*="bg-cyan"]::after,
   button[class*="from-cyan"]::after,
   a[class*="from-cyan"]::after {
-    content: "";
-    position: absolute;
-    inset: -12px;
-    background: radial-gradient(circle at 50% 50%, rgba(139,238,255,.28), transparent 48%);
-    animation: overdrivePulse 2s ease-in-out infinite;
-    pointer-events: none;
+    display: none;
   }
 
   button[class*="bg-yellow"],
@@ -280,7 +267,6 @@ nav, header, section, article, button, a { isolation: isolate; }
 #root p, #root span, #root div { text-rendering: optimizeLegibility; }
 #root button:active, #root a:active, #root [role="button"]:active { transform: scale(.988); }
 
-/* visible visual overdrive hooks */
 #root header svg,
 #root [class*="logo"] svg,
 #root svg[class*="drop-shadow"] { animation: blueBreath 3.2s ease-in-out infinite; }
@@ -303,19 +289,32 @@ nav, header, section, article, button, a { isolation: isolate; }
   pointer-events: none;
 }
 
-#root [style*="width:"] {
+.progress-shimmer {
   box-shadow: 0 0 16px rgba(14,165,255,.35);
   position: relative;
   overflow: hidden;
 }
 
-#root [style*="width:"]::after {
+.progress-shimmer::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.58), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
   animation: overdriveShimmer 2.4s ease-in-out infinite;
 }
 
 svg path[fill="white"], svg text[fill="white"] { filter: drop-shadow(0 0 8px rgba(255,255,255,.22)); }
-[class*="shadow-cyan"], [class*="shadow-blue"] { filter: saturate(1.12); }
+[class*="shadow-cyan"], [class*="shadow-blue"] { filter: saturate(1.08); }
+
+/* Feed full-screen placement fix */
+#root main article > section.absolute.left-0.right-0.z-20 {
+  bottom: 132px !important;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 > div {
+  max-height: 54dvh !important;
+}
+
+#root main article > section.absolute.left-0.right-0.z-20 p {
+  line-height: 1.18 !important;
+}

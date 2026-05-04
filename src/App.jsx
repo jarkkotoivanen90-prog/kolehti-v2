@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { installGlobalHaptics, installReactiveUI } from "./lib/effects";
 import { startVersionCheck } from "./lib/versionCheck";
@@ -6,8 +6,7 @@ import { startVersionCheck } from "./lib/versionCheck";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
-import FeedPage from "./pages/FeedPageClean";
-import VotePage from "./pages/VotePage";
+import FeedPage from "./features/feed/FeedScreen";
 import NewPostPage from "./pages/NewPostPage";
 import ProfilePage from "./pages/ProfilePageClean";
 import GroupPage from "./pages/GroupPage";
@@ -19,56 +18,68 @@ import LeaderboardWarPage from "./pages/LeaderboardWarPage";
 import AuthGate from "./components/auth/AuthGate";
 import Navbar from "./components/Navbar";
 import BrandFX from "./components/BrandFX";
+import AppBottomNav from "./components/AppBottomNav";
+import AdaptiveBackground from "./components/AdaptiveBackground";
 
 function AppShell() {
   const location = useLocation();
 
   useEffect(() => {
-    const cleanHaptics = installGlobalHaptics();
-    const cleanReactive = installReactiveUI();
-    startVersionCheck();
-    return () => {
-      cleanHaptics();
-      cleanReactive();
-    };
+    let cleanHaptics = () => {};
+    let cleanReactive = () => {};
+
+    try { cleanHaptics = installGlobalHaptics?.() || (() => {}); } catch {}
+    try { cleanReactive = installReactiveUI?.() || (() => {}); } catch {}
+    try { startVersionCheck?.(); } catch {}
+
+    return () => { try { cleanHaptics(); } catch {} try { cleanReactive(); } catch {} };
   }, []);
 
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get("ref");
-      if (ref) localStorage.setItem("kolehti_ref", ref);
-    } catch {}
-  }, [location.search]);
-
-  const hideNavbar =
-    location.pathname === "/" ||
-    location.pathname === "/login" ||
-    location.pathname === "/reset";
+  const authPage = location.pathname === "/login" || location.pathname === "/reset";
+  const isHome = location.pathname === "/";
+  const isFeed = location.pathname === "/feed";
+  const showCityBackground = !isHome && !isFeed;
 
   return (
-    <>
+    <div className={showCityBackground ? "kolehti-city-bg-active min-h-[100dvh] bg-transparent" : undefined}>
+      {showCityBackground && (
+        <>
+          <style>{`
+            .kolehti-city-bg-active [class*="bg-[#050816]"],
+            .kolehti-city-bg-active [class*="bg-\\[\\#050816\\]"],
+            .kolehti-city-bg-active [class*="bg-[radial-gradient"],
+            .kolehti-city-bg-active [class*="bg-\\[radial-gradient"] {
+              background: transparent !important;
+              background-color: transparent !important;
+              background-image: none !important;
+            }
+          `}</style>
+          <AdaptiveBackground strength="balanced" />
+        </>
+      )}
       <BrandFX />
-      {!hideNavbar && <Navbar />}
+      {!authPage && !isFeed && <Navbar />}
 
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/reset" element={<ResetPasswordPage />} />
+      <div className="relative z-10">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/reset" element={<ResetPasswordPage />} />
+          <Route path="/feed" element={<AuthGate><FeedPage /></AuthGate>} />
+          <Route path="/vote" element={<Navigate to="/feed" replace />} />
+          <Route path="/new" element={<AuthGate><NewPostPage /></AuthGate>} />
+          <Route path="/groups" element={<AuthGate><GroupPage /></AuthGate>} />
+          <Route path="/profile" element={<AuthGate><ProfilePage /></AuthGate>} />
+          <Route path="/growth" element={<AuthGate><GrowthPage /></AuthGate>} />
+          <Route path="/leaderboard" element={<AuthGate><LeaderboardPage /></AuthGate>} />
+          <Route path="/pots" element={<AuthGate><PotsPage /></AuthGate>} />
+          <Route path="/war" element={<AuthGate><LeaderboardWarPage /></AuthGate>} />
+          <Route path="*" element={<HomePage />} />
+        </Routes>
+      </div>
 
-        <Route path="/feed" element={<AuthGate><FeedPage /></AuthGate>} />
-        <Route path="/vote" element={<AuthGate><VotePage /></AuthGate>} />
-        <Route path="/new" element={<AuthGate><NewPostPage /></AuthGate>} />
-        <Route path="/groups" element={<AuthGate><GroupPage /></AuthGate>} />
-        <Route path="/profile" element={<AuthGate><ProfilePage /></AuthGate>} />
-        <Route path="/growth" element={<AuthGate><GrowthPage /></AuthGate>} />
-        <Route path="/leaderboard" element={<AuthGate><LeaderboardPage /></AuthGate>} />
-        <Route path="/pots" element={<AuthGate><PotsPage /></AuthGate>} />
-        <Route path="/war" element={<AuthGate><LeaderboardWarPage /></AuthGate>} />
-
-        <Route path="*" element={<HomePage />} />
-      </Routes>
-    </>
+      {!authPage && !isFeed && <AppBottomNav floating gesture />}
+    </div>
   );
 }
 
