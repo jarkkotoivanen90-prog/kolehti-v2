@@ -15,7 +15,7 @@ import { fetchBackendScores, applyBackendScores } from "../lib/backendScoring";
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Ikaalinen_-_lake_and_forest.jpg?width=1200";
 
 const outerCard = "relative overflow-hidden rounded-[34px] border border-cyan-200/20 bg-[#041226]/78 p-5 text-white shadow-2xl shadow-cyan-500/10";
-const innerCard = "relative overflow-hidden rounded-[24px] border border-cyan-300/25 bg-gradient-to-br from-[#0ea5ff]/20 via-[#075cff]/15 to-[#061126]/60 p-4 shadow-[0_0_25px_rgba(14,165,255,.25),inset_0_1px_0_rgba(255,255,255,.08)] backdrop-blur-[10px]";
+const innerCard = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-gradient-to-br from-[#0ea5ff]/30 via-[#0ea5ff]/20 to-[#020617]/60 p-4 shadow-[0_0_35px_rgba(14,165,255,.35),inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-[10px]";
 
 function buildVoteMap(votes = []) {
   const map = {};
@@ -86,7 +86,7 @@ function SoftGlow() {
 function PotStat({ label, children }) {
   return (
     <div className={`${innerCard} text-center`}>
-      <div className="text-[10px] font-black uppercase text-cyan-50/62">{label}</div>
+      <div className="text-[10px] font-black uppercase text-cyan-50/70">{label}</div>
       {children}
     </div>
   );
