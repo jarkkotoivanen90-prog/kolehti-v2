@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import AppBottomNav from "../components/AppBottomNav";
 import { mergeWithBots, botTicker, makeBotRepliesForPost } from "../lib/bots";
+import { trackConversionEvent, getConversionBadge, getSupportGapText } from "../lib/conversionAnalytics";
 
 export default function FeedPageClean() {
   const [posts, setPosts] = useState([]);
@@ -28,8 +29,8 @@ export default function FeedPageClean() {
       )}
 
       <main className="h-[100dvh] overflow-y-auto pb-[170px] pt-20">
-        {posts.map((p) => (
-          <FeedCard key={p.id} post={p} />
+        {posts.map((p, i) => (
+          <FeedCard key={p.id} post={p} rank={i + 1} />
         ))}
       </main>
 
@@ -38,38 +39,50 @@ export default function FeedPageClean() {
   );
 }
 
-function FeedCard({ post }) {
+function FeedCard({ post, rank }) {
   const replies = useMemo(() => makeBotRepliesForPost(post, post.bot ? 1 : 2), [post.id, post.score]);
+  const badge = getConversionBadge({ rank, supportScore: post.score });
+
+  useEffect(() => {
+    trackConversionEvent("post_view", { postId: post.id, rank });
+  }, []);
 
   return (
     <article className="premium-card mx-4 mb-4 p-5">
+      <div className="text-xs font-black text-cyan-100 mb-2">{badge}</div>
+
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl border ${post.bot ? "border-cyan-200/18 bg-cyan-300/10" : "border-white/10 bg-white/[.055]"} text-sm font-black text-white shadow-[0_0_18px_rgba(21,131,255,.10)]`}>
+          <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl border ${post.bot ? "border-cyan-200/18 bg-cyan-300/10" : "border-white/10 bg-white/[.055]"}`}>
             {post.bot ? post.bot_avatar || "🤖" : "P"}
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-black text-white">
-              {post.bot ? post.bot_name : "Pelaaja"}
-            </div>
-            <div className="mt-0.5 text-[10px] font-black uppercase tracking-wide text-cyan-100/62">
-              {post.bot ? `🤖 ${post.bot_disclosure || "Pelibotti"}` : "Pelaaja"}
-            </div>
+            <div className="truncate text-sm font-black">{post.bot ? post.bot_name : "Pelaaja"}</div>
           </div>
         </div>
-        <div className="rounded-full border border-cyan-100/12 bg-cyan-300/10 px-3 py-1 text-xs font-black text-cyan-100">
-          {Math.round(post.score || 0)} XP
-        </div>
+        <div className="text-xs font-black text-cyan-100">#{rank}</div>
       </div>
 
-      <p className="mt-4 text-[15px] font-bold leading-relaxed text-white/84">{post.content}</p>
+      <p className="mt-4 text-[15px] font-bold">{post.content}</p>
 
-      <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-black text-white/50">
-        <span>♥ {post.votes || 0}</span>
-        <span>👀 {post.watch_time_total || 0}</span>
-        <span>↗ {post.shares || 0}</span>
-        {post.near_win && <span className="text-cyan-100">near win</span>}
-        {post.bot_rival && <span className="text-cyan-100">rival</span>}
+      <div className="mt-3 text-xs text-cyan-100">
+        {getSupportGapText(post.support_gap)}
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          className="flex-1 bg-cyan-500 text-black font-bold py-2 rounded-xl"
+          onClick={() => trackConversionEvent("support_click", { postId: post.id })}
+        >
+          ❤️ Tue 1€
+        </button>
+
+        <button
+          className="flex-1 bg-white/10 font-bold py-2 rounded-xl"
+          onClick={() => trackConversionEvent("boost_click", { postId: post.id })}
+        >
+          🔥 Boost
+        </button>
       </div>
 
       <BotReplyThread replies={replies} />
@@ -82,24 +95,11 @@ function BotReplyThread({ replies }) {
 
   return (
     <div className="mt-5 space-y-3 border-t border-white/8 pt-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-cyan-100/58">Bot replies</p>
-        <span className="rounded-full border border-cyan-100/10 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-black text-cyan-100">{replies.length}</span>
-      </div>
       {replies.map((reply) => (
         <div key={reply.id} className="flex items-start gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-cyan-200/16 bg-cyan-300/10 text-xs font-black text-cyan-100 shadow-[0_0_16px_rgba(21,131,255,.12)]">
-            {reply.bot_avatar || "🤖"}
-          </div>
-          <div className="min-w-0 flex-1 rounded-[22px] border border-cyan-100/10 bg-[#030816]/62 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]">
-            <div className="flex items-center justify-between gap-2">
-              <p className="truncate text-xs font-black text-white">🤖 {reply.bot_name}</p>
-              <p className="shrink-0 text-[9px] font-black uppercase tracking-wide text-cyan-100/55">{reply.disclosure}</p>
-            </div>
-            <p className="mt-1.5 text-sm font-bold leading-snug text-white/78">{reply.text}</p>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/45">
-              <div className="h-full rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600" style={{ width: `${Math.max(10, Math.min(100, reply.pressure || 45))}%` }} />
-            </div>
+          <div className="grid h-9 w-9 place-items-center rounded-2xl bg-cyan-300/10">🤖</div>
+          <div className="flex-1 bg-[#030816]/62 px-4 py-3 rounded-xl">
+            <p className="text-sm">{reply.text}</p>
           </div>
         </div>
       ))}
