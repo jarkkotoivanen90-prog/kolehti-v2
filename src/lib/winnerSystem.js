@@ -1,3 +1,5 @@
+import { applyShadowban } from "./trustSystem";
+
 export function getWeekId(date = new Date()) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const day = d.getUTCDay() || 7;
@@ -144,6 +146,7 @@ export function calculateSupportScore(post = {}, roundKey = "weekly", options = 
   const trustMultiplier = calculateTrustMultiplier(post);
   const fairnessMultiplier = calculateFairnessMultiplier(post);
   const visibilityMultiplier = calculateVisibilityMultiplier(post, roundKey);
+  const shadowMultiplier = options.shadowbanEnabled === false ? 1 : applyShadowban(post);
   const accessMultiplier = eligible ? 1 : 0;
 
   return Math.round(
@@ -153,6 +156,7 @@ export function calculateSupportScore(post = {}, roundKey = "weekly", options = 
     trustMultiplier *
     fairnessMultiplier *
     visibilityMultiplier *
+    shadowMultiplier *
     accessMultiplier
   );
 }
@@ -168,18 +172,19 @@ export function explainSupportScore(post = {}, roundKey = "weekly", options = {}
     trust_multiplier: Number(calculateTrustMultiplier(post).toFixed(3)),
     fairness_multiplier: Number(calculateFairnessMultiplier(post).toFixed(3)),
     visibility_multiplier: Number(calculateVisibilityMultiplier(post, roundKey).toFixed(3)),
+    shadow_multiplier: Number((options.shadowbanEnabled === false ? 1 : applyShadowban(post)).toFixed(3)),
     final_support_score: calculateSupportScore(post, roundKey, options),
   };
 }
 
 export const explainWinnerScore = explainSupportScore;
 
-export function buildFundingRound(posts = [], { potKey = "weekly", roundKey = potKey, amount = 0, weekId = getWeekId(), eligibilityRequired = true, accessRequired = eligibilityRequired } = {}) {
+export function buildFundingRound(posts = [], { potKey = "weekly", roundKey = potKey, amount = 0, weekId = getWeekId(), eligibilityRequired = true, accessRequired = eligibilityRequired, shadowbanEnabled = true } = {}) {
   const scored = (posts || [])
     .filter((post) => post?.id && post?.content)
     .map((post) => {
-      const breakdown = explainSupportScore(post, roundKey, { accessRequired });
-      const supportScore = calculateSupportScore(post, roundKey, { accessRequired });
+      const breakdown = explainSupportScore(post, roundKey, { accessRequired, shadowbanEnabled });
+      const supportScore = calculateSupportScore(post, roundKey, { accessRequired, shadowbanEnabled });
       return {
         ...post,
         support_breakdown: breakdown,
