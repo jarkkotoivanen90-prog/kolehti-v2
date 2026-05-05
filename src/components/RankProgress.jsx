@@ -16,15 +16,17 @@ export default function RankProgress() {
       clearTimeout(hideTimer.current);
       hideTimer.current = setTimeout(() => {
         setVisible(false);
-      }, 3500);
+      }, 3200);
     });
   }, []);
 
   if (!visible) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 z-[998] -translate-x-1/2 text-white text-xs bg-black/60 px-3 py-1 rounded-full backdrop-blur">
-      {xp} XP
+    <div className="fixed top-4 left-1/2 z-[998] -translate-x-1/2">
+      <div className="rounded-full border border-white/10 bg-black/60 px-3 py-1 text-[11px] font-semibold text-white/90 shadow-md backdrop-blur-md">
+        {xp} XP
+      </div>
     </div>
   );
 }
