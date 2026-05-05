@@ -7,33 +7,33 @@ export default function XPOverlay() {
   const [combo, setCombo] = useState(1);
   const [visible, setVisible] = useState(false);
 
-  const lastEventTime = useRef(0);
-  const hideTimer = useRef(null);
+  const lastEventRef = useRef(0);
+  const hideTimerRef = useRef(null);
 
   useEffect(() => {
-    return onXPEvent((e) => {
-      if (!e?.amount) return;
+    return onXPEvent((event) => {
+      if (!event?.amount) return;
 
       const now = Date.now();
+      const amount = Number(event.amount || 0);
 
-      if (now - lastEventTime.current < 900) {
-        setCombo((c) => c + 1);
-        setXp((x) => x + e.amount);
+      if (now - lastEventRef.current < 850) {
+        setCombo((current) => current + 1);
+        setXp((current) => current + amount);
       } else {
         setCombo(1);
-        setXp(e.amount);
+        setXp(amount);
       }
 
-      lastEventTime.current = now;
-
+      lastEventRef.current = now;
       setVisible(true);
 
-      clearTimeout(hideTimer.current);
-      hideTimer.current = setTimeout(() => {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => {
         setVisible(false);
         setXp(0);
         setCombo(1);
-      }, 1400);
+      }, 1300);
     });
   }, []);
 
@@ -41,19 +41,24 @@ export default function XPOverlay() {
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ scale: 0.6, opacity: 0, y: 40 }}
-          animate={{ scale: 1.15, opacity: 1, y: 0 }}
-          exit={{ scale: 0.8, opacity: 0, y: -20 }}
-          transition={{ type: "spring", stiffness: 260, damping: 18 }}
-          className="fixed bottom-32 left-1/2 z-[999] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[rgba(14,165,255,0.25)] px-6 py-3 text-lg font-black text-white shadow-2xl backdrop-blur-md"
+          initial={{ scale: 0.62, opacity: 0, y: 44 }}
+          animate={{ scale: 1.12, opacity: 1, y: 0 }}
+          exit={{ scale: 0.82, opacity: 0, y: -18 }}
+          transition={{ type: "spring", stiffness: 320, damping: 18 }}
+          className="fixed bottom-32 left-1/2 z-[999] -translate-x-1/2"
         >
-          <span>+{xp} XP</span>
-
-          {combo > 1 && (
-            <span className="ml-3 text-yellow-300 animate-pulse">
-              🔥 x{combo}
-            </span>
-          )}
+          <motion.div
+            animate={{ scale: [1, 1.08, 1] }}
+            transition={{ duration: 0.28 }}
+            className="rounded-full border border-cyan-200/30 bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 px-7 py-4 text-xl font-black text-white shadow-[0_0_34px_rgba(14,165,255,.55)] backdrop-blur-md"
+          >
+            +{xp} XP
+            {combo > 1 && (
+              <span className="ml-3 text-yellow-300 drop-shadow">
+                🔥 x{combo}
+              </span>
+            )}
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
