@@ -7,16 +7,11 @@ export default function RivalPassedOverlay() {
 
   useEffect(() => {
     const unsub = onXPEvent((e) => {
-      // 🔥 tarkista oikeasti rank change
       if (!e?.beforeRank || !e?.afterRank) return;
 
-      // 🔥 vain jos nousit paremmaksi (pienempi rank = parempi)
       if (e.afterRank < e.beforeRank && e.passedUser) {
         setEvent(e);
-
-        setTimeout(() => {
-          setEvent(null);
-        }, 2500);
+        setTimeout(() => setEvent(null), 2200);
       }
     });
 
@@ -27,15 +22,15 @@ export default function RivalPassedOverlay() {
     <AnimatePresence>
       {event && (
         <motion.div
-          initial={{ scale: 0.7, opacity: 0 }}
-          animate={{ scale: 1.1, opacity: 1 }}
-          exit={{ scale: 0.8, opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[1000] flex items-center justify-center text-white"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1.05, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="fixed inset-0 z-[1000] grid place-items-center text-white"
         >
-          <div className="bg-black/70 px-6 py-5 rounded-2xl text-center shadow-2xl backdrop-blur-md">
-            <div className="text-4xl mb-2">🔥</div>
-            <div className="font-black text-lg">
+          <div className="rounded-2xl border border-white/10 bg-black/70 px-5 py-4 text-center shadow-xl backdrop-blur-lg">
+            <div className="text-3xl">🔥</div>
+            <div className="mt-1 text-sm font-semibold">
               Ohitit {event.passedUser}
             </div>
           </div>
