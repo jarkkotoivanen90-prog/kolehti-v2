@@ -54,38 +54,6 @@ export default function FeedCard({
         </div>
       )}
 
-      {/* 🔝 TOP BAR */}
-      <div className="absolute top-4 left-4 right-4 z-30 flex items-center justify-between">
-
-        <div className="flex gap-2 text-xs">
-
-          <div className="px-3 py-1 rounded-full bg-black/30 backdrop-blur text-white">
-            💰 {post?.amount || 0}€
-          </div>
-
-          <div className="px-3 py-1 rounded-full bg-black/30 backdrop-blur text-white">
-            👥 {post?.users || 0}/{post?.goal || 0}
-          </div>
-
-          <div className="px-3 py-1 rounded-full bg-black/30 backdrop-blur text-white">
-            🗳 Äänestä
-          </div>
-
-          {post?.rank && (
-            <div className="px-3 py-1 rounded-full bg-black/30 backdrop-blur text-white">
-              🏆 #{post.rank}
-            </div>
-          )}
-
-        </div>
-
-        {/* ☰ MENU */}
-        <div className="w-11 h-11 rounded-full bg-[rgba(14,165,255,0.4)] backdrop-blur flex items-center justify-center text-white">
-          ☰
-        </div>
-
-      </div>
-
       {/* 📄 CONTENT */}
       <div className="absolute inset-0 z-20 flex flex-col justify-end px-5 pb-32">
 
@@ -103,10 +71,12 @@ export default function FeedCard({
         {/* 🧠 TEXT */}
         <div className="max-h-[50vh] overflow-y-auto pr-1">
 
+          {/* HOOK */}
           <p className="text-[clamp(2.2rem,7vw,3.2rem)] font-black leading-tight text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
             {firstLine}.
           </p>
 
+          {/* BODY */}
           {rest.length > 0 && (
             <p className="mt-2 text-[clamp(1.3rem,4.5vw,1.9rem)] text-white/90 leading-snug">
               {rest.join(". ")}
@@ -125,8 +95,8 @@ export default function FeedCard({
 
       </div>
 
-      {/* 🎯 ACTIONS */}
-      <div className="absolute right-4 bottom-20 flex flex-col gap-3 z-30">
+      {/* 🎯 ACTIONS (siirretty alemmas) */}
+      <div className="absolute right-4 bottom-[12vh] flex flex-col gap-3 z-30">
 
         <button
           onClick={onLike}
