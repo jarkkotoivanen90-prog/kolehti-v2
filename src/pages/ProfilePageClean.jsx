@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { haptic } from "../lib/effects";
 import { xpEvent } from "../lib/xp";
 import { onXPEvent } from "../lib/xpEvents";
+import { useSmoothNumber } from "../lib/useSmoothNumber";
 import AdaptiveBackground, { CITY_BACKGROUND_OPTIONS } from "../components/AdaptiveBackground";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1200";
@@ -13,7 +14,9 @@ const miniPanel = "relative overflow-hidden rounded-[34px] border border-cyan-20
 const innerPanel = "relative overflow-hidden rounded-[24px] border border-cyan-200/30 bg-gradient-to-br from-[#0ea5ff]/30 via-[#0ea5ff]/20 to-[#020617]/60 shadow-[0_0_35px_rgba(14,165,255,.35),inset_0_1px_0_rgba(255,255,255,.10)] backdrop-blur-[10px]";
 
 function GlassGlow() {
-  return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.14),transparent_45%)]" />;
+  return (
+    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,211,238,.14),transparent_45%)]" />
+  );
 }
 
 export default function ProfilePageClean() {
@@ -22,6 +25,8 @@ export default function ProfilePageClean() {
   const [xp, setXp] = useState(0);
   const [cityPref, setCityPref] = useState("");
   const navigate = useNavigate();
+
+  const smoothXP = useSmoothNumber(xp, 750);
 
   useEffect(() => {
     load();
@@ -74,6 +79,11 @@ export default function ProfilePageClean() {
     } catch {}
   }
 
+  async function gainXP(type, amount) {
+    haptic("light");
+    await xpEvent(type, null, amount);
+  }
+
   const level = Math.max(1, Math.floor(xp / 100));
   const progress = xp % 100;
   const visiblePosts = useMemo(() => posts.slice(0, 6), [posts]);
@@ -87,9 +97,11 @@ export default function ProfilePageClean() {
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">
             Oma taso
           </p>
+
           <h1 className="mt-2 text-[48px] font-black leading-none tracking-tight text-glass">
             Profiili
           </h1>
+
           <p className="mt-2 truncate text-sm font-bold text-white/62">
             {user?.email}
           </p>
@@ -104,8 +116,8 @@ export default function ProfilePageClean() {
                 Oma XP-taso
               </p>
 
-              <div className="mt-2 text-[58px] font-black leading-none text-white text-glass">
-                {xp}
+              <div className="mt-2 text-[58px] font-black leading-none text-white text-glass transition-transform duration-300">
+                {smoothXP}
               </div>
 
               <p className="mt-1 text-sm font-black text-white/66">
@@ -120,33 +132,35 @@ export default function ProfilePageClean() {
 
           <div className="mt-4 flex flex-wrap gap-2">
             <button
-              onClick={() => xpEvent("like", null, 10)}
-              className="rounded-xl bg-cyan-500 px-4 py-3 text-xs font-black text-white active:scale-95"
+              onClick={() => gainXP("like", 10)}
+              className="rounded-xl bg-cyan-500 px-4 py-3 text-xs font-black text-white shadow-[0_0_20px_rgba(34,211,238,.35)] active:scale-95"
             >
               +10 XP
             </button>
 
             <button
-              onClick={() => xpEvent("comment", null, 20)}
-              className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-white active:scale-95"
+              onClick={() => gainXP("comment", 20)}
+              className="rounded-xl bg-blue-500 px-4 py-3 text-xs font-black text-white shadow-[0_0_20px_rgba(59,130,246,.35)] active:scale-95"
             >
               +20 XP
             </button>
 
             <button
-              onClick={() => xpEvent("share", null, 40)}
-              className="rounded-xl bg-purple-500 px-4 py-3 text-xs font-black text-white active:scale-95"
+              onClick={() => gainXP("share", 40)}
+              className="rounded-xl bg-purple-500 px-4 py-3 text-xs font-black text-white shadow-[0_0_20px_rgba(168,85,247,.35)] active:scale-95"
             >
               +40 XP
             </button>
 
             <button
               onClick={() => {
+                haptic("success");
                 xpEvent("combo", null, 15);
-                setTimeout(() => xpEvent("combo", null, 15), 200);
-                setTimeout(() => xpEvent("combo", null, 15), 400);
+                setTimeout(() => xpEvent("combo", null, 15), 180);
+                setTimeout(() => xpEvent("combo", null, 15), 360);
+                setTimeout(() => xpEvent("combo", null, 15), 540);
               }}
-              className="rounded-xl bg-yellow-400 px-4 py-3 text-xs font-black text-black active:scale-95"
+              className="rounded-xl bg-yellow-400 px-4 py-3 text-xs font-black text-black shadow-[0_0_24px_rgba(250,204,21,.45)] active:scale-95"
             >
               COMBO 🔥
             </button>
@@ -155,9 +169,13 @@ export default function ProfilePageClean() {
           <div className="relative mt-5 overflow-hidden rounded-full bg-black/45 p-1">
             <div
               className="h-5 rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500"
-              style={{ width: `${progress}%` }}
+              style={{
+                width: `${progress}%`,
+                boxShadow: "0 0 22px rgba(56,189,248,.75)",
+              }}
             />
-            <div className="absolute inset-0 grid place-items-center text-[10px] font-black uppercase tracking-wide text-white/80">
+
+            <div className="absolute inset-0 grid place-items-center text-[10px] font-black uppercase tracking-wide text-white/90">
               seuraava level
             </div>
           </div>
@@ -165,6 +183,7 @@ export default function ProfilePageClean() {
 
         <section className={`${panel} mt-4`}>
           <GlassGlow />
+
           <div className="relative">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">
               Tausta
@@ -199,6 +218,7 @@ export default function ProfilePageClean() {
 
         <section className={`${panel} mt-4`}>
           <GlassGlow />
+
           <div className="relative">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">
               Asetukset
@@ -250,6 +270,7 @@ export default function ProfilePageClean() {
               ) : (
                 <div className={`${innerPanel} p-5 text-center`}>
                   <div className="text-4xl">✨</div>
+
                   <p className="mt-2 font-black text-white/75">
                     Ei vielä postauksia
                   </p>
@@ -267,11 +288,14 @@ function StatCard({ label, value, icon }) {
   return (
     <div className={miniPanel}>
       <GlassGlow />
+
       <div className="relative">
         <div className="text-3xl">{icon}</div>
+
         <div className="mt-3 text-[10px] font-black uppercase tracking-wide text-cyan-50/70">
           {label}
         </div>
+
         <div className="mt-1 truncate text-2xl font-black text-white text-glass">
           {value}
         </div>
