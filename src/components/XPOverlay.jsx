@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { onXPEvent } from "../lib/xpEvents";
+import { playXP } from "../lib/sounds";
 
 export default function XPOverlay() {
   const [msg, setMsg] = useState(null);
@@ -8,6 +9,7 @@ export default function XPOverlay() {
   useEffect(() => {
     return onXPEvent((event) => {
       setMsg(`+${event.amount} XP`);
+      playXP();
       setTimeout(() => setMsg(null), 1100);
     });
   }, []);
