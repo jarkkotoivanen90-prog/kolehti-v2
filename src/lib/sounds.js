@@ -1,10 +1,10 @@
 let enabled = true;
 
-export function toggleSound(on) {
-  enabled = Boolean(on);
+export function toggleSound(value) {
+  enabled = value;
 }
 
-function play(src, volume = 0.5) {
+function play(src, volume = 0.6) {
   if (!enabled) return;
 
   try {
@@ -14,14 +14,20 @@ function play(src, volume = 0.5) {
   } catch {}
 }
 
-export function playXP() {
-  play("/sounds/xp.mp3", 0.35);
+// 🎯 PUBLIC API
+
+export function soundLike() {
+  play("/sounds/like.mp3", 0.5);
 }
 
-export function playRankUp() {
-  play("/sounds/rankup.mp3", 0.6);
+export function soundShare() {
+  play("/sounds/share.mp3", 0.6);
 }
 
-export function playTarget() {
-  play("/sounds/target.mp3", 0.45);
+export function soundXP() {
+  play("/sounds/xp.mp3", 0.7);
+}
+
+export function soundRankUp() {
+  play("/sounds/rankup.mp3", 0.8);
 }
