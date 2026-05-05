@@ -1,24 +1,19 @@
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { onXPEvent } from "../lib/xpEvents";
-import { motion, AnimatePresence } from "framer-motion";
 
 export default function RankUpOverlay() {
   const [event, setEvent] = useState(null);
 
   useEffect(() => {
     return onXPEvent((e) => {
-      // näytetään vain jos rank parani
-      if (
-        e.beforeRank &&
-        e.afterRank &&
-        e.afterRank < e.beforeRank
-      ) {
-        setEvent(e);
+      if (!e?.didRankUp) return;
 
-        setTimeout(() => {
-          setEvent(null);
-        }, 3000);
-      }
+      setEvent(e);
+
+      setTimeout(() => {
+        setEvent(null);
+      }, 2600);
     });
   }, []);
 
@@ -26,13 +21,25 @@ export default function RankUpOverlay() {
     <AnimatePresence>
       {event && (
         <motion.div
-          initial={{ y: -60, opacity: 0, scale: 0.9 }}
+          initial={{ y: -50, opacity: 0, scale: 0.92 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -60, opacity: 0 }}
+          exit={{ y: -50, opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed top-20 left-1/2 z-[999] -translate-x-1/2 rounded-xl border border-yellow-300/40 bg-[rgba(255,215,0,0.2)] px-6 py-4 text-sm font-black text-white shadow-xl backdrop-blur-md"
+          className="fixed top-20 left-1/2 z-[999] -translate-x-1/2 rounded-2xl border border-yellow-300/40 bg-[rgba(255,215,0,0.22)] px-6 py-4 text-center text-white shadow-2xl backdrop-blur-md"
         >
-          🏆 Rank nousi #{event.afterRank}
+          <div className="text-2xl">🏆</div>
+          <div className="mt-1 text-sm font-black uppercase tracking-[0.14em]">
+            Rank nousi
+          </div>
+          <div className="mt-1 text-xl font-black">
+            #{event.beforeRank} → #{event.afterRank}
+          </div>
+
+          {event.passedUser && (
+            <div className="mt-1 text-xs font-bold text-white/75">
+              Ohitit käyttäjän {event.passedUser}
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
