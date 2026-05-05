@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getMyTarget } from "../../lib/rankTargets.js";
-import { playTarget } from "../../lib/soundEngine.js";
+
+// ✅ OIKEAT POLUT
+import { getMyTarget } from "../lib/rankTargets.js";
+import { playTarget } from "../lib/soundEngine.js";
 
 export default function FeedTargetHint() {
   const [target, setTarget] = useState(null);
@@ -17,32 +19,41 @@ export default function FeedTargetHint() {
 
     return () => {
       clearInterval(interval);
-      clearTimeout(hideTimerRef.current);
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
     };
   }, []);
 
   function load() {
-    const next = getMyTarget();
+    try {
+      const next = getMyTarget();
 
-    if (!next) return;
+      if (!next) return;
 
-    // 🔥 ääni vain kun oikeasti edistyt
-    if (
-      lastDiffRef.current !== null &&
-      next.diff < lastDiffRef.current
-    ) {
-      playTarget();
+      // 🔊 Soita ääni vain kun oikeasti edistyt
+      if (
+        lastDiffRef.current !== null &&
+        next.diff < lastDiffRef.current
+      ) {
+        playTarget();
+      }
+
+      lastDiffRef.current = next.diff;
+
+      setTarget(next);
+      setVisible(true);
+
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+
+      hideTimerRef.current = setTimeout(() => {
+        setVisible(false);
+      }, 2500);
+    } catch (e) {
+      console.error("FeedTargetHint error:", e);
     }
-
-    lastDiffRef.current = next.diff;
-
-    setTarget(next);
-    setVisible(true);
-
-    clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => {
-      setVisible(false);
-    }, 2500);
   }
 
   return (
