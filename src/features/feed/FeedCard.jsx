@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef } from "react";
 import FeedMedia from "./FeedMedia";
 import {
@@ -7,14 +7,15 @@ import {
   getAuthor,
   getAvatar,
 } from "./utils/feedFormatters";
+import { whyForYou } from "./utils/feedGod"; // jos käytössä
 
+// 📏 TEXT SIZE (parempi skaalaus)
 function getTextSize(content = "") {
   const length = String(content || "").length;
-
-  if (length > 400) return "text-[clamp(1rem,4vw,1.6rem)]";
-  if (length > 250) return "text-[clamp(1.2rem,4.5vw,2rem)]";
-  if (length > 140) return "text-[clamp(1.4rem,5vw,2.4rem)]";
-  return "text-[clamp(1.6rem,6vw,3rem)]";
+  if (length > 400) return "text-[clamp(1.1rem,4.2vw,1.8rem)]";
+  if (length > 250) return "text-[clamp(1.3rem,5vw,2.2rem)]";
+  if (length > 140) return "text-[clamp(1.6rem,6vw,2.8rem)]";
+  return "text-[clamp(1.9rem,7vw,3.4rem)]";
 }
 
 export default function FeedCard({
@@ -27,66 +28,82 @@ export default function FeedCard({
 }) {
   const author = getAuthor(post);
   const avatar = getAvatar(post);
+  const likes = getVotes(post) + (liked ? 1 : 0);
   const ai = getScore(post);
+
   const textClass = getTextSize(post?.content);
-  const isBoosted = Number(post?.boost_score || 0) > 0;
 
-  const [burst, setBurst] = useState(false);
-  const lastTapRef = useRef(0);
+  // ❤️ DOUBLE TAP
+  const lastTap = useRef(0);
+  const [heart, setHeart] = useState(false);
 
-  function handleTap(e) {
-    if (e.target.closest("button")) return;
-
+  function handleTap() {
     const now = Date.now();
-    if (now - lastTapRef.current < 280) {
-      setBurst(true);
+    if (now - lastTap.current < 300) {
       onLike?.();
-      setTimeout(() => setBurst(false), 500);
+      setHeart(true);
+      setTimeout(() => setHeart(false), 700);
     }
-    lastTapRef.current = now;
+    lastTap.current = now;
   }
 
   return (
-    <motion.section className="relative h-[100dvh] snap-start overflow-hidden bg-black">
-
+    <motion.section
+      onClick={handleTap}
+      initial={{ scale: 0.96 }}
+      animate={{ scale: active ? 1 : 0.96 }}
+      transition={{ duration: 0.25 }}
+      className="relative h-[100dvh] snap-start overflow-hidden bg-black"
+    >
       {/* 🎥 MEDIA */}
-      <div onClick={handleTap} className="absolute inset-0">
-        <FeedMedia post={post} active={active} />
-      </div>
+      <FeedMedia post={post} active={active} />
 
-      {/* 🌑 PEHMEÄ GRADIENT (EI MUSTAA LAATIKKOA) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+      {/* 🌑 GLOBAL GRADIENT (EI BOXIA) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
 
-      {/* ❤️ DOUBLE TAP */}
-      {burst && (
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
-          initial={{ scale: 0.3, opacity: 0 }}
-          animate={{ scale: 1.4, opacity: 1 }}
-          transition={{ duration: 0.4 }}
-        >
-          <div className="text-6xl">❤️</div>
-        </motion.div>
-      )}
+      {/* ❤️ DOUBLE TAP HEART */}
+      <AnimatePresence>
+        {heart && (
+          <motion.div
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1.4, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none"
+          >
+            <div className="text-white text-6xl drop-shadow-[0_0_30px_rgba(255,255,255,0.8)]">
+              ♥
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 📄 CONTENT */}
-      <div className="absolute bottom-44 left-5 right-20 z-20">
+      <div className="absolute inset-0 z-10 flex flex-col justify-end px-5 pb-36">
 
-        {isBoosted && (
-          <div className="mb-1 text-[11px] font-black text-cyan-300">
-            🔥 Boostattu
-          </div>
-        )}
+        {/* 🔥 TOP META */}
+        <div className="mb-2 text-xs font-black text-cyan-200 flex items-center gap-3">
 
-        <div className="mb-2 text-[11px] font-black text-cyan-200">
-          {ai}%
+          {post?.boost_score > 0 && (
+            <span className="text-orange-400">🔥 Boostattu</span>
+          )}
+
+          <span>{ai}%</span>
+
+          {whyForYou && (
+            <span className="opacity-70 text-[10px]">
+              {whyForYou(post)}
+            </span>
+          )}
         </div>
 
-        {/* ✅ SCROLLABLE TEXT */}
+        {/* 🧾 TEXT (SCROLLABLE, EI BOXIA) */}
         <div className="max-h-[48vh] overflow-y-auto pr-2">
 
           <p
-            className={`${textClass} font-black text-white leading-[1.2] drop-shadow-[0_6px_30px_rgba(0,0,0,0.9)]`}
+            className={`${textClass} font-black text-white leading-[1.2]
+            drop-shadow-[0_10px_40px_rgba(0,0,0,0.95)]
+            [text-shadow:0_10px_40px_rgba(0,0,0,0.95)]
+            `}
           >
             {post?.content}
           </p>
@@ -94,52 +111,52 @@ export default function FeedCard({
         </div>
 
         {/* 👤 USER */}
-        <div className="mt-4 flex items-center gap-3 text-white/80">
-          <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+        <div className="mt-4 flex items-center gap-3 text-white/90">
+          <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
             {avatar}
           </div>
-          <span className="font-semibold">{author}</span>
+          <span className="font-bold">{author}</span>
         </div>
 
       </div>
 
-      {/* 🎯 PIENEMMÄT NAPIT */}
-      <div className="absolute right-4 bottom-24 flex flex-col gap-3 z-30">
+      {/* 🎯 FLOATING BUTTONS (PIENEMMÄT) */}
+      <div className="absolute right-3 bottom-20 flex flex-col gap-3 z-20">
 
         <button
           onClick={onLike}
-          className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-white text-lg active:scale-90"
+          className="w-12 h-12 rounded-full
+          bg-gradient-to-br from-cyan-400 to-blue-600
+          shadow-lg shadow-cyan-500/30
+          text-white text-lg"
         >
           ♥
         </button>
 
         <button
           onClick={onShare}
-          className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-white text-lg active:scale-90"
+          className="w-12 h-12 rounded-full
+          bg-gradient-to-br from-cyan-400 to-blue-600
+          shadow-lg shadow-cyan-500/30
+          text-white text-lg"
         >
           ↗
         </button>
 
         <button
           onClick={onMoney}
-          className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-white text-lg active:scale-90"
+          className="w-12 h-12 rounded-full
+          bg-gradient-to-br from-cyan-400 to-blue-600
+          shadow-lg shadow-cyan-500/30
+          text-white text-lg"
         >
           €
         </button>
 
       </div>
 
-      {/* 🎥 PROGRESS */}
-      {active && (
-        <div className="absolute top-0 left-0 h-[2px] w-full bg-white/20">
-          <motion.div
-            className="h-full bg-white"
-            initial={{ width: "0%" }}
-            animate={{ width: "100%" }}
-            transition={{ duration: 6, ease: "linear" }}
-          />
-        </div>
-      )}
+      {/* 🔽 BOTTOM FADE (parempi luettavuus ilman boxia) */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
 
     </motion.section>
   );
