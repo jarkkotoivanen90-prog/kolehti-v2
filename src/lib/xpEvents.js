@@ -1,14 +1,13 @@
-const listeners = new Set();
+let listeners = [];
 
-export function emitXPEvent(event) {
-  listeners.forEach((fn) => {
-    try {
-      fn(event);
-    } catch {}
-  });
+export function emitXP(value) {
+  listeners.forEach((fn) => fn(value));
 }
 
 export function onXPEvent(fn) {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
+  listeners.push(fn);
+
+  return () => {
+    listeners = listeners.filter((l) => l !== fn);
+  };
 }
