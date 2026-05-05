@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getMyTarget } from "../../lib/rankTargets";
-import { playTarget } from "../../lib/soundEngine";
+import { getMyTarget } from "../../lib/rankTargets.js";
+import { playTarget } from "../../lib/soundEngine.js";
 
 export default function FeedTargetHint() {
   const [target, setTarget] = useState(null);
@@ -14,67 +14,48 @@ export default function FeedTargetHint() {
     load();
 
     const interval = setInterval(load, 6000);
+
     return () => {
       clearInterval(interval);
       clearTimeout(hideTimerRef.current);
     };
   }, []);
 
-  async function load() {
-    try {
-      const next = await getMyTarget();
+  function load() {
+    const next = getMyTarget();
 
-      if (!next) return;
+    if (!next) return;
 
-      // 🔊 soita ääni vain kun oikeasti edistyt
-      if (
-        lastDiffRef.current !== null &&
-        next.diff < lastDiffRef.current
-      ) {
-        playTarget();
-      }
-
-      lastDiffRef.current = next.diff;
-      setTarget(next);
-
-      // 👇 näytä hint hetkeksi
-      setVisible(true);
-
-      clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = setTimeout(() => {
-        setVisible(false);
-      }, 3500);
-    } catch (e) {
-      console.warn("FeedTargetHint error:", e);
+    // 🔥 ääni vain kun oikeasti edistyt
+    if (
+      lastDiffRef.current !== null &&
+      next.diff < lastDiffRef.current
+    ) {
+      playTarget();
     }
-  }
 
-  if (!target) return null;
+    lastDiffRef.current = next.diff;
+
+    setTarget(next);
+    setVisible(true);
+
+    clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      setVisible(false);
+    }, 2500);
+  }
 
   return (
     <AnimatePresence>
-      {visible && (
+      {visible && target && (
         <motion.div
-          initial={{ y: -40, opacity: 0, scale: 0.95 }}
+          initial={{ y: 40, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -30, opacity: 0 }}
+          exit={{ y: -40, opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="pointer-events-none fixed left-1/2 top-20 z-[998] -translate-x-1/2"
+          className="fixed bottom-24 left-1/2 z-[999] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[rgba(14,165,255,0.22)] px-5 py-3 text-sm font-black text-white shadow-xl backdrop-blur-md"
         >
-          <div className="rounded-full border border-cyan-300/30 bg-[rgba(14,165,255,0.18)] px-4 py-2 text-center text-sm font-black text-white shadow-xl shadow-cyan-500/10 backdrop-blur-md">
-            
-            <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-100/70">
-              🎯 Seuraava ohitus
-            </div>
-
-            <div className="mt-1">
-              {target.targetName || "Pelaaja"} ·{" "}
-              <span className="text-cyan-200">
-                {target.diff ?? 0} XP
-              </span>
-            </div>
-
-          </div>
+          🎯 {target.targetName} · {target.diff} XP jäljellä
         </motion.div>
       )}
     </AnimatePresence>
