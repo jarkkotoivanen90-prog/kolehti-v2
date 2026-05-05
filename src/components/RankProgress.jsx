@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { onXPEvent } from "../lib/xpEvents";
 
 export default function RankProgress() {
-  const [xp, setXp] = useState(0);
+  const [displayXp, setDisplayXp] = useState(0);
+  const realXpRef = useRef(0);
+
   const [level, setLevel] = useState(1);
   const [visible, setVisible] = useState(false);
 
@@ -10,7 +12,7 @@ export default function RankProgress() {
     return onXPEvent((e) => {
       if (!e?.amount) return;
 
-      setXp((prev) => Math.max(0, prev + Number(e.amount || 0)));
+      realXpRef.current += e.amount;
 
       if (e.levelAfter) {
         setLevel(e.levelAfter);
@@ -20,18 +22,30 @@ export default function RankProgress() {
 
       setTimeout(() => {
         setVisible(false);
-      }, 3500);
+      }, 4000);
     });
   }, []);
 
-  const nextLevelXp = useMemo(() => {
-    return Math.max(100, level * 100);
-  }, [level]);
+  // 🔥 smooth interpolation
+  useEffect(() => {
+    let raf;
 
-  const progress = Math.max(
-    0,
-    Math.min(100, (xp / nextLevelXp) * 100)
-  );
+    const animate = () => {
+      setDisplayXp((prev) => {
+        const diff = realXpRef.current - prev;
+        if (Math.abs(diff) < 0.5) return realXpRef.current;
+        return prev + diff * 0.2;
+      });
+
+      raf = requestAnimationFrame(animate);
+    };
+
+    animate();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const nextLevelXp = Math.max(100, level * 100);
+  const progress = Math.min(100, (displayXp / nextLevelXp) * 100);
 
   if (!visible) return null;
 
@@ -41,13 +55,13 @@ export default function RankProgress() {
         <div className="mb-2 flex items-center justify-between text-xs font-black">
           <span>Level {level}</span>
           <span className="text-cyan-200">
-            {xp} / {nextLevelXp} XP
+            {Math.round(displayXp)} / {nextLevelXp} XP
           </span>
         </div>
 
         <div className="h-2 overflow-hidden rounded-full bg-white/15">
           <div
-            className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+            className="h-full rounded-full bg-cyan-400 transition-[width] duration-200"
             style={{ width: `${progress}%` }}
           />
         </div>
