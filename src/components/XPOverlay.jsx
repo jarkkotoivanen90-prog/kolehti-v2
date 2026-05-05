@@ -16,8 +16,8 @@ export default function XPOverlay() {
 
       const now = Date.now();
 
-      // 🔥 combo window 900ms
-      if (now - lastEventTime.current < 900) {
+      // combo window ~850ms
+      if (now - lastEventTime.current < 850) {
         setCombo((c) => c + 1);
         setXp((x) => x + e.amount);
       } else {
@@ -34,7 +34,7 @@ export default function XPOverlay() {
         setVisible(false);
         setXp(0);
         setCombo(1);
-      }, 1400);
+      }, 1300);
     });
   }, []);
 
@@ -42,13 +42,18 @@ export default function XPOverlay() {
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ y: 30, opacity: 0, scale: 0.9 }}
+          initial={{ y: 24, opacity: 0, scale: 0.94 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -30, opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          className="fixed bottom-28 left-1/2 z-[999] -translate-x-1/2 rounded-full bg-black/70 px-5 py-2 text-sm font-black text-white backdrop-blur-md"
+          exit={{ y: -20, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          className="fixed bottom-28 left-1/2 z-[999] -translate-x-1/2 rounded-full border border-white/10 bg-black/60 px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur-md"
         >
-          +{xp} XP {combo > 1 && <span className="text-yellow-300">🔥 x{combo}</span>}
+          <span className="tracking-tight">
+            +{xp} XP
+          </span>
+          {combo > 1 && (
+            <span className="ml-2 text-yellow-300/90">🔥 x{combo}</span>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
