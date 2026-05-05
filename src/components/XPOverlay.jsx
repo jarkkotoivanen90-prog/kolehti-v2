@@ -7,41 +7,34 @@ export default function XPOverlay() {
   const [combo, setCombo] = useState(1);
   const [visible, setVisible] = useState(false);
 
-  const timerRef = useRef(null);
-  const comboTimerRef = useRef(null);
+  const lastEventTime = useRef(0);
+  const hideTimer = useRef(null);
 
   useEffect(() => {
     return onXPEvent((e) => {
       if (!e?.amount) return;
 
-      // 🔥 combo jos nopeasti peräkkäin
-      setCombo((prev) => {
-        if (comboTimerRef.current) {
-          clearTimeout(comboTimerRef.current);
-          return prev + 1;
-        }
-        return 1;
-      });
+      const now = Date.now();
 
-      // reset combo timeout (1.2s)
-      clearTimeout(comboTimerRef.current);
-      comboTimerRef.current = setTimeout(() => {
+      // 🔥 combo window 900ms
+      if (now - lastEventTime.current < 900) {
+        setCombo((c) => c + 1);
+        setXp((x) => x + e.amount);
+      } else {
         setCombo(1);
-      }, 1200);
+        setXp(e.amount);
+      }
 
-      // ➕ lisää XP (smooth stacking)
-      setXp((prev) => prev + e.amount);
+      lastEventTime.current = now;
 
-      // 👁 näkyviin
       setVisible(true);
 
-      // ⏳ hide timeout
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = setTimeout(() => {
         setVisible(false);
         setXp(0);
         setCombo(1);
-      }, 1600);
+      }, 1400);
     });
   }, []);
 
@@ -49,28 +42,13 @@ export default function XPOverlay() {
     <AnimatePresence>
       {visible && (
         <motion.div
-          key="xp"
-          initial={{ y: 40, opacity: 0, scale: 0.85 }}
+          initial={{ y: 30, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -40, opacity: 0 }}
+          exit={{ y: -30, opacity: 0 }}
           transition={{ duration: 0.25 }}
-          className="fixed bottom-28 left-1/2 z-[999] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[rgba(14,165,255,0.28)] px-6 py-3 text-lg font-black text-white shadow-xl backdrop-blur-md"
+          className="fixed bottom-28 left-1/2 z-[999] -translate-x-1/2 rounded-full bg-black/70 px-5 py-2 text-sm font-black text-white backdrop-blur-md"
         >
-          <div className="flex items-center gap-2">
-            <span>+{xp} XP</span>
-
-            {combo > 1 && (
-              <motion.span
-                key={combo}
-                initial={{ scale: 0.6, opacity: 0 }}
-                animate={{ scale: 1.2, opacity: 1 }}
-                transition={{ duration: 0.2 }}
-                className="text-yellow-300"
-              >
-                🔥 x{combo}
-              </motion.span>
-            )}
-          </div>
+          +{xp} XP {combo > 1 && <span className="text-yellow-300">🔥 x{combo}</span>}
         </motion.div>
       )}
     </AnimatePresence>
