@@ -1,24 +1,11 @@
-
-let sounds = {};
-
-export function initSounds() {
-  sounds.xp = new Audio("/sounds/xp.mp3");
-  sounds.rankup = new Audio("/sounds/rankup.mp3");
-  sounds.target = new Audio("/sounds/target.mp3");
-
-  Object.values(sounds).forEach((s) => {
-    s.volume = 0.6;
-  });
-}
-
-export function playXP() {
-  sounds.xp?.play().catch(() => {});
-}
-
-export function playRankUp() {
-  sounds.rankup?.play().catch(() => {});
-}
+// src/lib/soundEngine.js
 
 export function playTarget() {
-  sounds.target?.play().catch(() => {});
+  try {
+    const audio = new Audio("/sounds/xp.mp3");
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  } catch (e) {
+    console.log("sound fail", e);
+  }
 }
