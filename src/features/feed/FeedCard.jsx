@@ -8,15 +8,16 @@ import {
   getAvatar,
 } from "./utils/feedFormatters";
 
-// ✅ TÄRKEÄ: oikea import
-import { whyForYou } from "../../../lib/godFeed";
+// ✅ OIKEA IMPORT
+import { whyForYou } from "../../lib/godFeed";
 
-// 📏 TEXT SIZE FIX
+// 📏 TEKSTI SKAALAUS (parempi)
 function getTextSize(content = "") {
   const length = String(content || "").length;
-  if (length > 420) return "text-[clamp(1.05rem,4vw,1.7rem)]";
-  if (length > 260) return "text-[clamp(1.3rem,5vw,2.1rem)]";
-  if (length > 140) return "text-[clamp(1.6rem,6vw,2.6rem)]";
+
+  if (length > 420) return "text-[clamp(1rem,4vw,1.6rem)]";
+  if (length > 260) return "text-[clamp(1.25rem,5vw,2rem)]";
+  if (length > 140) return "text-[clamp(1.5rem,6vw,2.5rem)]";
   return "text-[clamp(1.9rem,7vw,3.2rem)]";
 }
 
@@ -35,23 +36,38 @@ export default function FeedCard({
 
   const textClass = getTextSize(post?.content);
 
-  // ❤️ DOUBLE TAP
+  // ❤️ DOUBLE TAP FIX (ei scroll bugia)
   const lastTap = useRef(0);
+  const touchMoved = useRef(false);
   const [heart, setHeart] = useState(false);
 
-  function handleTap() {
+  function handleTouchStart() {
+    touchMoved.current = false;
+  }
+
+  function handleTouchMove() {
+    touchMoved.current = true;
+  }
+
+  function handleTouchEnd() {
+    if (touchMoved.current) return;
+
     const now = Date.now();
+
     if (now - lastTap.current < 300) {
       onLike?.();
       setHeart(true);
       setTimeout(() => setHeart(false), 700);
     }
+
     lastTap.current = now;
   }
 
   return (
     <motion.section
-      onClick={handleTap}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       initial={{ scale: 0.96 }}
       animate={{ scale: active ? 1 : 0.96 }}
       transition={{ duration: 0.25 }}
@@ -60,8 +76,8 @@ export default function FeedCard({
       {/* 🎥 MEDIA */}
       <FeedMedia post={post} active={active} />
 
-      {/* 🌑 LIGHT GRADIENT (EI BOXIA) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-transparent pointer-events-none" />
+      {/* 🌑 PEHMEÄ GRADIENT */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-transparent pointer-events-none" />
 
       {/* ❤️ DOUBLE TAP HEART */}
       <AnimatePresence>
@@ -96,13 +112,13 @@ export default function FeedCard({
           </span>
         </div>
 
-        {/* 🧾 TEXT (EI TAUSTAA, SCROLL) */}
-        <div className="max-h-[50vh] overflow-y-auto pr-2">
+        {/* 🧾 TEKSTI (SCROLL FIXED) */}
+        <div className="max-h-[50vh] overflow-y-auto pr-2 overscroll-contain">
 
           <p
             className={`${textClass} font-black text-white leading-[1.2]
-            drop-shadow-[0_10px_40px_rgba(0,0,0,0.95)]
-            [text-shadow:0_10px_40px_rgba(0,0,0,0.95)]
+            drop-shadow-[0_6px_20px_rgba(0,0,0,0.6)]
+            [text-shadow:0_6px_20px_rgba(0,0,0,0.6)]
             `}
           >
             {post?.content}
@@ -120,7 +136,7 @@ export default function FeedCard({
 
       </div>
 
-      {/* 🎯 BUTTONS (PIENEMMÄT) */}
+      {/* 🎯 BUTTONS (PIENEMMÄT & CLEAN) */}
       <div className="absolute right-3 bottom-20 flex flex-col gap-3 z-20">
 
         <button
@@ -128,7 +144,7 @@ export default function FeedCard({
           className="w-11 h-11 rounded-full
           bg-gradient-to-br from-cyan-400 to-blue-600
           shadow-md shadow-cyan-500/30
-          text-white text-lg"
+          text-white text-lg active:scale-90 transition"
         >
           ♥
         </button>
@@ -138,7 +154,7 @@ export default function FeedCard({
           className="w-11 h-11 rounded-full
           bg-gradient-to-br from-cyan-400 to-blue-600
           shadow-md shadow-cyan-500/30
-          text-white text-lg"
+          text-white text-lg active:scale-90 transition"
         >
           ↗
         </button>
@@ -148,7 +164,7 @@ export default function FeedCard({
           className="w-11 h-11 rounded-full
           bg-gradient-to-br from-cyan-400 to-blue-600
           shadow-md shadow-cyan-500/30
-          text-white text-lg"
+          text-white text-lg active:scale-90 transition"
         >
           €
         </button>
@@ -156,7 +172,7 @@ export default function FeedCard({
       </div>
 
       {/* 🔽 BOTTOM FADE */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
 
     </motion.section>
   );
