@@ -44,8 +44,8 @@ export default function FeedCard({
       {/* 🎥 MEDIA */}
       <FeedMedia post={post} active={active} />
 
-      {/* 🌑 GRADIENT */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+      {/* 🌑 LIGHTER GRADIENT (poistettu tumma laatikko-fiilis) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-transparent" />
 
       {/* ❤️ DOUBLE TAP */}
       {showHeart && (
@@ -71,12 +71,10 @@ export default function FeedCard({
         {/* 🧠 TEXT */}
         <div className="max-h-[50vh] overflow-y-auto pr-1">
 
-          {/* HOOK */}
           <p className="text-[clamp(2.2rem,7vw,3.2rem)] font-black leading-tight text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
             {firstLine}.
           </p>
 
-          {/* BODY */}
           {rest.length > 0 && (
             <p className="mt-2 text-[clamp(1.3rem,4.5vw,1.9rem)] text-white/90 leading-snug">
               {rest.join(". ")}
@@ -95,26 +93,26 @@ export default function FeedCard({
 
       </div>
 
-      {/* 🎯 ACTIONS (siirretty alemmas) */}
-      <div className="absolute right-4 bottom-[12vh] flex flex-col gap-3 z-30">
+      {/* 🎯 ACTIONS (pienemmät + alemmaksi) */}
+      <div className="absolute right-4 bottom-[9vh] flex flex-col gap-3 z-30">
 
         <button
           onClick={onLike}
-          className="w-12 h-12 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-lg backdrop-blur-md active:scale-90 transition"
+          className="w-11 h-11 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-base backdrop-blur-md active:scale-90 transition"
         >
           ♥
         </button>
 
         <button
           onClick={onShare}
-          className="w-12 h-12 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-lg backdrop-blur-md active:scale-90 transition"
+          className="w-11 h-11 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-base backdrop-blur-md active:scale-90 transition"
         >
           ↗
         </button>
 
         <button
           onClick={onMoney}
-          className="w-12 h-12 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-lg backdrop-blur-md active:scale-90 transition"
+          className="w-11 h-11 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-base backdrop-blur-md active:scale-90 transition"
         >
           €
         </button>
