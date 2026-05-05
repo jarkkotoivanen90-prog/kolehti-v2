@@ -1,29 +1,33 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { onXPEvent } from "../lib/xpEvents";
 
 export default function XPOverlay() {
-  const [xp, setXP] = useState(null);
+  const [event, setEvent] = useState(null);
 
   useEffect(() => {
-    return onXPEvent((event) => {
-      setXP(event.amount);
+    return onXPEvent((e) => {
+      if (!e?.amount) return;
 
-      setTimeout(() => setXP(null), 1200);
+      setEvent(e);
+
+      setTimeout(() => {
+        setEvent(null);
+      }, 1200);
     });
   }, []);
 
   return (
     <AnimatePresence>
-      {xp && (
+      {event && (
         <motion.div
-          initial={{ y: 40, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: -40, opacity: 0 }}
-          className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[999]
-          px-5 py-3 rounded-full bg-cyan-500 text-white font-black shadow-xl"
+          initial={{ y: 30, opacity: 0, scale: 0.9 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: -30, opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="fixed bottom-32 left-1/2 z-[999] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[rgba(14,165,255,0.28)] px-5 py-3 text-base font-black text-white shadow-xl backdrop-blur-md"
         >
-          +{xp} XP
+          +{event.amount} XP
         </motion.div>
       )}
     </AnimatePresence>
