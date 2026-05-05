@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { haptic } from "../lib/effects";
+import { xpEvent } from "../lib/xp";
 import AdaptiveBackground, { CITY_BACKGROUND_OPTIONS } from "../components/AdaptiveBackground";
 
 const BG = "https://commons.wikimedia.org/wiki/Special:FilePath/Muuratj%C3%A4rvi_Lake_and_Forest%2C_Finland%2C_August_2013.JPG?width=1200";
@@ -52,6 +53,7 @@ export default function ProfilePageClean() {
           <p className="mt-2 truncate text-sm font-bold text-white/62">{user?.email}</p>
         </header>
 
+        {/* XP PANEL */}
         <section className={`${panel} mt-6`}>
           <GlassGlow />
           <div className="relative flex items-start justify-between gap-4">
@@ -60,65 +62,48 @@ export default function ProfilePageClean() {
               <div className="mt-2 text-[58px] font-black leading-none text-white text-glass">{xp}</div>
               <p className="mt-1 text-sm font-black text-white/66">Level {level} · {progress}% seuraavaan</p>
             </div>
-            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-[28px] border border-cyan-100/10 bg-cyan-300/10 text-4xl shadow-[0_0_24px_rgba(21,131,255,.16)]">⚡</div>
+            <div className="grid h-20 w-20 place-items-center rounded-[28px] border border-cyan-100/10 bg-cyan-300/10 text-4xl">⚡</div>
           </div>
-          <div className="relative mt-5 overflow-hidden rounded-full bg-black/45 p-1">
-            <div className="h-5 rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600 transition-all duration-500" style={{ width: `${progress}%` }} />
-            <div className="absolute inset-0 grid place-items-center text-[10px] font-black uppercase tracking-wide text-white/80">seuraava level</div>
-          </div>
-        </section>
 
-        <section className={`${panel} mt-4`}>
-          <GlassGlow />
-          <div className="relative">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">Tausta</p>
-            <select
-              value={cityPref}
-              onChange={(e) => {
-                const value = e.target.value;
-                setCityPref(value);
-                if (value === "auto") localStorage.removeItem("kolehti_preferred_city");
-                else localStorage.setItem("kolehti_preferred_city", value);
-                window.location.reload();
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={() => xpEvent("like", null, 10)} className="px-3 py-2 rounded bg-cyan-500 text-xs font-bold">
+              +10 XP
+            </button>
+
+            <button onClick={() => xpEvent("comment", null, 20)} className="px-3 py-2 rounded bg-blue-500 text-xs font-bold">
+              +20 XP
+            </button>
+
+            <button onClick={() => xpEvent("share", null, 40)} className="px-3 py-2 rounded bg-purple-500 text-xs font-bold">
+              +40 XP
+            </button>
+
+            <button
+              onClick={() => {
+                xpEvent("combo", null, 15);
+                setTimeout(() => xpEvent("combo", null, 15), 200);
+                setTimeout(() => xpEvent("combo", null, 15), 400);
               }}
-              className="mt-3 w-full rounded-xl bg-white/10 px-4 py-3 font-bold text-white backdrop-blur"
+              className="px-3 py-2 rounded bg-yellow-400 text-black text-xs font-bold"
             >
-              {CITY_BACKGROUND_OPTIONS.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              COMBO 🔥
+            </button>
+          </div>
+
+          <div className="relative mt-5 overflow-hidden rounded-full bg-black/45 p-1">
+            <div className="h-5 rounded-full bg-gradient-to-r from-cyan-200 via-sky-400 to-blue-600" style={{ width: `${progress}%` }} />
           </div>
         </section>
 
-        <section className="mt-4 grid grid-cols-2 gap-3">
-          <StatCard label="Postaukset" value={posts.length} icon="📝" />
-          <StatCard label="Status" value="Aktiivinen" icon="🔥" />
-        </section>
-
+        {/* POSTIT */}
         <section className={`${panel} mt-4`}>
           <GlassGlow />
           <div className="relative">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-100/62">Asetukset</p>
-            <div className="mt-4 space-y-3">
-              <button data-haptic="success" onClick={() => haptic("success")} className={`${innerPanel} w-full px-4 py-4 text-left font-black text-white active:scale-[0.98]`}>⚙️ Sovelluksen asetukset</button>
-              <button data-haptic="success" onClick={() => haptic("success")} className={`${innerPanel} w-full px-4 py-4 text-left font-black text-white active:scale-[0.98]`}>🎨 Muokkaa profiilin ulkoasua</button>
-            </div>
-          </div>
-        </section>
-
-        <section className={`${panel} mt-4`}>
-          <GlassGlow />
-          <div className="relative">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-black text-glass">Omat postaukset</h2>
-              <span className="rounded-full border border-cyan-100/10 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase text-cyan-100">{visiblePosts.length}</span>
-            </div>
+            <h2 className="text-2xl font-black text-glass">Omat postaukset</h2>
             <div className="mt-4 space-y-3">
               {visiblePosts.length ? visiblePosts.map((p) => (
                 <div key={p.id} className={`${innerPanel} p-4`}>
-                  <p className="line-clamp-4 text-sm font-bold leading-relaxed text-white/82">{p.content}</p>
+                  <p className="text-sm font-bold text-white/82">{p.content}</p>
                 </div>
               )) : (
                 <div className={`${innerPanel} p-5 text-center`}>
@@ -130,19 +115,6 @@ export default function ProfilePageClean() {
           </div>
         </section>
       </main>
-    </div>
-  );
-}
-
-function StatCard({ label, value, icon }) {
-  return (
-    <div className={miniPanel}>
-      <GlassGlow />
-      <div className="relative">
-        <div className="text-3xl">{icon}</div>
-        <div className="mt-3 text-[10px] font-black uppercase tracking-wide text-cyan-50/70">{label}</div>
-        <div className="mt-1 truncate text-2xl font-black text-white text-glass">{value}</div>
-      </div>
     </div>
   );
 }
