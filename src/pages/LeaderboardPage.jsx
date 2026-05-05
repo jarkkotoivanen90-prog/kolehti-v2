@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getUserRanking } from "../lib/rankings";
+import LeaderboardScreen from "../features/leaderboard/LeaderboardScreen";
 
 export default function LeaderboardPage() {
   const [users, setUsers] = useState([]);
@@ -10,19 +11,18 @@ export default function LeaderboardPage() {
 
   async function load() {
     const data = await getUserRanking(50);
-    setUsers(data);
+
+    // 🔥 normalisoidaan data LeaderboardScreenille
+    const normalized = (data || []).map((u, i) => ({
+      id: u.id,
+      user_id: u.id,
+      user_name: u.display_name || u.username || "User",
+      xp: u.xp || 0,
+      prev_rank: u.prev_rank || null,
+    }));
+
+    setUsers(normalized);
   }
 
-  return (
-    <div className="min-h-screen bg-black text-white p-4">
-      <h1 className="text-3xl font-bold mb-4">🏆 Leaderboard</h1>
-
-      {users.map((u, i) => (
-        <div key={u.id} className="flex justify-between p-3 border-b border-white/10">
-          <div>#{i + 1} {u.display_name || u.username}</div>
-          <div>{u.xp} XP</div>
-        </div>
-      ))}
-    </div>
-  );
+  return <LeaderboardScreen data={users} />;
 }
