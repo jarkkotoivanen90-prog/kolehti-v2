@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getMyTarget } from "../lib/rankTargets";
+import { playTarget } from "../lib/sounds";
 
 export default function TargetOverlay() {
   const [target, setTarget] = useState(null);
+  const lastDiffRef = useRef(null);
 
   useEffect(() => {
     load();
@@ -13,6 +15,16 @@ export default function TargetOverlay() {
 
   async function load() {
     const next = await getMyTarget();
+
+    if (
+      next &&
+      lastDiffRef.current !== null &&
+      next.diff < lastDiffRef.current
+    ) {
+      playTarget();
+    }
+
+    lastDiffRef.current = next?.diff ?? null;
     setTarget(next);
   }
 
