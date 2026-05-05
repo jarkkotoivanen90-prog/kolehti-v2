@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { onXPEvent } from "../lib/xpEvents";
 import { haptic } from "../lib/effects";
-import { playRankUp } from "../lib/sounds";
 
 export default function RankUpOverlay() {
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
     return onXPEvent((event) => {
+      // LEVEL UP
       if (
         event.levelAfter &&
         event.levelBefore &&
@@ -16,11 +16,11 @@ export default function RankUpOverlay() {
       ) {
         setMsg(`⚡ Level ${event.levelAfter}!`);
         haptic?.("success");
-        playRankUp();
         setTimeout(() => setMsg(null), 1800);
         return;
       }
 
+      // RANK UP
       if (
         event.beforeRank &&
         event.afterRank &&
@@ -32,11 +32,11 @@ export default function RankUpOverlay() {
 
         setMsg(text);
         haptic?.("success");
-        playRankUp();
         setTimeout(() => setMsg(null), 1800);
         return;
       }
 
+      // STREAK
       if (event.streak >= 3) {
         setMsg(`🔥 ${event.streak} päivän streak`);
         setTimeout(() => setMsg(null), 1500);
