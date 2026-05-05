@@ -25,3 +25,4 @@ Kolehti V2 on React + Vite + Tailwind + Supabase + Vercel -projekti.
 
 - AI feed, personalized feed, shadow moderation, growth ja Stripe membership ovat oletuksena pois päältä feature flageilla.
 - OpenAI on valinnainen. Jos avain puuttuu, scoring ja moderation käyttävät fallback-logiikkaa.
+  
