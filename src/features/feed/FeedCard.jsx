@@ -7,7 +7,6 @@ import {
   getAvatar,
 } from "./utils/feedFormatters";
 
-// 📏 TEXT SIZE
 function getTextSize(content = "") {
   const length = String(content || "").length;
   if (length > 360) return "text-[clamp(1.2rem,4.8vw,2rem)]";
@@ -19,7 +18,6 @@ function getTextSize(content = "") {
 export default function FeedCard({
   post,
   active,
-  index,
   liked,
   onLike,
   onShare,
@@ -29,7 +27,6 @@ export default function FeedCard({
   const avatar = getAvatar(post);
   const likes = getVotes(post) + (liked ? 1 : 0);
   const ai = getScore(post);
-
   const textClass = getTextSize(post?.content);
 
   return (
@@ -42,26 +39,30 @@ export default function FeedCard({
       {/* 🎥 MEDIA */}
       <FeedMedia post={post} active={active} />
 
-      {/* 🌑 CLEAN GRADIENT (EI BLOKKIA) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+      {/* 🌑 PEHMEÄ GRADIENT */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
 
       {/* 📄 CONTENT */}
-      <div className="absolute inset-0 z-10 flex flex-col justify-end px-5 pb-48">
+      <div className="absolute inset-0 z-10 flex flex-col justify-end px-5 pb-[180px]">
 
         {/* AI SCORE */}
         <div className="text-[11px] font-black uppercase text-cyan-200 mb-2">
           {ai}%
         </div>
 
-        {/* 🧾 SCROLL TEXT */}
-        <div className="max-h-[52vh] overflow-y-auto pr-2">
+        {/* 🧾 SCROLL BOX */}
+        <div className="max-h-[45vh] overflow-y-auto pr-3 scrollbar-hide">
 
-          <p
-            className={`${textClass} font-black text-white leading-tight drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]`}
-          >
-            {post?.content}
-          </p>
+          {/* 🔲 lähes näkymätön tausta */}
+          <div className="bg-black/20 backdrop-blur-[6px] rounded-2xl p-4">
 
+            <p
+              className={`${textClass} font-black text-white leading-tight drop-shadow-[0_6px_25px_rgba(0,0,0,0.9)]`}
+            >
+              {post?.content}
+            </p>
+
+          </div>
         </div>
 
         {/* 👤 USER */}
@@ -71,29 +72,28 @@ export default function FeedCard({
           </div>
           {author}
         </div>
-
       </div>
 
       {/* 🎯 FLOATING BUTTONS */}
-      <div className="absolute right-4 bottom-16 flex flex-col gap-3 z-20">
+      <div className="absolute right-4 bottom-20 flex flex-col gap-4 z-20">
 
         <button
           onClick={onLike}
-          className="w-14 h-14 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-xl"
+          className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/40 text-white text-xl"
         >
           ♥
         </button>
 
         <button
           onClick={onShare}
-          className="w-14 h-14 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-xl"
+          className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/40 text-white text-xl"
         >
           ↗
         </button>
 
         <button
           onClick={onMoney}
-          className="w-14 h-14 rounded-full bg-[rgba(14,165,255,0.25)] border border-[rgba(139,238,255,0.4)] text-white text-xl"
+          className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/40 text-white text-xl"
         >
           €
         </button>
