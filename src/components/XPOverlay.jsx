@@ -1,29 +1,32 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { onXPEvent } from "../lib/xpEvents";
-import { playXP } from "../lib/sounds";
+import { onXPEvent } from "../lib/xpEvents.js";
 
 export default function XPOverlay() {
-  const [msg, setMsg] = useState(null);
+  const [xp, setXP] = useState(null);
 
   useEffect(() => {
-    return onXPEvent((event) => {
-      setMsg(`+${event.amount} XP`);
-      playXP();
-      setTimeout(() => setMsg(null), 1100);
+    const unsub = onXPEvent((value) => {
+      setXP(value);
+
+      setTimeout(() => {
+        setXP(null);
+      }, 1500);
     });
+
+    return () => unsub?.();
   }, []);
 
   return (
     <AnimatePresence>
-      {msg && (
+      {xp !== null && (
         <motion.div
-          initial={{ y: 20, opacity: 0, scale: 0.9 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -20, opacity: 0 }}
-          className="fixed left-1/2 top-24 z-[999] -translate-x-1/2 rounded-full border border-cyan-300/50 bg-[rgba(14,165,255,0.34)] px-5 py-3 text-lg font-black text-white shadow-2xl shadow-cyan-500/25"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.8, opacity: 0 }}
+          className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[999] text-lg font-black text-green-400"
         >
-          {msg}
+          +{xp} XP
         </motion.div>
       )}
     </AnimatePresence>
