@@ -21,9 +21,11 @@ import BrandFX from "./components/BrandFX";
 import AppBottomNav from "./components/AppBottomNav";
 import AdaptiveBackground from "./components/AdaptiveBackground";
 
-// 🔥 OVERLAYS
+// 🔥 GAME UI (valmiit, ei ääniä)
 import XPOverlay from "./components/XPOverlay";
 import RankUpOverlay from "./components/RankUpOverlay";
+import LevelUpModal from "./components/LevelUpModal";
+import RankProgress from "./components/RankProgress";
 import TargetOverlay from "./components/TargetOverlay";
 
 function AppShell() {
@@ -105,6 +107,8 @@ function AppShell() {
       {/* 🔥 GLOBAL GAME LAYER */}
       <XPOverlay />
       <RankUpOverlay />
+      <LevelUpModal />
+      <RankProgress />
 
       {/* 🎯 TARGET EI FEEDISSÄ */}
       {!authPage && !isFeed && <TargetOverlay />}
