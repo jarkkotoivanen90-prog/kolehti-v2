@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ✅ OIKEAT POLUT
 import { getMyTarget } from "../lib/rankTargets.js";
-import { playTarget } from "../lib/soundEngine.js";
+import { playXP } from "../lib/sounds.js";
 
 export default function FeedTargetHint() {
   const [target, setTarget] = useState(null);
@@ -19,9 +18,7 @@ export default function FeedTargetHint() {
 
     return () => {
       clearInterval(interval);
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-      }
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
   }, []);
 
@@ -31,12 +28,12 @@ export default function FeedTargetHint() {
 
       if (!next) return;
 
-      // 🔊 Soita ääni vain kun oikeasti edistyt
+      // 🔊 ääni vain kun progress tapahtuu
       if (
         lastDiffRef.current !== null &&
         next.diff < lastDiffRef.current
       ) {
-        playTarget();
+        playXP();
       }
 
       lastDiffRef.current = next.diff;
@@ -51,6 +48,7 @@ export default function FeedTargetHint() {
       hideTimerRef.current = setTimeout(() => {
         setVisible(false);
       }, 2500);
+
     } catch (e) {
       console.error("FeedTargetHint error:", e);
     }
