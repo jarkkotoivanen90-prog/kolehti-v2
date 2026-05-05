@@ -1,13 +1,22 @@
-let listeners = [];
+const listeners = new Set();
 
-export function emitXP(value) {
-  listeners.forEach((fn) => fn(value));
+/**
+ * Kuuntele XP eventtejä
+ */
+export function onXPEvent(cb) {
+  listeners.add(cb);
+  return () => listeners.delete(cb);
 }
 
-export function onXPEvent(fn) {
-  listeners.push(fn);
-
-  return () => {
-    listeners = listeners.filter((l) => l !== fn);
-  };
+/**
+ * Lähetä XP event
+ */
+export function emitXPEvent(event) {
+  listeners.forEach((cb) => {
+    try {
+      cb(event);
+    } catch (e) {
+      console.error("XP listener error", e);
+    }
+  });
 }
