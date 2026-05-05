@@ -1,3 +1,5 @@
+// src/lib/xp.js
+
 import { supabase } from "./supabaseClient";
 import { getMyRankWithNeighbors } from "./rank";
 import { emitXPEvent } from "./xpEvents";
@@ -7,27 +9,40 @@ export async function xpEvent(type, refId = null, amount = 0) {
     const { data } = await supabase.auth.getUser();
     const user = data?.user;
 
-    if (!user) return null;
+    if (!user) {
+      // 🔥 fallback: UI silti reagoi
+      emitXPEvent({ type, amount });
+      return;
+    }
 
-    const before = await getMyRankWithNeighbors();
+    let before = null;
+    let after = null;
 
-    const { error: xpError } = await supabase.rpc("add_xp_event", {
+    try {
+      before = await getMyRankWithNeighbors();
+    } catch {}
+
+    // 🔥 EI blokata UI:ta vaikka backend failaa
+    const { error } = await supabase.rpc("add_xp_event", {
       p_user: user.id,
       p_type: type,
       p_ref: refId,
       p_amount: amount,
     });
 
-    if (xpError) {
-      console.error("add_xp_event failed:", xpError);
-      return null;
+    if (error) {
+      console.warn("XP RPC failed, but UI continues", error);
     }
 
-    await supabase.rpc("update_streak", {
-      p_user: user.id,
-    });
+    try {
+      await supabase.rpc("update_streak", {
+        p_user: user.id,
+      });
+    } catch {}
 
-    const after = await getMyRankWithNeighbors();
+    try {
+      after = await getMyRankWithNeighbors();
+    } catch {}
 
     const payload = {
       type,
@@ -55,11 +70,17 @@ export async function xpEvent(type, refId = null, amount = 0) {
         after.me.level > before.me.level,
     };
 
+    // 🔥 TÄMÄ ON KRIITTINEN
     emitXPEvent(payload);
 
     return payload;
+
   } catch (err) {
-    console.error("xpEvent error:", err);
+    console.error("xpEvent crash:", err);
+
+    // 🔥 fallback UI trigger
+    emitXPEvent({ type, amount });
+
     return null;
   }
 }
