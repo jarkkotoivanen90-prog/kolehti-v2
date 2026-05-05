@@ -1,5 +1,3 @@
-// src/lib/rankTargets.js
-
 const TARGETS = [
   { xp: 50, name: "Ensimmäinen nousu" },
   { xp: 100, name: "Hyvä vire" },
