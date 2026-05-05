@@ -1,53 +1,32 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { onXPEvent } from "../lib/xpEvents";
 import { getMyTarget } from "../lib/targetSystem";
 
 export default function TargetOverlay() {
   const [target, setTarget] = useState(null);
   const [visible, setVisible] = useState(false);
 
-  const lastDiffRef = useRef(null);
-  const hideTimerRef = useRef(null);
-
   useEffect(() => {
-    load();
+    return onXPEvent(async (e) => {
+      // 🚫 ei turhaan joka eventillä
+      if (!e?.amount) return;
 
-    const interval = setInterval(load, 4000);
-    return () => clearInterval(interval);
+      try {
+        const next = await getMyTarget();
+        if (!next) return;
+
+        setTarget(next);
+        setVisible(true);
+
+        setTimeout(() => {
+          setVisible(false);
+        }, 2000);
+      } catch (err) {
+        console.warn("TargetOverlay error:", err);
+      }
+    });
   }, []);
-
-  async function load() {
-    try {
-      const next = await getMyTarget();
-
-      if (!next) {
-        setVisible(false);
-        return;
-      }
-
-      const prevDiff = lastDiffRef.current;
-
-      // ✅ estää vilkkumisen täysin
-      if (
-        prevDiff !== null &&
-        Math.round(prevDiff) === Math.round(next.diff)
-      ) {
-        return;
-      }
-
-      lastDiffRef.current = next.diff;
-
-      setTarget(next);
-      setVisible(true);
-
-      clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = setTimeout(() => {
-        setVisible(false);
-      }, 2500);
-    } catch (err) {
-      console.warn("TargetOverlay error:", err);
-    }
-  }
 
   if (!target) return null;
 
