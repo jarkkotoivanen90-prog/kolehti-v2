@@ -9,7 +9,7 @@ const TARGETS = [
 export function getMyTarget(currentXP = 0) {
   const xp = currentXP ?? 0;
 
-  const next = TARGETS.find(t => t.xp > xp);
+  const next = TARGETS.find((t) => t.xp > xp);
 
   if (!next) return null;
 
