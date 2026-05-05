@@ -21,6 +21,11 @@ import BrandFX from "./components/BrandFX";
 import AppBottomNav from "./components/AppBottomNav";
 import AdaptiveBackground from "./components/AdaptiveBackground";
 
+// 🔥 NEW OVERLAYS
+import XPOverlay from "./components/XPOverlay";
+import RankUpOverlay from "./components/RankUpOverlay";
+import TargetOverlay from "./components/TargetOverlay";
+
 function AppShell() {
   const location = useLocation();
 
@@ -32,16 +37,30 @@ function AppShell() {
     try { cleanReactive = installReactiveUI?.() || (() => {}); } catch {}
     try { startVersionCheck?.(); } catch {}
 
-    return () => { try { cleanHaptics(); } catch {} try { cleanReactive(); } catch {} };
+    return () => {
+      try { cleanHaptics(); } catch {}
+      try { cleanReactive(); } catch {}
+    };
   }, []);
 
-  const authPage = location.pathname === "/login" || location.pathname === "/reset";
+  const authPage =
+    location.pathname === "/login" ||
+    location.pathname === "/reset";
+
   const isHome = location.pathname === "/";
   const isFeed = location.pathname === "/feed";
+
   const showCityBackground = !isHome && !isFeed;
 
   return (
-    <div className={showCityBackground ? "kolehti-city-bg-active min-h-[100dvh] bg-transparent" : undefined}>
+    <div
+      className={
+        showCityBackground
+          ? "kolehti-city-bg-active min-h-[100dvh] bg-transparent"
+          : undefined
+      }
+    >
+      {/* 🌆 CITY BACKGROUND */}
       {showCityBackground && (
         <>
           <style>{`
@@ -54,12 +73,17 @@ function AppShell() {
               background-image: none !important;
             }
           `}</style>
+
           <AdaptiveBackground strength="balanced" />
         </>
       )}
+
       <BrandFX />
+
+      {/* 🧭 NAVBAR */}
       {!authPage && !isFeed && <Navbar />}
 
+      {/* 🧠 ROUTES */}
       <div className="relative z-10">
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -78,6 +102,14 @@ function AppShell() {
         </Routes>
       </div>
 
+      {/* 🔥 GLOBAL GAME LAYER (EI RIKO FEEDIÄ) */}
+      <XPOverlay />
+      <RankUpOverlay />
+
+      {/* 🎯 TARGET EI NÄY FEEDISSÄ */}
+      {!authPage && !isFeed && <TargetOverlay />}
+
+      {/* 📱 BOTTOM NAV */}
       {!authPage && !isFeed && <AppBottomNav floating gesture />}
     </div>
   );
