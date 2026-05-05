@@ -4,6 +4,12 @@ import { getMedia } from "./utils/feedFormatters";
 export default function FeedMedia({ post, active }) {
   const media = getMedia(post);
 
+  const fallback =
+    "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1400";
+
+  const type = media?.type;
+  const url = media?.url || fallback;
+
   const baseClass =
     "absolute inset-0 h-full w-full object-cover object-center";
 
@@ -12,10 +18,12 @@ export default function FeedMedia({ post, active }) {
     transform: "translateZ(0)",
   };
 
-  if (media.type === "video") {
+  // 🎥 VIDEO
+  if (type === "video") {
     return (
       <motion.video
-        src={media.url}
+        key={url}
+        src={url}
         className={baseClass}
         style={enhanceStyle}
         initial={{ scale: 1.05 }}
@@ -25,13 +33,19 @@ export default function FeedMedia({ post, active }) {
         muted
         loop
         playsInline
+        preload={active ? "auto" : "metadata"}
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
       />
     );
   }
 
+  // 🖼️ IMAGE
   return (
     <motion.img
-      src={media.url}
+      key={url}
+      src={url}
       alt=""
       className={baseClass}
       style={enhanceStyle}
@@ -39,6 +53,11 @@ export default function FeedMedia({ post, active }) {
       animate={{ scale: active ? 1.1 : 1.05 }}
       transition={{ duration: 6 }}
       loading={active ? "eager" : "lazy"}
+      fetchPriority={active ? "high" : "auto"}
+      decoding="async"
+      onError={(e) => {
+        e.currentTarget.src = fallback;
+      }}
     />
   );
 }
