@@ -14,20 +14,16 @@ function play(src, volume = 0.6) {
   } catch {}
 }
 
-// 🎯 PUBLIC API
+// 🔊 PUBLIC API
 
-export function soundLike() {
+export function playLike() {
   play("/sounds/like.mp3", 0.5);
 }
 
-export function soundShare() {
+export function playShare() {
   play("/sounds/share.mp3", 0.6);
 }
 
-export function soundXP() {
+export function playXP() {
   play("/sounds/xp.mp3", 0.7);
-}
-
-export function soundRankUp() {
-  play("/sounds/rankup.mp3", 0.8);
 }
