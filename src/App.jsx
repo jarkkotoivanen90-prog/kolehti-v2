@@ -26,9 +26,6 @@ import XPOverlay from "./components/XPOverlay";
 import RankUpOverlay from "./components/RankUpOverlay";
 import TargetOverlay from "./components/TargetOverlay";
 
-// 🔊 SOUND ENGINE INIT
-import { initSoundEngine } from "./lib/soundEngine";
-
 function AppShell() {
   const location = useLocation();
 
@@ -39,11 +36,6 @@ function AppShell() {
     try { cleanHaptics = installGlobalHaptics?.() || (() => {}); } catch {}
     try { cleanReactive = installReactiveUI?.() || (() => {}); } catch {}
     try { startVersionCheck?.(); } catch {}
-
-    // 🔊 INIT SOUND (USER GESTURE SAFE)
-    try {
-      initSoundEngine();
-    } catch {}
 
     return () => {
       try { cleanHaptics(); } catch {}
@@ -110,7 +102,7 @@ function AppShell() {
         </Routes>
       </div>
 
-      {/* 🔥 GLOBAL GAME LAYER (EI RIKO FEEDIÄ) */}
+      {/* 🔥 GLOBAL GAME LAYER */}
       <XPOverlay />
       <RankUpOverlay />
 
