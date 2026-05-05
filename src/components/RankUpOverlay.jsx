@@ -1,60 +1,38 @@
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { onXPEvent } from "../lib/xpEvents";
-import { haptic } from "../lib/effects";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function RankUpOverlay() {
-  const [msg, setMsg] = useState(null);
+  const [event, setEvent] = useState(null);
 
   useEffect(() => {
-    return onXPEvent((event) => {
-      // LEVEL UP
+    return onXPEvent((e) => {
+      // näytetään vain jos rank parani
       if (
-        event.levelAfter &&
-        event.levelBefore &&
-        event.levelAfter > event.levelBefore
+        e.beforeRank &&
+        e.afterRank &&
+        e.afterRank < e.beforeRank
       ) {
-        setMsg(`⚡ Level ${event.levelAfter}!`);
-        haptic?.("success");
-        setTimeout(() => setMsg(null), 1800);
-        return;
-      }
+        setEvent(e);
 
-      // RANK UP
-      if (
-        event.beforeRank &&
-        event.afterRank &&
-        event.afterRank < event.beforeRank
-      ) {
-        const text = event.passedUser
-          ? `🚀 Ohitit ${event.passedUser}`
-          : `🚀 #${event.beforeRank} → #${event.afterRank}`;
-
-        setMsg(text);
-        haptic?.("success");
-        setTimeout(() => setMsg(null), 1800);
-        return;
-      }
-
-      // STREAK
-      if (event.streak >= 3) {
-        setMsg(`🔥 ${event.streak} päivän streak`);
-        setTimeout(() => setMsg(null), 1500);
+        setTimeout(() => {
+          setEvent(null);
+        }, 3000);
       }
     });
   }, []);
 
   return (
     <AnimatePresence>
-      {msg && (
+      {event && (
         <motion.div
-          initial={{ y: 60, opacity: 0, scale: 0.84 }}
+          initial={{ y: -60, opacity: 0, scale: 0.9 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -40, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 260 }}
-          className="fixed bottom-36 left-1/2 z-[999] -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-400 to-blue-600 px-6 py-3 text-lg font-black text-white shadow-2xl shadow-cyan-500/30"
+          exit={{ y: -60, opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed top-20 left-1/2 z-[999] -translate-x-1/2 rounded-xl border border-yellow-300/40 bg-[rgba(255,215,0,0.2)] px-6 py-4 text-sm font-black text-white shadow-xl backdrop-blur-md"
         >
-          {msg}
+          🏆 Rank nousi #{event.afterRank}
         </motion.div>
       )}
     </AnimatePresence>
