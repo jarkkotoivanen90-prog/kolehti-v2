@@ -8,23 +8,16 @@ const TARGETS = [
   { xp: 1000, name: "Elite" },
 ];
 
-// ⚠️ Tämä versio toimii FeedTargetHintin kanssa
-export async function getMyTarget(currentXP = null) {
-  try {
-    // jos XP:tä ei anneta → fallback demo
-    const xp = currentXP ?? 120;
+export function getMyTarget(currentXP = 0) {
+  const xp = currentXP ?? 0;
 
-    const next = TARGETS.find(t => t.xp > xp);
+  const next = TARGETS.find(t => t.xp > xp);
 
-    if (!next) return null;
+  if (!next) return null;
 
-    return {
-      targetXP: next.xp,
-      targetName: next.name,
-      diff: next.xp - xp,
-    };
-  } catch (e) {
-    console.warn("rankTargets error:", e);
-    return null;
-  }
+  return {
+    targetXP: next.xp,
+    targetName: next.name,
+    diff: next.xp - xp,
+  };
 }
