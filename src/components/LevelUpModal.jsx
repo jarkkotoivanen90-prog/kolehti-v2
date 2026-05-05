@@ -1,19 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { onXPEvent } from "../lib/xpEvents";
 
 export default function LevelUpModal() {
   const [event, setEvent] = useState(null);
+  const cooldown = useRef(0);
 
   useEffect(() => {
     return onXPEvent((e) => {
-      if (!e?.didLevelUp) return;
+      const now = Date.now();
 
-      setEvent(e);
+      if (now - cooldown.current < 4000) return;
 
-      setTimeout(() => {
-        setEvent(null);
-      }, 3000);
+      if (e?.levelAfter && e.levelAfter !== e.levelBefore) {
+        setEvent(e);
+        cooldown.current = now;
+
+        setTimeout(() => setEvent(null), 2600);
+      }
     });
   }, []);
 
@@ -24,28 +28,17 @@ export default function LevelUpModal() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[1000] grid place-items-center bg-black/55 px-5 backdrop-blur-sm"
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40"
         >
           <motion.div
-            initial={{ scale: 0.75, y: 40, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            exit={{ scale: 0.85, y: -20, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 18 }}
-            className="w-full max-w-sm rounded-[32px] border border-cyan-300/35 bg-[rgba(14,165,255,0.22)] p-7 text-center text-white shadow-2xl shadow-cyan-500/25 backdrop-blur-xl"
+            initial={{ scale: 0.85 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0.9 }}
+            transition={{ duration: 0.25 }}
+            className="rounded-2xl bg-black px-6 py-5 text-center text-white"
           >
-            <div className="text-6xl">⚡</div>
-
-            <div className="mt-4 text-xs font-black uppercase tracking-[0.22em] text-cyan-100/80">
-              Level up
-            </div>
-
-            <div className="mt-2 text-5xl font-black">
-              {event.levelAfter}
-            </div>
-
-            <div className="mt-3 text-sm font-bold text-white/75">
-              Nousit uudelle tasolle. Jatka samaan tahtiin.
-            </div>
+            <div className="text-3xl">⚡</div>
+            <div className="mt-2 font-black text-xl">Level {event.levelAfter}</div>
           </motion.div>
         </motion.div>
       )}
