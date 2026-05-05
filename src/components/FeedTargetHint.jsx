@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
 import { getMyTarget } from "../lib/rankTargets.js";
-import { playXP } from "../lib/sounds.js";
 
 export default function FeedTargetHint() {
   const [target, setTarget] = useState(null);
@@ -18,7 +16,9 @@ export default function FeedTargetHint() {
 
     return () => {
       clearInterval(interval);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
     };
   }, []);
 
@@ -27,14 +27,6 @@ export default function FeedTargetHint() {
       const next = getMyTarget();
 
       if (!next) return;
-
-      // 🔊 ääni vain kun progress tapahtuu
-      if (
-        lastDiffRef.current !== null &&
-        next.diff < lastDiffRef.current
-      ) {
-        playXP();
-      }
 
       lastDiffRef.current = next.diff;
 
@@ -48,7 +40,6 @@ export default function FeedTargetHint() {
       hideTimerRef.current = setTimeout(() => {
         setVisible(false);
       }, 2500);
-
     } catch (e) {
       console.error("FeedTargetHint error:", e);
     }
