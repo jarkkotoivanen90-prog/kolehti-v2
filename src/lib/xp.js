@@ -4,15 +4,13 @@ import { emitXPEvent } from "./xpEvents";
 
 export async function xpEvent(type, refId = null, amount = 0) {
   try {
-    // 👤 käyttäjä
     const { data } = await supabase.auth.getUser();
     const user = data?.user;
+
     if (!user) return null;
 
-    // 📊 ennen
     const before = await getMyRankWithNeighbors();
 
-    // ➕ XP lisäys
     const { error: xpError } = await supabase.rpc("add_xp_event", {
       p_user: user.id,
       p_type: type,
@@ -25,15 +23,12 @@ export async function xpEvent(type, refId = null, amount = 0) {
       return null;
     }
 
-    // 🔥 streak päivitys
     await supabase.rpc("update_streak", {
       p_user: user.id,
     });
 
-    // 📊 jälkeen
     const after = await getMyRankWithNeighbors();
 
-    // 🧠 payload UI:lle
     const payload = {
       type,
       amount,
@@ -42,12 +37,13 @@ export async function xpEvent(type, refId = null, amount = 0) {
       beforeRank: before?.rank ?? null,
       afterRank: after?.rank ?? null,
 
+      passedUser: before?.above?.user_name ?? null,
+
       levelBefore: before?.me?.level ?? null,
       levelAfter: after?.me?.level ?? null,
 
       streak: after?.me?.streak_count ?? 0,
 
-      // 🔥 extra (tulevia UI-efektejä varten)
       didRankUp:
         before?.rank &&
         after?.rank &&
@@ -59,7 +55,6 @@ export async function xpEvent(type, refId = null, amount = 0) {
         after.me.level > before.me.level,
     };
 
-    // ⚡ event trigger UI:lle
     emitXPEvent(payload);
 
     return payload;
