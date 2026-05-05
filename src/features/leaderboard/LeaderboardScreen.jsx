@@ -1,276 +1,149 @@
-import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { supabase } from "../../lib/supabaseClient";
+import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
-const filters = [
-  { label: "päivä", value: "day" },
-  { label: "viikko", value: "week" },
-  { label: "kuukausi", value: "month" },
+const PERIODS = [
+  { id: "day", label: "Päivä" },
+  { id: "week", label: "Viikko" },
+  { id: "month", label: "Kuukausi" },
 ];
 
-function addTrend(players) {
-  return players.map((player, index) => {
-    const prev = Number.isFinite(player.prev_rank) ? player.prev_rank : index;
-    let trend = "same";
-
-    if (index < prev) trend = "up";
-    if (index > prev) trend = "down";
-
-    return { ...player, trend };
-  });
+function rankChange(rank, prevRank) {
+  if (!prevRank) return "same";
+  if (rank < prevRank) return "up";
+  if (rank > prevRank) return "down";
+  return "same";
 }
 
-function getAITrendReason(player) {
-  if (player.trend === "up") {
-    if (player.score > 85) return "Perustelu resonoi vahvasti yhteisön kanssa.";
-    if (player.xp > 1000) return "Aktiivisuus kasvatti näkyvyyttäsi.";
-    return "Tasainen nousu – hyvä engagement.";
-  }
-
-  if (player.trend === "down") {
-    return "Muut perustelut ohittivat sinut tällä hetkellä.";
-  }
-
-  return "Sijoitus pysyy vakaana.";
+function medal(rank) {
+  if (rank === 1) return "🥇";
+  if (rank === 2) return "🥈";
+  if (rank === 3) return "🥉";
+  return rank;
 }
 
-function FilterTabs({ active, setActive }) {
-  return (
-    <div className="mb-6 flex gap-2">
-      {filters.map((filter) => (
-        <button
-          key={filter.value}
-          type="button"
-          onClick={() => setActive(filter.value)}
-          className={`rounded-full border px-4 py-2 text-sm font-black transition active:scale-95 ${
-            active === filter.value
-              ? "border-[rgba(139,238,255,0.5)] bg-[rgba(14,165,255,0.32)] text-white"
-              : "border-white/10 bg-white/[.055] text-white/62"
-          }`}
-        >
-          {filter.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Row({ player, index }) {
-  const isWinner = index === 0;
+function TopCard({ player, rank }) {
+  if (!player) return null;
+  const isWinner = rank === 1;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18 }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        scale: player.trend === "up" ? [1, 1.025, 1] : 1,
-        boxShadow: isWinner
-          ? [
-              "0 0 0px rgba(14,165,255,0)",
-              "0 0 26px rgba(14,165,255,0.36)",
-              "0 0 0px rgba(14,165,255,0)",
-            ]
-          : player.trend === "up"
-            ? "0 0 20px rgba(34,197,94,0.25)"
-            : "none",
-      }}
-      transition={{
-        delay: index * 0.035,
-        duration: isWinner ? 2.2 : 0.35,
-        repeat: isWinner ? Infinity : 0,
-      }}
-      className={`relative flex items-center justify-between rounded-2xl border px-4 py-4 ${
+      initial={{ y: 24, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      className={`flex flex-col items-center rounded-[28px] px-4 py-5 text-center ${
         isWinner
-          ? "border-[rgba(139,238,255,0.48)] bg-[rgba(14,165,255,0.18)]"
-          : player.trend === "up"
-            ? "border-emerald-300/24 bg-emerald-400/10"
-            : "border-white/10 bg-white/[.055]"
+          ? "bg-[rgba(14,165,255,0.25)]"
+          : "bg-white/[.05]"
       }`}
     >
-      {isWinner && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl">
-          👑
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <div className="w-7 text-center text-lg font-black">
-          {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : index + 1}
-        </div>
-
-        <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/10 font-black">
-          {(player.user_name || player.name || "?")[0]}
-        </div>
-
-        <div>
-          <div className="font-black text-white">
-            {player.user_name || player.name || "Pelaaja"}
-          </div>
-
-          {isWinner ? (
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-200">
-              voittaja
-            </div>
-          ) : (
-            <div className="text-xs font-bold text-white/55">XP {player.xp || 0}</div>
-          )}
-        </div>
+      <div className="text-4xl">{medal(rank)}</div>
+      <div className="mt-2 truncate font-black">
+        {player.user_name}
       </div>
-
-      <div className="flex items-center gap-2">
-        {player.trend === "up" && (
-          <motion.div
-            initial={{ y: 6, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="text-sm font-black text-emerald-300"
-          >
-            ↑
-          </motion.div>
-        )}
-
-        {player.trend === "down" && (
-          <motion.div
-            initial={{ y: -6, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="text-sm font-black text-red-300"
-          >
-            ↓
-          </motion.div>
-        )}
-
-        <div className="text-lg font-black text-cyan-200">
-          {player.score || 0}%
-        </div>
+      <div className="text-cyan-200 font-bold">
+        {player.xp} XP
       </div>
     </motion.div>
   );
 }
 
-export default function LeaderboardScreen() {
-  const [filter, setFilter] = useState("day");
-  const [players, setPlayers] = useState([]);
-  const [aiHint, setAiHint] = useState(null);
-
-  const filterLabel = useMemo(
-    () => filters.find((item) => item.value === filter)?.label || "päivä",
-    [filter]
-  );
-
-  async function fetchData() {
-    const { data } = await supabase
-      .from("leaderboard")
-      .select("*")
-      .eq("period", filter)
-      .order("score", { ascending: false })
-      .limit(50);
-
-    if (data) setPlayers(addTrend(data));
-  }
-
-  useEffect(() => {
-    fetchData();
-  }, [filter]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`leaderboard-live-${filter}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "leaderboard" },
-        () => fetchData()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [filter]);
-
-  useEffect(() => {
-    const rising = players.find((player) => player.trend === "up");
-
-    if (!rising) return;
-
-    setAiHint({
-      name: rising.user_name || rising.name || "Pelaaja",
-      text: getAITrendReason(rising),
-    });
-
-    const timeout = window.setTimeout(() => setAiHint(null), 3000);
-    return () => window.clearTimeout(timeout);
-  }, [players]);
+function Row({ player, rank, isCurrentUser }) {
+  const change = rankChange(rank, player.prev_rank);
 
   return (
-    <div className="min-h-[100dvh] bg-[#050816] px-4 pb-32 pt-20 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-4">
-          <div className="text-[11px] font-black uppercase tracking-[0.24em] text-cyan-100/62">
-            KOLEHTI ranking
-          </div>
-          <h1 className="mt-2 text-[40px] font-black leading-none">Top lista</h1>
-          <p className="mt-2 text-sm font-bold text-cyan-100/70">
-            Parhaat perustelut ja aktiivisimmat pelaajat ({filterLabel})
-          </p>
-        </div>
-
-        <FilterTabs active={filter} setActive={setFilter} />
-
-        {players[0] && (
-          <motion.div
-            initial={{ scale: 0.94, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="mb-6 rounded-[30px] border border-[rgba(139,238,255,0.42)] bg-[rgba(14,165,255,0.16)] p-6 text-center shadow-2xl shadow-cyan-500/10"
-          >
-            <div className="text-4xl">👑</div>
-            <div className="mt-2 text-2xl font-black">
-              {players[0].user_name || players[0].name || "Pelaaja"}
-            </div>
-            <div className="mt-1 text-xs font-black uppercase tracking-[0.18em] text-cyan-100/70">
-              {filterLabel}n johtaja
-            </div>
-            <div className="mt-4 text-4xl font-black text-cyan-200">
-              {players[0].score || 0}%
-            </div>
-          </motion.div>
-        )}
-
-        <div className="flex flex-col gap-3">
-          {players.map((player, index) => (
-            <Row key={player.id || `${player.user_name}-${index}`} player={player} index={index} />
-          ))}
-
-          {!players.length && (
-            <div className="rounded-[26px] border border-cyan-300/18 bg-white/[.055] p-6 text-center">
-              <div className="text-3xl">🏆</div>
-              <div className="mt-3 text-lg font-black">Top lista on tyhjä</div>
-              <div className="mt-1 text-sm font-bold text-white/55">
-                Ensimmäiset perustelut täyttävät rankingin.
-              </div>
-            </div>
-          )}
+    <div
+      className={`flex justify-between rounded-xl px-4 py-3 ${
+        isCurrentUser ? "bg-cyan-500/20" : "bg-white/5"
+      }`}
+    >
+      <div>
+        #{rank} {player.user_name}
+        <div className="text-xs opacity-60">
+          {change === "up" && "↑ nousussa"}
+          {change === "down" && "↓ laskussa"}
+          {change === "same" && "vakaa"}
         </div>
       </div>
 
-      <AnimatePresence>
-        {aiHint && (
-          <motion.div
-            initial={{ y: 34, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 20, opacity: 0 }}
-            className="fixed bottom-28 left-1/2 z-[999] w-[90%] max-w-sm -translate-x-1/2"
+      <div className="text-cyan-200 font-bold">
+        {player.xp}
+      </div>
+    </div>
+  );
+}
+
+export default function LeaderboardScreen({ data = [], currentUserId = null }) {
+  const navigate = useNavigate();
+  const [period, setPeriod] = useState("day");
+
+  const ranked = useMemo(
+    () =>
+      data.map((p, i) => ({
+        ...p,
+        rank: i + 1,
+      })),
+    [data]
+  );
+
+  const top3 = ranked.slice(0, 3);
+  const rest = ranked.slice(3);
+  const currentUser = ranked.find((p) => p.user_id === currentUserId);
+
+  return (
+    <div className="min-h-screen bg-[#050816] text-white p-4 pb-28">
+      
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-black">🏆 Leaderboard</h1>
+
+        <button
+          onClick={() => navigate("/feed")}
+          className="bg-cyan-500/20 px-3 py-2 rounded-full"
+        >
+          Feed
+        </button>
+      </div>
+
+      {/* PERIOD */}
+      <div className="flex gap-2 mt-4">
+        {PERIODS.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setPeriod(p.id)}
+            className={`px-3 py-2 rounded-full ${
+              period === p.id ? "bg-cyan-500/40" : "bg-white/10"
+            }`}
           >
-            <div className="rounded-2xl border border-cyan-300/30 bg-[rgba(14,165,255,0.20)] px-4 py-3 shadow-xl shadow-cyan-500/10">
-              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/70">
-                AI analyysi
-              </div>
-              <div className="mt-1 text-sm font-bold text-white">
-                {aiHint.name}: {aiHint.text}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* TOP 3 */}
+      <div className="grid grid-cols-3 gap-3 mt-6">
+        <TopCard player={top3[1]} rank={2} />
+        <TopCard player={top3[0]} rank={1} />
+        <TopCard player={top3[2]} rank={3} />
+      </div>
+
+      {/* LIST */}
+      <div className="mt-6 space-y-2">
+        {rest.map((p) => (
+          <Row
+            key={p.id}
+            player={p}
+            rank={p.rank}
+            isCurrentUser={p.user_id === currentUserId}
+          />
+        ))}
+      </div>
+
+      {/* CURRENT USER */}
+      {currentUser && (
+        <div className="fixed bottom-4 left-4 right-4 bg-cyan-500/20 rounded-xl p-4">
+          #{currentUser.rank} · {currentUser.user_name} — {currentUser.xp} XP
+        </div>
+      )}
     </div>
   );
 }
