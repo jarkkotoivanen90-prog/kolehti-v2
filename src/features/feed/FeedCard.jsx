@@ -28,15 +28,17 @@ export default function FeedCard({
   const avatar = getAvatar(post);
   const likes = getVotes(post) + (liked ? 1 : 0);
   const ai = getScore(post);
-
   const textClass = getTextSize(post?.content);
   const isBoosted = Number(post?.boost_score || 0) > 0;
 
-  // ❤️ double tap state
+  // ❤️ double tap
   const [burst, setBurst] = useState(false);
   const lastTapRef = useRef(0);
 
-  function handleTap() {
+  function handleTap(e) {
+    // estetään buttonien klikkien kaappaaminen
+    if (e.target.closest("button")) return;
+
     const now = Date.now();
     if (now - lastTapRef.current < 280) {
       setBurst(true);
@@ -50,60 +52,57 @@ export default function FeedCard({
     <motion.section
       initial={{ scale: 0.96 }}
       animate={{ scale: active ? 1 : 0.96 }}
-      transition={{ duration: 0.3 }}
-      className={`relative h-[100dvh] snap-start overflow-hidden bg-black ${
-        isBoosted ? "ring-2 ring-cyan-400/40" : ""
-      }`}
+      transition={{ duration: 0.25 }}
+      className="relative h-[100dvh] snap-start overflow-hidden bg-black"
     >
-      {/* 🎥 MEDIA + TAP */}
+      {/* 🎥 MEDIA */}
       <div
         onClick={handleTap}
-        className="absolute inset-0 cursor-pointer"
+        className="absolute inset-0 z-0"
       >
         <FeedMedia post={post} active={active} />
       </div>
 
       {/* 🌑 GRADIENT */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent z-10" />
 
-      {/* ❤️ BURST ANIMAATIO */}
+      {/* ❤️ DOUBLE TAP BURST */}
       {burst && (
         <motion.div
           className="pointer-events-none absolute inset-0 flex items-center justify-center z-30"
-          initial={{ scale: 0, opacity: 0 }}
+          initial={{ scale: 0.4, opacity: 0 }}
           animate={{ scale: 1.6, opacity: 1 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.45 }}
         >
           <div className="text-6xl">❤️</div>
         </motion.div>
       )}
 
       {/* 📄 CONTENT */}
-      <div className="absolute inset-0 z-10 flex flex-col justify-end px-5 pb-56">
+      <div className="absolute bottom-44 left-5 right-24 z-20">
 
         {/* 🔥 BOOST BADGE */}
         {isBoosted && (
-          <div className="mb-2 text-[10px] font-black uppercase text-cyan-300">
+          <div className="mb-2 text-[11px] font-black uppercase tracking-wide text-cyan-300">
             🔥 Boostattu
           </div>
         )}
 
-        {/* AI SCORE */}
-        <div className="mb-2 text-[11px] font-black uppercase text-cyan-200">
+        {/* 🤖 AI SCORE */}
+        <div className="mb-2 text-[11px] font-black text-cyan-200">
           {ai}%
         </div>
 
         {/* 🧾 TEXT */}
-        <div className="relative max-h-[52vh] max-w-[80%] overflow-y-auto pr-2">
-
+        <div className="relative max-w-[85%] max-h-[46vh] overflow-hidden">
           <p
-            className={`${textClass} font-black text-white leading-tight drop-shadow-[0_6px_30px_rgba(0,0,0,0.95)]`}
+            className={`${textClass} font-black text-white leading-tight drop-shadow-[0_8px_40px_rgba(0,0,0,0.95)]`}
           >
             {post?.content}
           </p>
 
-          {/* fade */}
-          <div className="pointer-events-none absolute bottom-0 left-0 h-20 w-full bg-gradient-to-t from-black/60 to-transparent" />
+          {/* fade alaosaan */}
+          <div className="pointer-events-none absolute bottom-0 left-0 h-16 w-full bg-gradient-to-t from-black/70 to-transparent" />
         </div>
 
         {/* 👤 USER */}
@@ -111,30 +110,31 @@ export default function FeedCard({
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
             {avatar}
           </div>
-          {author}
+          <span className="font-semibold">{author}</span>
         </div>
+
       </div>
 
-      {/* 🎯 BUTTONS */}
-      <div className="absolute right-4 bottom-20 z-20 flex flex-col gap-4">
+      {/* 🎯 ACTION BUTTONS */}
+      <div className="absolute right-4 bottom-24 flex flex-col gap-4 z-30">
 
         <button
           onClick={onLike}
-          className="h-14 w-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/40 text-white text-xl active:scale-90 transition"
+          className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/30 text-white text-xl active:scale-90 transition"
         >
           ♥
         </button>
 
         <button
           onClick={onShare}
-          className="h-14 w-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/40 text-white text-xl active:scale-90 transition"
+          className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/30 text-white text-xl active:scale-90 transition"
         >
           ↗
         </button>
 
         <button
           onClick={onMoney}
-          className="h-14 w-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/40 text-white text-xl active:scale-90 transition"
+          className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 shadow-xl shadow-cyan-500/30 text-white text-xl active:scale-90 transition"
         >
           €
         </button>
@@ -143,7 +143,7 @@ export default function FeedCard({
 
       {/* 🎥 PROGRESS BAR */}
       {active && (
-        <div className="absolute top-0 left-0 h-[3px] w-full bg-white/20">
+        <div className="absolute top-0 left-0 h-[3px] w-full bg-white/20 z-30">
           <motion.div
             className="h-full bg-white"
             initial={{ width: "0%" }}
