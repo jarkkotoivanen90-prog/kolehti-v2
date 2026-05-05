@@ -1,28 +1,33 @@
-import { useEffect, useState, useMemo } from "react";
-import { getUserRanking } from "../lib/rankings";
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
 import LeaderboardScreen from "../features/leaderboard/LeaderboardScreen";
 
 export default function LeaderboardPage() {
   const [users, setUsers] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
     load();
   }, []);
 
   async function load() {
-    const data = await getUserRanking(50);
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id || null;
+    setCurrentUserId(userId);
 
-    // 🔥 normalisoidaan data LeaderboardScreenille
-    const normalized = (data || []).map((u, i) => ({
-      id: u.id,
-      user_id: u.id,
-      user_name: u.display_name || u.username || "User",
-      xp: u.xp || 0,
-      prev_rank: u.prev_rank || null,
-    }));
+    const { data } = await supabase
+      .from("leaderboard")
+      .select("*")
+      .order("xp", { ascending: false })
+      .limit(100);
 
-    setUsers(normalized);
+    setUsers(data || []);
   }
 
-  return <LeaderboardScreen data={users} />;
+  return (
+    <LeaderboardScreen
+      data={users}
+      currentUserId={currentUserId}
+    />
+  );
 }
