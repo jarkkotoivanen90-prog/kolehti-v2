@@ -8,44 +8,46 @@ export default function XPOverlay() {
   const [visible, setVisible] = useState(false);
 
   const lastEventTime = useRef(0);
-  const hideTimer = useRef(null);
+  const hideTimerRef = useRef(null);
 
-  // 🔥 tärkein: estää spammin
-  const lastHandledId = useRef(null);
+  // 🔥 estää saman eventin spammin
+  const cooldownRef = useRef(false);
 
   useEffect(() => {
-    return onXPEvent((e) => {
-      if (!e?.amount) return;
+    return onXPEvent((event) => {
+      if (!event?.amount) return;
 
-      // 🧠 estä duplicate eventit
-      const eventId = `${e.type}-${e.refId}-${e.amount}-${Date.now()}`;
+      // 🔥 anti flicker
+      if (cooldownRef.current) return;
 
-      if (lastHandledId.current === eventId) return;
-      lastHandledId.current = eventId;
+      cooldownRef.current = true;
 
+      setTimeout(() => {
+        cooldownRef.current = false;
+      }, 500);
+
+      const amount = Number(event.amount || 0);
       const now = Date.now();
 
-      // 🔥 jos eventtejä tulee liian nopeasti → ignore
-      if (now - lastEventTime.current < 120) return;
-
-      if (now - lastEventTime.current < 800) {
-        setCombo((c) => c + 1);
-        setXp((x) => x + e.amount);
+      if (now - lastEventTime.current < 850) {
+        setCombo((current) => current + 1);
+        setXp((current) => current + amount);
       } else {
         setCombo(1);
-        setXp(e.amount);
+        setXp(amount);
       }
 
       lastEventTime.current = now;
 
       setVisible(true);
 
-      clearTimeout(hideTimer.current);
-      hideTimer.current = setTimeout(() => {
+      clearTimeout(hideTimerRef.current);
+
+      hideTimerRef.current = setTimeout(() => {
         setVisible(false);
         setXp(0);
         setCombo(1);
-      }, 1200);
+      }, 1300);
     });
   }, []);
 
@@ -53,20 +55,25 @@ export default function XPOverlay() {
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ scale: 0.7, opacity: 0, y: 30 }}
-          animate={{ scale: 1.1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.85, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className="fixed bottom-28 left-1/2 z-[999] -translate-x-1/2"
+          initial={{ scale: 0.6, opacity: 0, y: 40 }}
+          animate={{ scale: 1.12, opacity: 1, y: 0 }}
+          exit={{ scale: 0.82, opacity: 0, y: -16 }}
+          transition={{ type: "spring", stiffness: 300, damping: 18 }}
+          className="fixed bottom-32 left-1/2 z-[999] -translate-x-1/2"
         >
-          <div className="rounded-full bg-black/70 px-5 py-3 text-white font-black text-lg shadow-xl backdrop-blur-md">
+          <motion.div
+            animate={{ scale: [1, 1.06, 1] }}
+            transition={{ duration: 0.25 }}
+            className="rounded-full border border-cyan-300/30 bg-gradient-to-r from-cyan-400 via-sky-500 to-blue-600 px-6 py-4 text-xl font-black text-white shadow-[0_0_35px_rgba(14,165,255,.55)] backdrop-blur-md"
+          >
             +{xp} XP
+
             {combo > 1 && (
-              <span className="ml-2 text-yellow-300">
+              <span className="ml-3 text-yellow-300">
                 🔥 x{combo}
               </span>
             )}
-          </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
