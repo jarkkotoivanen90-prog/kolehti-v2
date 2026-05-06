@@ -1,61 +1,51 @@
-import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { getMyTarget } from "../lib/rankTargets.js";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { onXPEvent } from "../lib/xpEvents";
+import { getMyTarget } from "../lib/targetSystem";
 
 export default function FeedTargetHint() {
   const [target, setTarget] = useState(null);
   const [visible, setVisible] = useState(false);
 
-  const lastDiffRef = useRef(null);
-  const hideTimerRef = useRef(null);
-
   useEffect(() => {
-    load();
+    let hideTimer = null;
 
-    const interval = setInterval(load, 6000);
+    const unsub = onXPEvent(async (event) => {
+      if (!event?.amount) return;
+
+      try {
+        const next = await getMyTarget();
+        if (!next) return;
+
+        setTarget(next);
+        setVisible(true);
+
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {
+          setVisible(false);
+        }, 2200);
+      } catch (err) {
+        console.warn("FeedTargetHint failed:", err);
+      }
+    });
 
     return () => {
-      clearInterval(interval);
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-      }
+      clearTimeout(hideTimer);
+      unsub?.();
     };
   }, []);
-
-  function load() {
-    try {
-      const next = getMyTarget();
-
-      if (!next) return;
-
-      lastDiffRef.current = next.diff;
-
-      setTarget(next);
-      setVisible(true);
-
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-      }
-
-      hideTimerRef.current = setTimeout(() => {
-        setVisible(false);
-      }, 2500);
-    } catch (e) {
-      console.error("FeedTargetHint error:", e);
-    }
-  }
 
   return (
     <AnimatePresence>
       {visible && target && (
         <motion.div
-          initial={{ y: 40, opacity: 0, scale: 0.9 }}
+          initial={{ y: -24, opacity: 0, scale: 0.94 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: -40, opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed bottom-24 left-1/2 z-[999] -translate-x-1/2 rounded-full border border-cyan-300/40 bg-[rgba(14,165,255,0.22)] px-5 py-3 text-sm font-black text-white shadow-xl backdrop-blur-md"
+          exit={{ y: -20, opacity: 0, scale: 0.96 }}
+          transition={{ type: "spring", stiffness: 260, damping: 22 }}
+          className="pointer-events-none fixed left-1/2 top-4 z-[998] -translate-x-1/2 rounded-full border border-cyan-300/30 bg-black/55 px-4 py-2 text-xs font-black text-white shadow-xl backdrop-blur-md"
         >
-          🎯 {target.targetName} · {target.diff} XP jäljellä
+          🎯 {target.title} · {Math.round(target.diff)} XP jäljellä
         </motion.div>
       )}
     </AnimatePresence>
